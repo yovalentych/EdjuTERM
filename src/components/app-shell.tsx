@@ -9,15 +9,19 @@ import {
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Dictionary, Locale } from "@/lib/i18n";
+import type { SafeUser } from "@/lib/schemas";
+import { logout } from "@/app/actions";
 
 export function AppShell({
   children,
   dictionary,
   locale,
+  user,
 }: {
   children: ReactNode;
   dictionary: Dictionary;
   locale: Locale;
+  user: SafeUser;
 }) {
   const navItems = [
     { label: dictionary.nav.dashboard, icon: LayoutDashboard },
@@ -49,7 +53,7 @@ export function AppShell({
             {navItems.map((item) => (
               <a
                 key={item.label}
-                href="#"
+                href={`/${locale}/app`}
                 className="flex items-center gap-3 px-3 py-2 text-sm text-stone-300 transition hover:bg-stone-800 hover:text-white"
               >
                 <item.icon className="h-4 w-4" />
@@ -79,6 +83,18 @@ export function AppShell({
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
+                <span className="border border-stone-200 bg-stone-50 px-2 py-1 text-stone-700">
+                  {user.name} · {dictionary.roles[user.role]}
+                </span>
+                <form action={logout}>
+                  <input type="hidden" name="locale" value={locale} />
+                  <button
+                    type="submit"
+                    className="border border-stone-300 bg-white px-2 py-1 text-stone-700 transition hover:border-rose-700 hover:text-rose-800"
+                  >
+                    {dictionary.auth.logout}
+                  </button>
+                </form>
                 <Link
                   href={`/${dictionary.alternateLocale}`}
                   hrefLang={dictionary.alternateLocale}

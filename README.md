@@ -31,10 +31,16 @@ MONGODB_DB=grant_project_manager
 ## Current routes
 
 - `/` - redirects to `/uk`
-- `/uk` - Ukrainian project dashboard and record creation form
-- `/en` - English project dashboard and record creation form
+- `/uk` - Ukrainian public project page
+- `/en` - English public project page
+- `/uk/login`, `/en/login` - localized login pages
+- `/uk/register`, `/en/register` - localized registration pages
+- `/uk/app`, `/en/app` - private project workspace for authenticated users
+- `/uk/projects/new`, `/en/projects/new` - private project creation page
 - `/api/records` - `GET` list records, `POST` create record
 - `/api/records/[id]` - `PATCH` update record, `DELETE` delete record
+
+Private pages and record APIs require a signed session cookie.
 
 ## Localization
 
@@ -45,6 +51,8 @@ UI text is stored in `src/lib/i18n.ts`. Keep Ukrainian and English strings in se
 Initial collection:
 
 - `project_records`
+- `users`
+- `projects`
 
 Planned collections:
 
@@ -52,7 +60,15 @@ Planned collections:
 - `samples` - biological sample inventory and storage metadata
 - `decisions` - scientific and operational decision log
 - `audit_events` - append-only history of changes
-- `users` - team accounts and roles
+
+## Roles
+
+- `admin` - developer role with full access. Registration grants this role only when the email is listed in `ADMIN_EMAILS`.
+- `supervisor` - project lead. A regular user becomes supervisor after creating an own project.
+- `member` - project member role for assigned project participants.
+- `user` - default role after registration.
+
+Email confirmation is intentionally not implemented yet; the schema already includes `emailVerifiedAt` for the later verification flow.
 
 Large raw experimental files should not be stored as normal MongoDB document fields. Use MongoDB GridFS or a file/object storage layer and keep checksums, provenance, access category, and storage URI in MongoDB.
 
