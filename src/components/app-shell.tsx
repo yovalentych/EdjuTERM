@@ -6,18 +6,28 @@ import {
   LayoutDashboard,
   UsersRound,
 } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
+import type { Dictionary, Locale } from "@/lib/i18n";
 
-const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard },
-  { label: "Datasets", icon: Database },
-  { label: "Protocols", icon: ClipboardList },
-  { label: "Experiments", icon: FlaskConical },
-  { label: "Outputs", icon: FileText },
-  { label: "Team", icon: UsersRound },
-];
+export function AppShell({
+  children,
+  dictionary,
+  locale,
+}: {
+  children: ReactNode;
+  dictionary: Dictionary;
+  locale: Locale;
+}) {
+  const navItems = [
+    { label: dictionary.nav.dashboard, icon: LayoutDashboard },
+    { label: dictionary.nav.datasets, icon: Database },
+    { label: dictionary.nav.protocols, icon: ClipboardList },
+    { label: dictionary.nav.experiments, icon: FlaskConical },
+    { label: dictionary.nav.outputs, icon: FileText },
+    { label: dictionary.nav.team, icon: UsersRound },
+  ];
 
-export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-[#f3f4ef] text-stone-950">
       <div className="grid min-h-screen lg:grid-cols-[260px_1fr]">
@@ -27,8 +37,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               <FlaskConical className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm text-stone-300">Grant manager</p>
-              <p className="font-semibold">OpenLab 2027</p>
+              <p className="text-sm text-stone-300">
+                {dictionary.shell.appName}
+              </p>
+              <p className="font-semibold">
+                {dictionary.shell.projectShortName}
+              </p>
             </div>
           </div>
           <nav className="mt-8 space-y-1">
@@ -45,10 +59,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
           <div className="mt-8 border border-stone-800 bg-stone-900 p-4">
             <p className="text-sm font-medium text-stone-200">
-              Database target
+              {dictionary.shell.databaseTarget}
             </p>
             <p className="mt-2 font-mono text-xs leading-5 text-stone-400">
-              MongoDB: records, raw_data_files, samples, decisions, audit_events
+              {dictionary.shell.databaseCollections}
             </p>
           </div>
         </aside>
@@ -58,13 +72,23 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-sm text-stone-500">
-                  Project operations and open science evidence
+                  {dictionary.shell.eyebrow}
                 </p>
                 <p className="font-semibold text-stone-950">
-                  Інформаційний проєкт грантової команди
+                  {dictionary.shell.title}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs font-medium">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
+                <Link
+                  href={`/${dictionary.alternateLocale}`}
+                  hrefLang={dictionary.alternateLocale}
+                  className="border border-stone-300 bg-white px-2 py-1 text-stone-700 transition hover:border-emerald-700 hover:text-emerald-800"
+                >
+                  {dictionary.shell.languageSwitch}
+                </Link>
+                <span className="border border-stone-200 bg-stone-50 px-2 py-1 text-stone-600">
+                  {locale.toUpperCase()}
+                </span>
                 <span className="border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-800">
                   FAIR
                 </span>

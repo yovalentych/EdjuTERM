@@ -1,24 +1,36 @@
 import { createRecord } from "@/app/actions";
+import { localizeStageLabel, type Dictionary, type Locale } from "@/lib/i18n";
 
 const fieldClass =
   "w-full border border-stone-300 bg-white px-3 py-2 text-sm text-stone-950 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100";
 
-export function RecordForm() {
+export function RecordForm({
+  dictionary,
+  locale,
+}: {
+  dictionary: Dictionary;
+  locale: Locale;
+}) {
   return (
     <form action={createRecord} className="mt-5 grid gap-3 md:grid-cols-2">
+      <input type="hidden" name="locale" value={locale} />
       <label className="space-y-1">
-        <span className="text-sm font-medium text-stone-700">Kind</span>
+        <span className="text-sm font-medium text-stone-700">
+          {dictionary.form.kind}
+        </span>
         <select name="kind" className={fieldClass} defaultValue="dataset">
-          <option value="dataset">Dataset</option>
-          <option value="protocol">Protocol</option>
-          <option value="task">Team task</option>
-          <option value="output">Output</option>
-          <option value="sample">Sample set</option>
-          <option value="risk">Risk</option>
+          <option value="dataset">{dictionary.kinds.dataset}</option>
+          <option value="protocol">{dictionary.kinds.protocol}</option>
+          <option value="task">{dictionary.kinds.task}</option>
+          <option value="output">{dictionary.kinds.output}</option>
+          <option value="sample">{dictionary.kinds.sample}</option>
+          <option value="risk">{dictionary.kinds.risk}</option>
         </select>
       </label>
       <label className="space-y-1">
-        <span className="text-sm font-medium text-stone-700">Local ID</span>
+        <span className="text-sm font-medium text-stone-700">
+          {dictionary.form.localId}
+        </span>
         <input
           name="localId"
           className={fieldClass}
@@ -27,52 +39,78 @@ export function RecordForm() {
         />
       </label>
       <label className="space-y-1 md:col-span-2">
-        <span className="text-sm font-medium text-stone-700">Title</span>
+        <span className="text-sm font-medium text-stone-700">
+          {dictionary.form.title}
+        </span>
         <input
           name="title"
           className={fieldClass}
-          placeholder="qPCR RAGE expression dataset"
+          placeholder={dictionary.form.titlePlaceholder}
           required
         />
       </label>
       <label className="space-y-1">
-        <span className="text-sm font-medium text-stone-700">Stage</span>
+        <span className="text-sm font-medium text-stone-700">
+          {dictionary.form.stage}
+        </span>
         <select name="stage" className={fieldClass} defaultValue="Stage 1">
-          <option>Stage 1</option>
-          <option>Stage 2</option>
-          <option>Stage 3</option>
+          <option value="Stage 1">
+            {localizeStageLabel("Stage 1", dictionary)}
+          </option>
+          <option value="Stage 2">
+            {localizeStageLabel("Stage 2", dictionary)}
+          </option>
+          <option value="Stage 3">
+            {localizeStageLabel("Stage 3", dictionary)}
+          </option>
         </select>
       </label>
       <label className="space-y-1">
-        <span className="text-sm font-medium text-stone-700">Access</span>
+        <span className="text-sm font-medium text-stone-700">
+          {dictionary.form.access}
+        </span>
         <select name="access" className={fieldClass} defaultValue="internal">
-          <option value="internal">Internal</option>
-          <option value="open">Open</option>
-          <option value="embargoed">Embargoed</option>
-          <option value="restricted">Restricted</option>
+          <option value="internal">{dictionary.access.internal}</option>
+          <option value="open">{dictionary.access.open}</option>
+          <option value="embargoed">{dictionary.access.embargoed}</option>
+          <option value="restricted">{dictionary.access.restricted}</option>
         </select>
       </label>
       <label className="space-y-1">
-        <span className="text-sm font-medium text-stone-700">Owner</span>
-        <input name="owner" className={fieldClass} placeholder="Data steward" />
+        <span className="text-sm font-medium text-stone-700">
+          {dictionary.form.owner}
+        </span>
+        <input
+          name="owner"
+          className={fieldClass}
+          placeholder={dictionary.form.ownerPlaceholder}
+        />
       </label>
       <label className="space-y-1">
-        <span className="text-sm font-medium text-stone-700">Repository</span>
-        <input name="repository" className={fieldClass} placeholder="Zenodo" />
+        <span className="text-sm font-medium text-stone-700">
+          {dictionary.form.repository}
+        </span>
+        <input
+          name="repository"
+          className={fieldClass}
+          placeholder={dictionary.form.repositoryPlaceholder}
+        />
       </label>
       <label className="space-y-1 md:col-span-2">
-        <span className="text-sm font-medium text-stone-700">Summary</span>
+        <span className="text-sm font-medium text-stone-700">
+          {dictionary.form.summary}
+        </span>
         <textarea
           name="summary"
           className={`${fieldClass} min-h-24 resize-y`}
-          placeholder="Metadata, raw data location, protocol relation, quality-control status."
+          placeholder={dictionary.form.summaryPlaceholder}
         />
       </label>
       <button
         type="submit"
         className="md:col-span-2 bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
       >
-        Add record
+        {dictionary.form.submit}
       </button>
     </form>
   );

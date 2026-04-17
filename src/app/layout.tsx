@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { isLocale } from "@/lib/i18n";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -6,13 +8,17 @@ export const metadata: Metadata = {
   description: "Project management and open science workspace for a research grant",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const requestHeaders = await headers();
+  const locale = requestHeaders.get("x-app-locale");
+  const lang = locale && isLocale(locale) ? locale : "uk";
+
   return (
-    <html lang="uk" className="h-full antialiased">
+    <html lang={lang} className="h-full antialiased">
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

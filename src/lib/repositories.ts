@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
+import { type Locale, getDictionary, localizeRecord } from "@/lib/i18n";
 import { getMongoDb, hasMongoConfig } from "@/lib/mongodb";
-import { seedRecords, stages } from "@/lib/project-data";
+import { seedRecords } from "@/lib/project-data";
 import {
   type ProjectRecord,
   type ProjectRecordInput,
@@ -10,42 +11,44 @@ import {
 const collectionName = "project_records";
 const localRecords = [...seedRecords];
 
-export async function getDashboardData() {
+export async function getDashboardData(locale: Locale) {
+  const dictionary = getDictionary(locale);
   const records = await listProjectRecords();
   const openOrPrepared = records.filter((record) =>
     ["open", "embargoed"].includes(record.access),
   ).length;
+  const localizedRecords = records.map((record) => localizeRecord(record, locale));
 
   return {
-    records,
-    stages,
+    records: localizedRecords,
+    stages: dictionary.stages,
     metrics: [
       {
-        label: "Project records",
+        label: dictionary.metrics.records,
         value: records.length,
-        detail: "datasets, protocols, tasks, outputs",
+        detail: dictionary.metrics.recordsDetail,
       },
       {
-        label: "Datasets",
+        label: dictionary.metrics.datasets,
         value: records.filter((record) => record.kind === "dataset").length,
-        detail: "raw and processed data objects",
+        detail: dictionary.metrics.datasetsDetail,
       },
       {
-        label: "Protocols",
+        label: dictionary.metrics.protocols,
         value: records.filter((record) => record.kind === "protocol").length,
-        detail: "protocols.io-ready records",
+        detail: dictionary.metrics.protocolsDetail,
       },
       {
-        label: "Open-ready",
+        label: dictionary.metrics.openReady,
         value: openOrPrepared,
-        detail: "open or embargoed records",
+        detail: dictionary.metrics.openReadyDetail,
       },
     ],
     readiness: [
-      { label: "Data management plan", value: 45 },
-      { label: "Protocol registry", value: 35 },
-      { label: "Dataset metadata", value: 30 },
-      { label: "Repository release path", value: 40 },
+      { label: dictionary.readiness.items.dmp, value: 45 },
+      { label: dictionary.readiness.items.protocols, value: 35 },
+      { label: dictionary.readiness.items.metadata, value: 30 },
+      { label: dictionary.readiness.items.repository, value: 40 },
     ],
   };
 }

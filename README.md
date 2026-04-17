@@ -30,9 +30,15 @@ MONGODB_DB=grant_project_manager
 
 ## Current routes
 
-- `/` - project dashboard and record creation form
+- `/` - redirects to `/uk`
+- `/uk` - Ukrainian project dashboard and record creation form
+- `/en` - English project dashboard and record creation form
 - `/api/records` - `GET` list records, `POST` create record
 - `/api/records/[id]` - `PATCH` update record, `DELETE` delete record
+
+## Localization
+
+UI text is stored in `src/lib/i18n.ts`. Keep Ukrainian and English strings in separate dictionary branches and pass the active dictionary into components. Do not hard-code UI labels directly in components unless the value is a scientific acronym, repository name, or stable technical identifier.
 
 ## MongoDB collections
 
@@ -66,4 +72,3 @@ git status
 git add .
 git commit -m "Initial grant project manager app"
 ```
-

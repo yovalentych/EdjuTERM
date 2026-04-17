@@ -100,27 +100,3 @@ export const seedRecords: ProjectRecord[] = [
     updatedAt: now,
   },
 ];
-
-export const stages = [
-  {
-    year: "2027",
-    title: "Model, cell systems, candidate search",
-    focus:
-      "Animal model setup, cell line characterization, glycated albumin exposure, RAGE and candidate non-coding RNA screening.",
-    status: "active",
-  },
-  {
-    year: "2028",
-    title: "Mechanisms and validation",
-    focus:
-      "Myeloid suppressor-like phenotypes, inflammatory functions, expression validation, and analysis-ready datasets.",
-    status: "planned",
-  },
-  {
-    year: "2029",
-    title: "Intervention and release",
-    focus:
-      "In vivo modulation, final analysis, publications, public dataset/code releases, and final reporting.",
-    status: "planned",
-  },
-];
