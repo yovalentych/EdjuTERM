@@ -18,6 +18,41 @@ export const accessCategories = [
 
 export const userRoles = ["admin", "supervisor", "member", "user"] as const;
 
+export const projectTypes = [
+  "fundamental",
+  "applied",
+  "infrastructure",
+  "training",
+] as const;
+
+export const researchFields = [
+  "physiology",
+  "neuroscience",
+  "molecular_biology",
+  "bioinformatics",
+  "biomedicine",
+] as const;
+
+export const projectVisibilityOptions = [
+  "private",
+  "team",
+  "public_profile",
+] as const;
+
+export const dataPolicyOptions = [
+  "internal",
+  "open_by_default",
+  "embargo_then_open",
+  "restricted_sensitive",
+] as const;
+
+export const repositoryPlanOptions = [
+  "github_zenodo",
+  "osf",
+  "institutional",
+  "undecided",
+] as const;
+
 export const projectRecordInputSchema = z.object({
   projectId: z.string().min(1).max(120),
   kind: z.enum(recordKinds),
@@ -88,6 +123,23 @@ export const projectInputSchema = z.object({
   title: z.string().min(3).max(200),
   acronym: z.string().min(2).max(32),
   summary: z.string().max(1200).default(""),
+  projectType: z.enum(projectTypes).default("fundamental"),
+  researchField: z.enum(researchFields).default("physiology"),
+  grantProgram: z.string().min(2).max(160).default(""),
+  startDate: z.string().max(32).default(""),
+  endDate: z.string().max(32).default(""),
+  defaultLocale: z.enum(["uk", "en"]).default("uk"),
+  visibility: z.enum(projectVisibilityOptions).default("private"),
+  dataPolicy: z.enum(dataPolicyOptions).default("embargo_then_open"),
+  repositoryPlan: z.enum(repositoryPlanOptions).default("github_zenodo"),
+  ethicsReview: z.enum(["not_required", "planned", "approved"]).default("planned"),
+  hasHumanData: z.coerce.boolean().default(false),
+  hasAnimalData: z.coerce.boolean().default(false),
+  hasPersonalData: z.coerce.boolean().default(false),
+  openScienceEnabled: z.coerce.boolean().default(true),
+  teamChatEnabled: z.coerce.boolean().default(true),
+  taskManagementEnabled: z.coerce.boolean().default(true),
+  rawDataRegistryEnabled: z.coerce.boolean().default(true),
 });
 
 export const projectSchema = projectInputSchema.extend({

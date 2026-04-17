@@ -75,6 +75,10 @@ Planned collections:
 
 Email confirmation is intentionally not implemented yet; the schema already includes `emailVerifiedAt` for the later verification flow.
 
+## Project creation
+
+New projects are created with a structured setup form rather than only a title. The initial profile stores project type, research field, grant programme, timeline, primary language, visibility, data policy, repository plan, ethics status, sensitive-data flags, and enabled workspace modules.
+
 ## Project-scoped records
 
 Every private project record requires `projectId`. The workspace lists and creates records only inside projects that the current user can access. Legacy records without `projectId` are intentionally excluded from project dashboards until migrated or assigned to a project.

@@ -47,6 +47,17 @@ export function ProjectList({
               <p className="mt-2 text-sm leading-6 text-stone-600">
                 {project.summary}
               </p>
+              <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                <span className="border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-900">
+                  {dictionary.projects.typeOptions[project.projectType]}
+                </span>
+                <span className="border border-stone-200 bg-stone-50 px-2 py-1 text-stone-700">
+                  {dictionary.projects.fieldOptions[project.researchField]}
+                </span>
+                <span className="border border-cyan-200 bg-cyan-50 px-2 py-1 text-cyan-900">
+                  {dictionary.projects.dataPolicyOptions[project.dataPolicy]}
+                </span>
+              </div>
             </article>
           ))
         )}

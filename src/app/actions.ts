@@ -201,6 +201,23 @@ export async function createProject(formData: FormData) {
     title: formData.get("title"),
     acronym: formData.get("acronym"),
     summary: formData.get("summary") || "",
+    projectType: formData.get("projectType"),
+    researchField: formData.get("researchField"),
+    grantProgram: formData.get("grantProgram"),
+    startDate: formData.get("startDate") || "",
+    endDate: formData.get("endDate") || "",
+    defaultLocale: formData.get("defaultLocale"),
+    visibility: formData.get("visibility"),
+    dataPolicy: formData.get("dataPolicy"),
+    repositoryPlan: formData.get("repositoryPlan"),
+    ethicsReview: formData.get("ethicsReview"),
+    hasHumanData: formData.has("hasHumanData"),
+    hasAnimalData: formData.has("hasAnimalData"),
+    hasPersonalData: formData.has("hasPersonalData"),
+    openScienceEnabled: formData.has("openScienceEnabled"),
+    teamChatEnabled: formData.has("teamChatEnabled"),
+    taskManagementEnabled: formData.has("taskManagementEnabled"),
+    rawDataRegistryEnabled: formData.has("rawDataRegistryEnabled"),
   });
 
   if (!payload.success) {
