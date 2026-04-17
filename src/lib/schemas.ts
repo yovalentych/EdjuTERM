@@ -110,6 +110,10 @@ export const userSchema = z.object({
   firstNameLatin: z.string().min(1).max(80),
   lastNameLatin: z.string().min(1).max(80),
   email: z.string().email(),
+  orcid: z.string().max(32).default(""),
+  position: z.string().max(120).default(""),
+  affiliation: z.string().max(200).default(""),
+  profileBio: z.string().max(1200).default(""),
   passwordHash: z.string(),
   role: z.enum(userRoles).default("user"),
   emailVerifiedAt: z.coerce.date().nullable().default(null),
@@ -147,9 +151,21 @@ export const projectSchema = projectInputSchema.extend({
   ownerId: z.string(),
   supervisorId: z.string(),
   memberIds: z.array(z.string()).default([]),
+  joinCode: z.string().max(32).default(""),
   status: z.enum(["active", "archived"]).default("active"),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
+});
+
+export const profileInputSchema = z.object({
+  firstName: z.string().min(1).max(80),
+  lastName: z.string().min(1).max(80),
+  firstNameLatin: z.string().min(1).max(80),
+  lastNameLatin: z.string().min(1).max(80),
+  orcid: z.string().max(32).default(""),
+  position: z.string().max(120).default(""),
+  affiliation: z.string().max(200).default(""),
+  profileBio: z.string().max(1200).default(""),
 });
 
 export const openScienceUpdateInputSchema = z.object({
@@ -179,11 +195,53 @@ export const teamMessageSchema = teamMessageInputSchema.extend({
   createdAt: z.coerce.date(),
 });
 
+export const projectInvitationInputSchema = z.object({
+  projectId: z.string().min(1).max(120),
+  email: z.string().email().max(240).transform((email) => email.toLowerCase()),
+});
+
+export const projectInvitationSchema = projectInvitationInputSchema.extend({
+  _id: z.string().optional(),
+  code: z.string().min(6).max(32),
+  status: z.enum(["pending", "accepted", "revoked", "expired"]).default("pending"),
+  createdBy: z.string(),
+  acceptedBy: z.string().optional(),
+  expiresAt: z.coerce.date(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
+export const auditActions = [
+  "project.created",
+  "project.settings.updated",
+  "project.member.added",
+  "project.member.removed",
+  "project.supervisor.changed",
+  "project.invitation.created",
+  "project.join_code.generated",
+  "project.joined_by_code",
+  "user.profile.updated",
+  "admin.viewed",
+] as const;
+
+export const auditEventSchema = z.object({
+  _id: z.string().optional(),
+  action: z.enum(auditActions),
+  actorId: z.string(),
+  actorEmail: z.string().email().optional(),
+  projectId: z.string().optional(),
+  targetUserId: z.string().optional(),
+  targetEmail: z.string().email().optional(),
+  metadata: z.record(z.string(), z.string()).default({}),
+  createdAt: z.coerce.date(),
+});
+
 export type UserRole = z.infer<typeof userSchema>["role"];
 export type User = z.infer<typeof userSchema>;
 export type SafeUser = z.infer<typeof safeUserSchema>;
 export type RegisterInput = z.infer<typeof registerInputSchema>;
 export type LoginInput = z.infer<typeof loginInputSchema>;
+export type ProfileInput = z.infer<typeof profileInputSchema>;
 export type ProjectInput = z.infer<typeof projectInputSchema>;
 export type Project = z.infer<typeof projectSchema>;
 export type OpenScienceUpdateInput = z.infer<
@@ -192,3 +250,7 @@ export type OpenScienceUpdateInput = z.infer<
 export type OpenScienceUpdate = z.infer<typeof openScienceUpdateSchema>;
 export type TeamMessageInput = z.infer<typeof teamMessageInputSchema>;
 export type TeamMessage = z.infer<typeof teamMessageSchema>;
+export type ProjectInvitationInput = z.infer<typeof projectInvitationInputSchema>;
+export type ProjectInvitation = z.infer<typeof projectInvitationSchema>;
+export type AuditEvent = z.infer<typeof auditEventSchema>;
+export type AuditAction = z.infer<typeof auditEventSchema>["action"];

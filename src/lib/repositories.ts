@@ -75,6 +75,27 @@ export async function listProjectRecords(
   }
 }
 
+export async function listAllProjectRecords(limit = 200) {
+  if (!hasMongoConfig()) {
+    return localRecords.slice(0, limit);
+  }
+
+  const db = await getMongoDb();
+  const docs = await db
+    .collection(collectionName)
+    .find({})
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .toArray();
+
+  return docs.map((doc) =>
+    projectRecordSchema.parse({
+      ...doc,
+      _id: doc._id.toString(),
+    }),
+  );
+}
+
 export async function insertProjectRecord(input: ProjectRecordInput) {
   const now = new Date();
   const record = {

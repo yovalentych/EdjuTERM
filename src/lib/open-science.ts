@@ -82,6 +82,24 @@ export async function listPublishedOpenScienceUpdates() {
   );
 }
 
+export async function listAllOpenScienceUpdates(limit = 200) {
+  if (!hasMongoConfig()) {
+    return localUpdates.slice(0, limit);
+  }
+
+  const db = await getMongoDb();
+  const docs = await db
+    .collection(collectionName)
+    .find({})
+    .sort({ updatedAt: -1 })
+    .limit(limit)
+    .toArray();
+
+  return docs.map((doc) =>
+    openScienceUpdateSchema.parse({ ...doc, _id: doc._id.toString() }),
+  );
+}
+
 async function ensureOpenScienceIndexes() {
   const db = await getMongoDb();
   await db.collection(collectionName).createIndexes([

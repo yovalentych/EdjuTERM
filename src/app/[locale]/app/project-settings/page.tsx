@@ -2,8 +2,10 @@ import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { ProjectMembersManager } from "@/components/projects/project-members-manager";
 import { ProjectSettingsForm } from "@/components/projects/project-settings-form";
+import { listAuditEvents } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/current-user";
 import { getDictionary, isLocale } from "@/lib/i18n";
+import { listProjectInvitations } from "@/lib/invitations";
 import { canManageProject, getProjectForUser } from "@/lib/projects";
 import { listSafeUsersByIds } from "@/lib/users";
 
@@ -43,10 +45,14 @@ export default async function ProjectSettingsPage({
   }
 
   const dictionary = getDictionary(localeParam);
-  const members = await listSafeUsersByIds([
-    project.ownerId,
-    project.supervisorId,
-    ...project.memberIds,
+  const [members, invitations, auditEvents] = await Promise.all([
+    listSafeUsersByIds([
+      project.ownerId,
+      project.supervisorId,
+      ...project.memberIds,
+    ]),
+    listProjectInvitations(project._id ?? ""),
+    listAuditEvents({ projectId: project._id, limit: 50 }),
   ]);
 
   return (
@@ -79,10 +85,38 @@ export default async function ProjectSettingsPage({
       />
       <ProjectMembersManager
         dictionary={dictionary}
+        invitations={invitations}
         locale={localeParam}
         members={members}
         project={project}
       />
+      <section className="border border-stone-200 bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-semibold text-stone-950">
+          {dictionary.audit.title}
+        </h2>
+        <div className="mt-4 space-y-2">
+          {auditEvents.length === 0 ? (
+            <p className="border border-dashed border-stone-300 p-3 text-sm text-stone-500">
+              {dictionary.audit.noEvents}
+            </p>
+          ) : (
+            auditEvents.map((event) => (
+              <article
+                key={event._id ?? `${event.action}-${event.createdAt.toISOString()}`}
+                className="grid gap-2 border border-stone-200 p-3 text-sm md:grid-cols-[1fr_1fr_auto]"
+              >
+                <p className="font-medium text-stone-950">{event.action}</p>
+                <p className="text-stone-600">
+                  {event.actorEmail ?? event.actorId}
+                </p>
+                <time className="text-stone-500">
+                  {event.createdAt.toLocaleString(localeParam)}
+                </time>
+              </article>
+            ))
+          )}
+        </div>
+      </section>
     </AppShell>
   );
 }

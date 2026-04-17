@@ -6,6 +6,7 @@ import {
   type SafeUser,
   type User,
   type UserRole,
+  type ProfileInput,
   safeUserSchema,
   userSchema,
 } from "@/lib/schemas";
@@ -33,6 +34,10 @@ function normalizeUserDocument(doc: WithId<Document>) {
     lastName: doc.lastName ?? (fallbackLastName || "-"),
     firstNameLatin: doc.firstNameLatin ?? fallbackFirstName,
     lastNameLatin: doc.lastNameLatin ?? (fallbackLastName || "-"),
+    orcid: doc.orcid ?? "",
+    position: doc.position ?? "",
+    affiliation: doc.affiliation ?? "",
+    profileBio: doc.profileBio ?? "",
   });
 }
 
@@ -41,7 +46,11 @@ async function migrateLegacyUserDocument(doc: WithId<Document>, user: User) {
     doc.firstName &&
     doc.lastName &&
     doc.firstNameLatin &&
-    doc.lastNameLatin
+    doc.lastNameLatin &&
+    "orcid" in doc &&
+    "position" in doc &&
+    "affiliation" in doc &&
+    "profileBio" in doc
   ) {
     return;
   }
@@ -55,6 +64,10 @@ async function migrateLegacyUserDocument(doc: WithId<Document>, user: User) {
         lastName: user.lastName,
         firstNameLatin: user.firstNameLatin,
         lastNameLatin: user.lastNameLatin,
+        orcid: user.orcid,
+        position: user.position,
+        affiliation: user.affiliation,
+        profileBio: user.profileBio,
         updatedAt: new Date(),
       },
     },
@@ -83,6 +96,10 @@ export async function createUser(input: RegisterInput) {
     lastName: input.lastName,
     firstNameLatin: input.firstNameLatin,
     lastNameLatin: input.lastNameLatin,
+    orcid: "",
+    position: "",
+    affiliation: "",
+    profileBio: "",
     email: input.email,
     passwordHash: await hashPassword(input.password),
     role: roleForEmail(input.email),
@@ -182,6 +199,51 @@ export async function listSafeUsersByIds(ids: string[]) {
   );
 
   return users;
+}
+
+export async function listAllSafeUsers() {
+  if (!hasMongoConfig()) {
+    return localUsers.map(toSafeUser);
+  }
+
+  const db = await getMongoDb();
+  const docs = await db
+    .collection(collectionName)
+    .find({})
+    .sort({ createdAt: -1 })
+    .limit(500)
+    .toArray();
+  const users = await Promise.all(
+    docs.map(async (doc) => {
+      const user = normalizeUserDocument(doc);
+      await migrateLegacyUserDocument(doc, user);
+      return toSafeUser(user);
+    }),
+  );
+
+  return users;
+}
+
+export async function updateUserProfile(id: string, input: ProfileInput) {
+  if (!hasMongoConfig()) {
+    const user = localUsers.find((item) => item._id === id);
+
+    if (!user) {
+      return null;
+    }
+
+    Object.assign(user, input, { updatedAt: new Date() });
+    return toSafeUser(user);
+  }
+
+  const db = await getMongoDb();
+  const result = await db.collection(collectionName).findOneAndUpdate(
+    { _id: new ObjectId(id) },
+    { $set: { ...input, updatedAt: new Date() } },
+    { returnDocument: "after" },
+  );
+
+  return result ? toSafeUser(normalizeUserDocument(result)) : null;
 }
 
 export async function setUserRole(id: string, role: UserRole) {

@@ -1,6 +1,7 @@
 import {
   FlaskConical,
   LayoutDashboard,
+  ShieldCheck,
   Settings,
   UserRound,
 } from "lucide-react";
@@ -27,6 +28,9 @@ export async function AppShell({
     { label: dictionary.nav.dashboard, icon: LayoutDashboard, href: `/${locale}/app` },
     { label: dictionary.nav.profile, icon: UserRound, href: `/${locale}/app/profile` },
     { label: dictionary.nav.settings, icon: Settings, href: `/${locale}/app/settings` },
+    ...(user.role === "admin"
+      ? [{ label: dictionary.nav.admin, icon: ShieldCheck, href: `/${locale}/app/admin` }]
+      : []),
   ];
   const databaseStatus = await getMongoStatus();
 

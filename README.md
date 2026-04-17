@@ -38,6 +38,8 @@ MONGODB_DB=grant_project_manager
 - `/uk/app`, `/en/app` - private personal dashboard for authenticated users
 - `/uk/app/profile`, `/en/app/profile` - private user profile page
 - `/uk/app/settings`, `/en/app/settings` - private user settings page
+- `/uk/app/member?userId=...&projectId=...`, `/en/app/member?userId=...&projectId=...` - private team member profile page
+- `/uk/app/admin`, `/en/app/admin` - private admin cabinet for application oversight
 - `/uk/app/project?projectId=...`, `/en/app/project?projectId=...` - private project workspace opened from the dashboard
 - `/uk/app/team`, `/en/app/team` - legacy private team page with project members and shared chat
 - `/uk/projects/new`, `/en/projects/new` - private project creation page
@@ -59,20 +61,24 @@ UI text is stored in `src/lib/i18n.ts`. Keep Ukrainian and English strings in se
 
 ## MongoDB collections
 
-Initial collection:
+Initial collections:
 
 - `project_records`
 - `users`
 - `projects`
 - `open_science_updates`
 - `team_messages`
+- `project_invitations`
+- `audit_events`
 
 Planned collections:
 
 - `raw_data_files` - file metadata, checksums, storage URI, relation to dataset/sample/protocol
 - `samples` - biological sample inventory and storage metadata
 - `decisions` - scientific and operational decision log
-- `audit_events` - append-only history of changes
+The application currently writes audit events for project creation, settings
+changes, member changes, invitations, join-code usage, profile edits, and admin
+cabinet views.
 
 ## Roles
 
@@ -81,13 +87,20 @@ Planned collections:
 - `member` - project member role for assigned project participants.
 - `user` - default role after registration.
 
-Email confirmation is intentionally not implemented yet; the schema already includes `emailVerifiedAt` for the later verification flow.
+Email confirmation is intentionally not implemented yet; the schema already includes `emailVerifiedAt` for the later verification flow. Project invitations are stored with email, code, status, expiry, and creator so the later email-verification/email-delivery step can send real invitation links without changing the membership model.
 
 ## Project creation
 
 New projects are created with a structured setup form rather than only a title. The initial profile stores project type, research field, grant programme, timeline, primary language, visibility, data policy, repository plan, ethics status, sensitive-data flags, and enabled workspace modules. The title field proposes an editable acronym automatically.
 
-Project owners, supervisors, and admins can edit these settings later and manage members from the project settings page. Members are added by registered email; a project member can be promoted to supervisor or removed from the project. The owner cannot be removed.
+Project owners, supervisors, and admins can edit these settings later and manage members from the project settings page. Members are added by registered email, invited by email/code, or can self-join from the dashboard with the project join code. A project member can be promoted to supervisor or removed from the project. The owner cannot be removed.
+
+## Profiles and admin oversight
+
+User profiles now include ORCID, position, affiliation, and profile bio. Team
+member profile pages are visible to users who can access the relevant project.
+Admins get a separate cabinet with user, project, invitation, content, and audit
+log summaries.
 
 ## Project-scoped records
 

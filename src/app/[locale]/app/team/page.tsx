@@ -72,7 +72,11 @@ export default async function TeamPage({
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-        <TeamMemberList dictionary={dictionary} members={memberEntries} />
+        <TeamMemberList
+          dictionary={dictionary}
+          locale={localeParam}
+          members={memberEntries}
+        />
         <TeamMessageList
           dictionary={dictionary}
           locale={localeParam}

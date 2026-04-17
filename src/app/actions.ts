@@ -2,13 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { createAuditEvent } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/current-user";
 import { isLocale } from "@/lib/i18n";
+import { createProjectInvitation } from "@/lib/invitations";
 import { createOpenScienceUpdate } from "@/lib/open-science";
 import { verifyPassword } from "@/lib/passwords";
 import {
   addProjectMemberByEmail,
   createProjectForUser,
+  generateProjectJoinCode,
+  joinProjectByCode,
   listProjectsForUser,
   removeProjectMember,
   setProjectSupervisor,
@@ -18,14 +22,16 @@ import { insertProjectRecord } from "@/lib/repositories";
 import {
   loginInputSchema,
   openScienceUpdateInputSchema,
+  profileInputSchema,
   projectInputSchema,
+  projectInvitationInputSchema,
   projectRecordInputSchema,
   registerInputSchema,
   teamMessageInputSchema,
 } from "@/lib/schemas";
 import { createSession, destroySession } from "@/lib/session";
 import { createTeamMessage } from "@/lib/team";
-import { createUser, findUserByEmail } from "@/lib/users";
+import { createUser, findUserByEmail, updateUserProfile } from "@/lib/users";
 
 function formLocale(formData: FormData) {
   const localeValue = formData.get("locale");
@@ -231,7 +237,13 @@ export async function createProject(formData: FormData) {
     redirect(`/${locale}/projects/new?error=invalid`);
   }
 
-  await createProjectForUser(payload.data, user);
+  const project = await createProjectForUser(payload.data, user);
+  await createAuditEvent({
+    action: "project.created",
+    actor: user,
+    projectId: project._id,
+    metadata: { acronym: project.acronym },
+  });
   revalidatePath(`/${locale}/app`);
   redirect(`/${locale}/app`);
 }
@@ -282,6 +294,12 @@ export async function updateProjectSettings(formData: FormData) {
 
   try {
     await updateProjectForUser(projectId, payload.data, user);
+    await createAuditEvent({
+      action: "project.settings.updated",
+      actor: user,
+      projectId,
+      metadata: { title: payload.data.title, acronym: payload.data.acronym },
+    });
   } catch {
     redirect(`/${locale}/app/project-settings?projectId=${projectId}&error=forbidden`);
   }
@@ -306,7 +324,14 @@ export async function addProjectMember(formData: FormData) {
   }
 
   try {
-    await addProjectMemberByEmail(projectId, email, user);
+    const member = await addProjectMemberByEmail(projectId, email, user);
+    await createAuditEvent({
+      action: "project.member.added",
+      actor: user,
+      projectId,
+      targetUserId: member._id,
+      targetEmail: member.email,
+    });
   } catch (error) {
     const reason =
       error instanceof Error && error.message === "USER_NOT_FOUND"
@@ -336,6 +361,12 @@ export async function promoteProjectSupervisor(formData: FormData) {
 
   try {
     await setProjectSupervisor(projectId, supervisorId, user);
+    await createAuditEvent({
+      action: "project.supervisor.changed",
+      actor: user,
+      projectId,
+      targetUserId: supervisorId,
+    });
   } catch {
     redirect(`/${locale}/app/project-settings?projectId=${projectId}&error=forbidden`);
   }
@@ -361,6 +392,12 @@ export async function deleteProjectMember(formData: FormData) {
 
   try {
     await removeProjectMember(projectId, memberId, user);
+    await createAuditEvent({
+      action: "project.member.removed",
+      actor: user,
+      projectId,
+      targetUserId: memberId,
+    });
   } catch {
     redirect(`/${locale}/app/project-settings?projectId=${projectId}&error=forbidden`);
   }
@@ -368,4 +405,130 @@ export async function deleteProjectMember(formData: FormData) {
   revalidatePath(`/${locale}/app/team`);
   revalidatePath(`/${locale}/app/project-settings`);
   redirect(`/${locale}/app/project-settings?projectId=${projectId}&saved=member`);
+}
+
+export async function updateProfile(formData: FormData) {
+  const locale = formLocale(formData);
+  const user = await getCurrentUser();
+
+  if (!user?._id) {
+    redirect(`/${locale}/login`);
+  }
+
+  const payload = profileInputSchema.safeParse({
+    firstName: formData.get("firstName"),
+    lastName: formData.get("lastName"),
+    firstNameLatin: formData.get("firstNameLatin"),
+    lastNameLatin: formData.get("lastNameLatin"),
+    orcid: formData.get("orcid") || "",
+    position: formData.get("position") || "",
+    affiliation: formData.get("affiliation") || "",
+    profileBio: formData.get("profileBio") || "",
+  });
+
+  if (!payload.success) {
+    redirect(`/${locale}/app/profile?error=invalid`);
+  }
+
+  await updateUserProfile(user._id, payload.data);
+  await createAuditEvent({
+    action: "user.profile.updated",
+    actor: user,
+    targetUserId: user._id,
+  });
+  revalidatePath(`/${locale}/app/profile`);
+  revalidatePath(`/${locale}/app`);
+  redirect(`/${locale}/app/profile?saved=1`);
+}
+
+export async function createProjectInvite(formData: FormData) {
+  const locale = formLocale(formData);
+  const user = await getCurrentUser();
+  const projectId = formData.get("projectId");
+  const payload = projectInvitationInputSchema.safeParse({
+    projectId,
+    email: formData.get("email"),
+  });
+
+  if (!user) {
+    redirect(`/${locale}/login`);
+  }
+
+  if (!payload.success || typeof projectId !== "string") {
+    redirect(`/${locale}/app/project-settings?projectId=${projectId}&error=invalid`);
+  }
+
+  try {
+    const invitation = await createProjectInvitation(payload.data, user);
+    await createAuditEvent({
+      action: "project.invitation.created",
+      actor: user,
+      projectId,
+      targetEmail: payload.data.email,
+      metadata: { code: invitation.code },
+    });
+  } catch {
+    redirect(`/${locale}/app/project-settings?projectId=${projectId}&error=forbidden`);
+  }
+
+  revalidatePath(`/${locale}/app/project-settings`);
+  redirect(`/${locale}/app/project-settings?projectId=${projectId}&saved=invite`);
+}
+
+export async function resetProjectJoinCode(formData: FormData) {
+  const locale = formLocale(formData);
+  const user = await getCurrentUser();
+  const projectId = formData.get("projectId");
+
+  if (!user) {
+    redirect(`/${locale}/login`);
+  }
+
+  if (typeof projectId !== "string") {
+    redirect(`/${locale}/app`);
+  }
+
+  try {
+    const joinCode = await generateProjectJoinCode(projectId, user);
+    await createAuditEvent({
+      action: "project.join_code.generated",
+      actor: user,
+      projectId,
+      metadata: { joinCode },
+    });
+  } catch {
+    redirect(`/${locale}/app/project-settings?projectId=${projectId}&error=forbidden`);
+  }
+
+  revalidatePath(`/${locale}/app/project-settings`);
+  redirect(`/${locale}/app/project-settings?projectId=${projectId}&saved=code`);
+}
+
+export async function joinProjectWithCode(formData: FormData) {
+  const locale = formLocale(formData);
+  const user = await getCurrentUser();
+  const code = formData.get("joinCode");
+
+  if (!user) {
+    redirect(`/${locale}/login`);
+  }
+
+  if (typeof code !== "string" || code.trim().length < 6) {
+    redirect(`/${locale}/app?error=join-code`);
+  }
+
+  try {
+    const project = await joinProjectByCode(code, user);
+    await createAuditEvent({
+      action: "project.joined_by_code",
+      actor: user,
+      projectId: project._id,
+      targetUserId: user._id,
+    });
+  } catch {
+    redirect(`/${locale}/app?error=join-code`);
+  }
+
+  revalidatePath(`/${locale}/app`);
+  redirect(`/${locale}/app?saved=joined`);
 }

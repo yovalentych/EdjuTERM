@@ -206,7 +206,11 @@ export default async function ProjectWorkspacePage({
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-        <TeamMemberList dictionary={dictionary} members={memberEntries} />
+        <TeamMemberList
+          dictionary={dictionary}
+          locale={localeParam}
+          members={memberEntries}
+        />
         <div>
           <div className="mb-4 flex items-center gap-2 text-sm font-medium text-stone-600">
             <MessageSquareText className="h-4 w-4 text-emerald-700" />

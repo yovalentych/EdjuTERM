@@ -1,4 +1,5 @@
 import { ObjectId } from "mongodb";
+import { randomBytes } from "node:crypto";
 import { getMongoDb, hasMongoConfig } from "@/lib/mongodb";
 import {
   type Project,
@@ -11,6 +12,10 @@ import { findUserByEmail, setUserRole } from "@/lib/users";
 const collectionName = "projects";
 const localProjects: Project[] = [];
 
+function generateJoinCode() {
+  return randomBytes(4).toString("hex").toUpperCase();
+}
+
 export async function createProjectForUser(input: ProjectInput, user: SafeUser) {
   if (!user._id) {
     throw new Error("USER_ID_REQUIRED");
@@ -22,6 +27,7 @@ export async function createProjectForUser(input: ProjectInput, user: SafeUser) 
     ownerId: user._id,
     supervisorId: user._id,
     memberIds: [user._id],
+    joinCode: generateJoinCode(),
     status: "active",
     createdAt: now,
     updatedAt: now,
@@ -164,6 +170,58 @@ export async function addProjectMemberByEmail(
   return member;
 }
 
+export async function addProjectMemberById(
+  projectId: string,
+  memberId: string,
+  actor: SafeUser,
+) {
+  const project = await getProjectById(projectId);
+
+  if (!project || !canManageProject(project, actor)) {
+    throw new Error("PROJECT_FORBIDDEN");
+  }
+
+  const memberIds = [...new Set([...project.memberIds, memberId])];
+  await saveProjectMembership(projectId, { memberIds });
+  await setUserRole(memberId, "member");
+}
+
+export async function joinProjectByCode(code: string, user: SafeUser) {
+  if (!user._id) {
+    throw new Error("USER_ID_REQUIRED");
+  }
+
+  const normalizedCode = code.trim().toUpperCase();
+  const project = await getProjectByJoinCode(normalizedCode);
+
+  if (!project?._id) {
+    throw new Error("PROJECT_NOT_FOUND");
+  }
+
+  if (!canViewProject(project, user)) {
+    const memberIds = [...new Set([...project.memberIds, user._id])];
+    await saveProjectMembership(project._id, { memberIds });
+  }
+
+  if (user.role === "user") {
+    await setUserRole(user._id, "member");
+  }
+
+  return project;
+}
+
+export async function generateProjectJoinCode(projectId: string, actor: SafeUser) {
+  const project = await getProjectById(projectId);
+
+  if (!project || !canManageProject(project, actor)) {
+    throw new Error("PROJECT_FORBIDDEN");
+  }
+
+  const joinCode = generateJoinCode();
+  await saveProjectMembership(projectId, { joinCode });
+  return joinCode;
+}
+
 export async function setProjectSupervisor(
   projectId: string,
   supervisorId: string,
@@ -215,7 +273,7 @@ export function canManageProject(project: Project, user: SafeUser) {
   );
 }
 
-async function listAllProjects() {
+export async function listAllProjects() {
   if (!hasMongoConfig()) {
     return localProjects;
   }
@@ -249,6 +307,21 @@ async function getProjectById(projectId: string) {
   return doc ? projectSchema.parse({ ...doc, _id: doc._id.toString() }) : null;
 }
 
+export async function getProjectByIdForAdmin(projectId: string) {
+  return getProjectById(projectId);
+}
+
+async function getProjectByJoinCode(joinCode: string) {
+  if (!hasMongoConfig()) {
+    return localProjects.find((project) => project.joinCode === joinCode) ?? null;
+  }
+
+  const db = await getMongoDb();
+  const doc = await db.collection(collectionName).findOne({ joinCode });
+
+  return doc ? projectSchema.parse({ ...doc, _id: doc._id.toString() }) : null;
+}
+
 function canViewProject(project: Project, user: SafeUser) {
   return (
     user.role === "admin" ||
@@ -260,7 +333,7 @@ function canViewProject(project: Project, user: SafeUser) {
 
 async function saveProjectMembership(
   projectId: string,
-  update: Pick<Partial<Project>, "memberIds" | "supervisorId">,
+  update: Pick<Partial<Project>, "memberIds" | "supervisorId" | "joinCode">,
 ) {
   if (!hasMongoConfig()) {
     const project = localProjects.find((item) => item._id === projectId);
@@ -291,5 +364,6 @@ async function ensureProjectIndexes() {
     { key: { supervisorId: 1 } },
     { key: { memberIds: 1 } },
     { key: { acronym: 1 } },
+    { key: { joinCode: 1 }, sparse: true },
   ]);
 }
