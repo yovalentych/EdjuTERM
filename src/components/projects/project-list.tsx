@@ -58,6 +58,14 @@ export function ProjectList({
                   {dictionary.projects.dataPolicyOptions[project.dataPolicy]}
                 </span>
               </div>
+              {project._id ? (
+                <Link
+                  href={`/${locale}/app/project-settings?projectId=${project._id}`}
+                  className="mt-4 inline-flex border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-stone-800 transition hover:border-emerald-700 hover:text-emerald-800"
+                >
+                  {dictionary.projects.settings}
+                </Link>
+              ) : null}
             </article>
           ))
         )}

@@ -1,6 +1,7 @@
 import { CalendarDays, Database, FlaskConical, Settings2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { createProject } from "@/app/actions";
+import { ProjectIdentityFields } from "@/components/projects/project-identity-fields";
 import type { Dictionary, Locale } from "@/lib/i18n";
 import {
   dataPolicyOptions,
@@ -38,31 +39,7 @@ export function ProjectCreateForm({
         icon={<FlaskConical className="h-5 w-5" />}
         title={dictionary.projects.stepIdentity}
       >
-        <div className="grid gap-3 md:grid-cols-[1.4fr_0.6fr]">
-          <label className="space-y-1">
-            <span className="text-sm font-medium text-stone-700">
-              {dictionary.projects.title}
-            </span>
-            <input
-              name="title"
-              className={fieldClass}
-              placeholder={dictionary.projects.titlePlaceholder}
-              required
-            />
-          </label>
-          <label className="space-y-1">
-            <span className="text-sm font-medium text-stone-700">
-              {dictionary.projects.acronym}
-            </span>
-            <input
-              name="acronym"
-              className={fieldClass}
-              placeholder={dictionary.projects.acronymPlaceholder}
-              required
-              maxLength={32}
-            />
-          </label>
-        </div>
+        <ProjectIdentityFields dictionary={dictionary} />
         <label className="space-y-1">
           <span className="text-sm font-medium text-stone-700">
             {dictionary.projects.summary}

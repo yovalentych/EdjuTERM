@@ -1,3 +1,4 @@
+import { ObjectId } from "mongodb";
 import { getMongoDb, hasMongoConfig } from "@/lib/mongodb";
 import {
   type Project,
@@ -5,7 +6,7 @@ import {
   type SafeUser,
   projectSchema,
 } from "@/lib/schemas";
-import { setUserRole } from "@/lib/users";
+import { findUserByEmail, setUserRole } from "@/lib/users";
 
 const collectionName = "projects";
 const localProjects: Project[] = [];
@@ -89,6 +90,131 @@ export async function listProjectsForUser(user: SafeUser) {
   );
 }
 
+export async function getProjectForUser(projectId: string, user: SafeUser) {
+  const project = await getProjectById(projectId);
+
+  if (!project || !canViewProject(project, user)) {
+    return null;
+  }
+
+  return project;
+}
+
+export async function updateProjectForUser(
+  projectId: string,
+  input: ProjectInput,
+  user: SafeUser,
+) {
+  const project = await getProjectById(projectId);
+
+  if (!project || !canManageProject(project, user)) {
+    throw new Error("PROJECT_FORBIDDEN");
+  }
+
+  const updatedProject: Project = {
+    ...project,
+    ...input,
+    updatedAt: new Date(),
+  };
+
+  if (!hasMongoConfig()) {
+    const index = localProjects.findIndex((item) => item._id === projectId);
+
+    if (index >= 0) {
+      localProjects[index] = updatedProject;
+    }
+
+    return updatedProject;
+  }
+
+  const db = await getMongoDb();
+  const { _id, ...updateProject } = updatedProject;
+  void _id;
+  await db
+    .collection(collectionName)
+    .updateOne({ _id: new ObjectId(projectId) }, { $set: updateProject });
+
+  return updatedProject;
+}
+
+export async function addProjectMemberByEmail(
+  projectId: string,
+  email: string,
+  user: SafeUser,
+) {
+  const project = await getProjectById(projectId);
+
+  if (!project || !canManageProject(project, user)) {
+    throw new Error("PROJECT_FORBIDDEN");
+  }
+
+  const member = await findUserByEmail(email);
+
+  if (!member?._id) {
+    throw new Error("USER_NOT_FOUND");
+  }
+
+  const memberIds = [...new Set([...project.memberIds, member._id])];
+  await saveProjectMembership(projectId, { memberIds });
+
+  if (member.role === "user") {
+    await setUserRole(member._id, "member");
+  }
+
+  return member;
+}
+
+export async function setProjectSupervisor(
+  projectId: string,
+  supervisorId: string,
+  user: SafeUser,
+) {
+  const project = await getProjectById(projectId);
+
+  if (!project || !canManageProject(project, user)) {
+    throw new Error("PROJECT_FORBIDDEN");
+  }
+
+  if (![project.ownerId, ...project.memberIds].includes(supervisorId)) {
+    throw new Error("USER_NOT_PROJECT_MEMBER");
+  }
+
+  await saveProjectMembership(projectId, {
+    supervisorId,
+    memberIds: [...new Set([...project.memberIds, supervisorId])],
+  });
+  await setUserRole(supervisorId, "supervisor");
+}
+
+export async function removeProjectMember(
+  projectId: string,
+  memberId: string,
+  user: SafeUser,
+) {
+  const project = await getProjectById(projectId);
+
+  if (!project || !canManageProject(project, user)) {
+    throw new Error("PROJECT_FORBIDDEN");
+  }
+
+  if (memberId === project.ownerId) {
+    throw new Error("OWNER_CANNOT_BE_REMOVED");
+  }
+
+  const memberIds = project.memberIds.filter((id) => id !== memberId);
+  const supervisorId =
+    project.supervisorId === memberId ? project.ownerId : project.supervisorId;
+  await saveProjectMembership(projectId, { memberIds, supervisorId });
+}
+
+export function canManageProject(project: Project, user: SafeUser) {
+  return (
+    user.role === "admin" ||
+    project.ownerId === user._id ||
+    project.supervisorId === user._id
+  );
+}
+
 async function listAllProjects() {
   if (!hasMongoConfig()) {
     return localProjects;
@@ -103,6 +229,58 @@ async function listAllProjects() {
 
   return docs.map((doc) =>
     projectSchema.parse({ ...doc, _id: doc._id.toString() }),
+  );
+}
+
+async function getProjectById(projectId: string) {
+  if (!hasMongoConfig()) {
+    return localProjects.find((project) => project._id === projectId) ?? null;
+  }
+
+  if (!ObjectId.isValid(projectId)) {
+    return null;
+  }
+
+  const db = await getMongoDb();
+  const doc = await db
+    .collection(collectionName)
+    .findOne({ _id: new ObjectId(projectId) });
+
+  return doc ? projectSchema.parse({ ...doc, _id: doc._id.toString() }) : null;
+}
+
+function canViewProject(project: Project, user: SafeUser) {
+  return (
+    user.role === "admin" ||
+    project.ownerId === user._id ||
+    project.supervisorId === user._id ||
+    project.memberIds.includes(user._id ?? "")
+  );
+}
+
+async function saveProjectMembership(
+  projectId: string,
+  update: Pick<Partial<Project>, "memberIds" | "supervisorId">,
+) {
+  if (!hasMongoConfig()) {
+    const project = localProjects.find((item) => item._id === projectId);
+
+    if (project) {
+      Object.assign(project, update, { updatedAt: new Date() });
+    }
+
+    return;
+  }
+
+  const db = await getMongoDb();
+  await db.collection(collectionName).updateOne(
+    { _id: new ObjectId(projectId) },
+    {
+      $set: {
+        ...update,
+        updatedAt: new Date(),
+      },
+    },
   );
 }
 

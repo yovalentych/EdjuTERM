@@ -38,6 +38,7 @@ MONGODB_DB=grant_project_manager
 - `/uk/app`, `/en/app` - private project workspace for authenticated users
 - `/uk/app/team`, `/en/app/team` - private team page with project members and shared chat
 - `/uk/projects/new`, `/en/projects/new` - private project creation page
+- `/uk/app/project-settings?projectId=...`, `/en/app/project-settings?projectId=...` - private project settings and member management
 - `/uk/open-science`, `/en/open-science` - public open science data/update pages
 - `/uk/app/open-science`, `/en/app/open-science` - private open science publication editor
 - `/api/records` - `GET` list records, `POST` create record
@@ -77,7 +78,9 @@ Email confirmation is intentionally not implemented yet; the schema already incl
 
 ## Project creation
 
-New projects are created with a structured setup form rather than only a title. The initial profile stores project type, research field, grant programme, timeline, primary language, visibility, data policy, repository plan, ethics status, sensitive-data flags, and enabled workspace modules.
+New projects are created with a structured setup form rather than only a title. The initial profile stores project type, research field, grant programme, timeline, primary language, visibility, data policy, repository plan, ethics status, sensitive-data flags, and enabled workspace modules. The title field proposes an editable acronym automatically.
+
+Project owners, supervisors, and admins can edit these settings later and manage members from the project settings page. Members are added by registered email; a project member can be promoted to supervisor or removed from the project. The owner cannot be removed.
 
 ## Project-scoped records
 

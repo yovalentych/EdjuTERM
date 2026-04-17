@@ -6,7 +6,14 @@ import { getCurrentUser } from "@/lib/current-user";
 import { isLocale } from "@/lib/i18n";
 import { createOpenScienceUpdate } from "@/lib/open-science";
 import { verifyPassword } from "@/lib/passwords";
-import { createProjectForUser, listProjectsForUser } from "@/lib/projects";
+import {
+  addProjectMemberByEmail,
+  createProjectForUser,
+  listProjectsForUser,
+  removeProjectMember,
+  setProjectSupervisor,
+  updateProjectForUser,
+} from "@/lib/projects";
 import { insertProjectRecord } from "@/lib/repositories";
 import {
   loginInputSchema,
@@ -197,7 +204,19 @@ export async function createProject(formData: FormData) {
     redirect(`/${locale}/login`);
   }
 
-  const payload = projectInputSchema.safeParse({
+  const payload = projectPayloadFromForm(formData);
+
+  if (!payload.success) {
+    redirect(`/${locale}/projects/new?error=invalid`);
+  }
+
+  await createProjectForUser(payload.data, user);
+  revalidatePath(`/${locale}/app`);
+  redirect(`/${locale}/app`);
+}
+
+function projectPayloadFromForm(formData: FormData) {
+  return projectInputSchema.safeParse({
     title: formData.get("title"),
     acronym: formData.get("acronym"),
     summary: formData.get("summary") || "",
@@ -219,12 +238,113 @@ export async function createProject(formData: FormData) {
     taskManagementEnabled: formData.has("taskManagementEnabled"),
     rawDataRegistryEnabled: formData.has("rawDataRegistryEnabled"),
   });
+}
 
-  if (!payload.success) {
-    redirect(`/${locale}/projects/new?error=invalid`);
+export async function updateProjectSettings(formData: FormData) {
+  const locale = formLocale(formData);
+  const user = await getCurrentUser();
+  const projectId = formData.get("projectId");
+
+  if (!user) {
+    redirect(`/${locale}/login`);
   }
 
-  await createProjectForUser(payload.data, user);
+  if (typeof projectId !== "string") {
+    redirect(`/${locale}/app`);
+  }
+
+  const payload = projectPayloadFromForm(formData);
+
+  if (!payload.success) {
+    redirect(`/${locale}/app/project-settings?projectId=${projectId}&error=invalid`);
+  }
+
+  try {
+    await updateProjectForUser(projectId, payload.data, user);
+  } catch {
+    redirect(`/${locale}/app/project-settings?projectId=${projectId}&error=forbidden`);
+  }
+
   revalidatePath(`/${locale}/app`);
-  redirect(`/${locale}/app`);
+  revalidatePath(`/${locale}/app/project-settings`);
+  redirect(`/${locale}/app/project-settings?projectId=${projectId}&saved=1`);
+}
+
+export async function addProjectMember(formData: FormData) {
+  const locale = formLocale(formData);
+  const user = await getCurrentUser();
+  const projectId = formData.get("projectId");
+  const email = formData.get("email");
+
+  if (!user) {
+    redirect(`/${locale}/login`);
+  }
+
+  if (typeof projectId !== "string" || typeof email !== "string") {
+    redirect(`/${locale}/app`);
+  }
+
+  try {
+    await addProjectMemberByEmail(projectId, email, user);
+  } catch (error) {
+    const reason =
+      error instanceof Error && error.message === "USER_NOT_FOUND"
+        ? "user"
+        : "forbidden";
+    redirect(`/${locale}/app/project-settings?projectId=${projectId}&error=${reason}`);
+  }
+
+  revalidatePath(`/${locale}/app/team`);
+  revalidatePath(`/${locale}/app/project-settings`);
+  redirect(`/${locale}/app/project-settings?projectId=${projectId}&saved=member`);
+}
+
+export async function promoteProjectSupervisor(formData: FormData) {
+  const locale = formLocale(formData);
+  const user = await getCurrentUser();
+  const projectId = formData.get("projectId");
+  const supervisorId = formData.get("supervisorId");
+
+  if (!user) {
+    redirect(`/${locale}/login`);
+  }
+
+  if (typeof projectId !== "string" || typeof supervisorId !== "string") {
+    redirect(`/${locale}/app`);
+  }
+
+  try {
+    await setProjectSupervisor(projectId, supervisorId, user);
+  } catch {
+    redirect(`/${locale}/app/project-settings?projectId=${projectId}&error=forbidden`);
+  }
+
+  revalidatePath(`/${locale}/app/team`);
+  revalidatePath(`/${locale}/app/project-settings`);
+  redirect(`/${locale}/app/project-settings?projectId=${projectId}&saved=supervisor`);
+}
+
+export async function deleteProjectMember(formData: FormData) {
+  const locale = formLocale(formData);
+  const user = await getCurrentUser();
+  const projectId = formData.get("projectId");
+  const memberId = formData.get("memberId");
+
+  if (!user) {
+    redirect(`/${locale}/login`);
+  }
+
+  if (typeof projectId !== "string" || typeof memberId !== "string") {
+    redirect(`/${locale}/app`);
+  }
+
+  try {
+    await removeProjectMember(projectId, memberId, user);
+  } catch {
+    redirect(`/${locale}/app/project-settings?projectId=${projectId}&error=forbidden`);
+  }
+
+  revalidatePath(`/${locale}/app/team`);
+  revalidatePath(`/${locale}/app/project-settings`);
+  redirect(`/${locale}/app/project-settings?projectId=${projectId}&saved=member`);
 }
