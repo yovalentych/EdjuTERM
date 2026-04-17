@@ -18,7 +18,7 @@ export default async function RootLayout({
   const lang = locale && isLocale(locale) ? locale : "uk";
 
   return (
-    <html lang={lang} className="h-full antialiased">
+    <html lang={lang} className="h-full antialiased" suppressHydrationWarning>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

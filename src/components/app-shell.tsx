@@ -9,11 +9,12 @@ import {
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Dictionary, Locale } from "@/lib/i18n";
+import { getMongoStatus } from "@/lib/mongodb";
 import type { SafeUser } from "@/lib/schemas";
 import { logout } from "@/app/actions";
 import { SiteFooter } from "@/components/site-footer";
 
-export function AppShell({
+export async function AppShell({
   children,
   dictionary,
   locale,
@@ -32,6 +33,7 @@ export function AppShell({
     { label: dictionary.nav.outputs, icon: FileText, href: `/${locale}/app` },
     { label: dictionary.nav.team, icon: UsersRound, href: `/${locale}/app/team` },
   ];
+  const databaseStatus = await getMongoStatus();
 
   return (
     <div className="min-h-screen bg-[#f3f4ef] text-stone-950">
@@ -66,9 +68,32 @@ export function AppShell({
             <p className="text-sm font-medium text-stone-200">
               {dictionary.shell.databaseTarget}
             </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span
+                className={`border px-2 py-1 text-xs font-semibold ${
+                  databaseStatus.connected
+                    ? "border-emerald-400 bg-emerald-500 text-stone-950"
+                    : "border-rose-400 bg-rose-950 text-rose-100"
+                }`}
+              >
+                {databaseStatus.connected
+                  ? dictionary.shell.databaseConnected
+                  : dictionary.shell.databaseDisconnected}
+              </span>
+              {databaseStatus.host ? (
+                <span className="border border-stone-700 bg-stone-950 px-2 py-1 text-xs text-stone-400">
+                  {dictionary.shell.databaseHost}: {databaseStatus.host}
+                </span>
+              ) : null}
+            </div>
             <p className="mt-2 font-mono text-xs leading-5 text-stone-400">
               {dictionary.shell.databaseCollections}
             </p>
+            {!databaseStatus.connected && databaseStatus.error ? (
+              <p className="mt-2 break-words font-mono text-xs leading-5 text-rose-200">
+                {databaseStatus.error}
+              </p>
+            ) : null}
           </div>
         </aside>
 

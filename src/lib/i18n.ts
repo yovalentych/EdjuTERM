@@ -22,6 +22,9 @@ export const dictionaries = {
       databaseTarget: "Цільова база даних",
       databaseCollections:
         "MongoDB: записи, сирі файли, зразки, рішення, журнал змін",
+      databaseConnected: "MongoDB під'єднано",
+      databaseDisconnected: "MongoDB не під'єднано",
+      databaseHost: "Host",
       languageSwitch: "EN",
     },
     nav: {
@@ -226,6 +229,9 @@ export const dictionaries = {
       databaseTarget: "Database target",
       databaseCollections:
         "MongoDB: records, raw files, samples, decisions, audit log",
+      databaseConnected: "MongoDB connected",
+      databaseDisconnected: "MongoDB not connected",
+      databaseHost: "Host",
       languageSwitch: "UK",
     },
     nav: {
