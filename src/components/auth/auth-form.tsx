@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { login, register } from "@/app/actions";
+import { RegisterNameFields } from "@/components/auth/register-name-fields";
 import type { Dictionary, Locale } from "@/lib/i18n";
 
 const fieldClass =
@@ -27,14 +28,7 @@ export function AuthForm({
           {errorMessage(error, dictionary)}
         </div>
       ) : null}
-      {isRegister ? (
-        <label className="space-y-1">
-          <span className="text-sm font-medium text-stone-700">
-            {dictionary.auth.name}
-          </span>
-          <input name="name" className={fieldClass} required />
-        </label>
-      ) : null}
+      {isRegister ? <RegisterNameFields dictionary={dictionary} /> : null}
       <label className="space-y-1">
         <span className="text-sm font-medium text-stone-700">
           {dictionary.auth.email}

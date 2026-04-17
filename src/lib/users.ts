@@ -35,7 +35,10 @@ export async function createUser(input: RegisterInput) {
 
   const now = new Date();
   const user: User = {
-    name: input.name,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    firstNameLatin: input.firstNameLatin,
+    lastNameLatin: input.lastNameLatin,
     email: input.email,
     passwordHash: await hashPassword(input.password),
     role: roleForEmail(input.email),

@@ -15,22 +15,12 @@ import {
   Activity,
   Archive,
   BadgeCheck,
-  CalendarDays,
   Database,
   FileCheck2,
   FlaskConical,
   GitBranch,
-  ShieldCheck,
 } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
-
-const statusStyles: Record<string, string> = {
-  active: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  planned: "border-stone-200 bg-stone-50 text-stone-700",
-  review: "border-amber-200 bg-amber-50 text-amber-800",
-  released: "border-cyan-200 bg-cyan-50 text-cyan-800",
-  blocked: "border-rose-200 bg-rose-50 text-rose-800",
-};
 
 export async function generateMetadata({
   params,
@@ -80,7 +70,7 @@ export default async function LocalizedHome({
         dictionary={dictionary}
         locale={localeParam}
       />
-      <section className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+      <section className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
         <div className="border border-stone-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
@@ -109,80 +99,6 @@ export default async function LocalizedHome({
                 </p>
                 <p className="mt-1 text-sm text-stone-600">{metric.detail}</p>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="border border-stone-200 bg-[#f8fbf7] p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center bg-emerald-700 text-white">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-stone-950">
-                {dictionary.readiness.title}
-              </h2>
-              <p className="text-sm text-stone-600">
-                {dictionary.readiness.subtitle}
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 space-y-3">
-            {data.readiness.map((item) => (
-              <div key={item.label}>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-stone-800">
-                    {item.label}
-                  </span>
-                  <span className="text-stone-500">{item.value}%</span>
-                </div>
-                <div className="mt-2 h-2 bg-white">
-                  <div
-                    className="h-2 bg-emerald-700"
-                    style={{ width: `${item.value}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="border border-stone-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xl font-semibold text-stone-950">
-              {dictionary.sections.stages}
-            </h2>
-            <CalendarDays className="h-5 w-5 text-emerald-700" />
-          </div>
-          <div className="mt-5 space-y-4">
-            {data.stages.map((stage) => (
-              <article
-                key={stage.year}
-                className="border border-stone-200 p-4"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-stone-500">
-                      {stage.year}
-                    </p>
-                    <h3 className="mt-1 font-semibold text-stone-950">
-                      {stage.title}
-                    </h3>
-                  </div>
-                  <span
-                    className={`border px-2 py-1 text-xs font-medium ${
-                      statusStyles[stage.status]
-                    }`}
-                  >
-                    {dictionary.statuses[stage.status]}
-                  </span>
-                </div>
-                <p className="mt-3 text-sm leading-6 text-stone-600">
-                  {stage.focus}
-                </p>
-              </article>
             ))}
           </div>
         </div>

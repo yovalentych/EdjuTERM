@@ -1,5 +1,3 @@
-import type { ProjectRecord } from "@/lib/schemas";
-
 export const locales = ["uk", "en"] as const;
 export type Locale = (typeof locales)[number];
 
@@ -18,7 +16,7 @@ export const dictionaries = {
     alternateLocale: "en",
     shell: {
       appName: "Менеджер гранту",
-      projectShortName: "OpenLab 2027",
+      projectShortName: "Grant Manager",
       eyebrow: "Операційна робота проєкту та докази відкритої науки",
       title: "Інформаційний проєкт грантової команди",
       databaseTarget: "Цільова база даних",
@@ -54,7 +52,10 @@ export const dictionaries = {
     auth: {
       loginTitle: "Вхід",
       registerTitle: "Реєстрація",
-      name: "Ім'я",
+      firstName: "Ім'я",
+      lastName: "Прізвище",
+      firstNameLatin: "Ім'я латинкою",
+      lastNameLatin: "Прізвище латинкою",
       email: "Ел. пошта",
       password: "Пароль",
       loginSubmit: "Увійти",
@@ -85,23 +86,11 @@ export const dictionaries = {
       user: "Користувач",
     },
     hero: {
-      eyebrow: "Фундаментальна наука 2027-2029",
-      title:
-        "Коморбідна патологія, мієлоїдні клітини, RAGE та некодуючі РНК",
+      eyebrow: "Приватний робочий простір",
+      title: "Менеджмент проєктів, даних, протоколів і результатів",
       git: "Git-репозиторій активний",
     },
-    readiness: {
-      title: "Готовність до відкритої науки",
-      subtitle: "FAIR, DMP, протоколи, результати з DOI",
-      items: {
-        dmp: "План управління даними",
-        protocols: "Реєстр протоколів",
-        metadata: "Метадані наборів даних",
-        repository: "Шлях до репозиторного релізу",
-      },
-    },
     sections: {
-      stages: "Етапи дослідження",
       newRecord: "Новий запис проєкту",
       datasets: "Набори даних",
       protocols: "Протоколи",
@@ -131,7 +120,7 @@ export const dictionaries = {
       repository: "Репозиторій",
       summary: "Опис",
       submit: "Додати запис",
-      titlePlaceholder: "Набір даних qPCR експресії RAGE",
+      titlePlaceholder: "Назва запису",
       ownerPlaceholder: "Відповідальний за дані",
       repositoryPlaceholder: "Zenodo",
       summaryPlaceholder:
@@ -172,75 +161,6 @@ export const dictionaries = {
       "Stage 3": "Етап 3",
       Proposal: "Заявка",
     },
-    stages: [
-      {
-        year: "2027",
-        title: "Модель, клітинні системи, пошук кандидатів",
-        focus:
-          "Створення моделі, характеристика клітинних ліній, вплив глікозильованого альбуміну, RAGE і скринінг кандидатних некодуючих РНК.",
-        status: "active",
-      },
-      {
-        year: "2028",
-        title: "Механізми та валідація",
-        focus:
-          "Мієлоїдні супресороподібні фенотипи, запальні функції, валідація експресії та набори даних, готові до аналізу.",
-        status: "planned",
-      },
-      {
-        year: "2029",
-        title: "Втручання та релізи",
-        focus:
-          "Модуляція in vivo, фінальний аналіз, публікації, відкриті релізи даних/коду та підсумкова звітність.",
-        status: "planned",
-      },
-    ],
-    seedRecords: {
-      "DATA-2027-001": {
-        title: "Фізіологічні показники мишачої моделі коморбідності",
-        owner: "Керівник експериментального блоку",
-        repository: "Чернетка Zenodo",
-        summary:
-          "Артеріальний тиск, глюкоза, рандомізація, групи втручання та основні метадані моделі тварин.",
-      },
-      "DATA-2027-002": {
-        title:
-          "Характеристика клітинних ліній за впливу глікозильованого альбуміну",
-        owner: "Керівник блоку клітинних культур",
-        repository: "Чернетка Zenodo",
-        summary:
-          "Умови експозиції U-937 і RAW, експресія RAGE, функціональні показники та метадані контролю якості.",
-      },
-      "PROT-2027-001": {
-        title:
-          "Модель коморбідної артеріальної гіпертензії та цукрового діабету в мишей",
-        owner: "Науковий керівник",
-        repository: "protocols.io",
-        summary:
-          "Відтворення моделі, графік втручань, вікна вимірювань, гуманні кінцеві точки та зв'язок з етичним дозволом.",
-      },
-      "PROT-2027-003": {
-        title: "Біоінформатичний скринінг кандидатних некодуючих РНК",
-        owner: "Керівник аналізу",
-        repository: "protocols.io",
-        summary:
-          "Джерела пошуку, критерії включення, пріоритизація мішеней, оцінювання доказів і відтворюваний журнал запитів.",
-      },
-      "TASK-2026-001": {
-        title: "Затвердити акронім проєкту та правила найменування",
-        owner: "Відповідальний за дані",
-        repository: "Внутрішній простір",
-        summary:
-          "Обрати стабільний префікс для ID зразків, наборів даних, протоколів, релізів коду та репозиторних записів.",
-      },
-      "OUT-2029-002": {
-        title: "Фінальний реліз даних і коду",
-        owner: "Науковий керівник і відповідальний за дані",
-        repository: "Zenodo",
-        summary:
-          "Фінальні валідовані набори даних, архів коду аналізу, метадані, протоколи, версія DMP і DOI-посилання.",
-      },
-    },
   },
   en: {
     localeName: "English",
@@ -248,7 +168,7 @@ export const dictionaries = {
     alternateLocale: "uk",
     shell: {
       appName: "Grant manager",
-      projectShortName: "OpenLab 2027",
+      projectShortName: "Grant Manager",
       eyebrow: "Project operations and open science evidence",
       title: "Information workspace for the grant team",
       databaseTarget: "Database target",
@@ -284,7 +204,10 @@ export const dictionaries = {
     auth: {
       loginTitle: "Log in",
       registerTitle: "Register",
-      name: "Name",
+      firstName: "First name",
+      lastName: "Last name",
+      firstNameLatin: "First name in Latin script",
+      lastNameLatin: "Last name in Latin script",
       email: "Email",
       password: "Password",
       loginSubmit: "Log in",
@@ -315,23 +238,11 @@ export const dictionaries = {
       user: "User",
     },
     hero: {
-      eyebrow: "Fundamental science 2027-2029",
-      title:
-        "Comorbid pathology, myeloid cells, RAGE, and non-coding RNAs",
+      eyebrow: "Private workspace",
+      title: "Project, data, protocol, and output management",
       git: "Git repository active",
     },
-    readiness: {
-      title: "Open science readiness",
-      subtitle: "FAIR, DMP, protocols, DOI-ready outputs",
-      items: {
-        dmp: "Data management plan",
-        protocols: "Protocol registry",
-        metadata: "Dataset metadata",
-        repository: "Repository release path",
-      },
-    },
     sections: {
-      stages: "Research stages",
       newRecord: "New project record",
       datasets: "Datasets",
       protocols: "Protocols",
@@ -361,7 +272,7 @@ export const dictionaries = {
       repository: "Repository",
       summary: "Summary",
       submit: "Add record",
-      titlePlaceholder: "qPCR RAGE expression dataset",
+      titlePlaceholder: "Record title",
       ownerPlaceholder: "Data steward",
       repositoryPlaceholder: "Zenodo",
       summaryPlaceholder:
@@ -402,52 +313,10 @@ export const dictionaries = {
       "Stage 3": "Stage 3",
       Proposal: "Proposal",
     },
-    stages: [
-      {
-        year: "2027",
-        title: "Model, cell systems, candidate search",
-        focus:
-          "Animal model setup, cell line characterization, glycated albumin exposure, RAGE and candidate non-coding RNA screening.",
-        status: "active",
-      },
-      {
-        year: "2028",
-        title: "Mechanisms and validation",
-        focus:
-          "Myeloid suppressor-like phenotypes, inflammatory functions, expression validation, and analysis-ready datasets.",
-        status: "planned",
-      },
-      {
-        year: "2029",
-        title: "Intervention and release",
-        focus:
-          "In vivo modulation, final analysis, publications, public dataset/code releases, and final reporting.",
-        status: "planned",
-      },
-    ],
-    seedRecords: {},
   },
 } as const;
 
 export type Dictionary = ReturnType<typeof getDictionary>;
-
-export function localizeRecord(record: ProjectRecord, locale: Locale) {
-  const seedRecords = dictionaries[locale].seedRecords as Record<
-    string,
-    Partial<
-      Pick<ProjectRecord, "title" | "owner" | "repository" | "summary">
-    >
-  >;
-  const localized = seedRecords[record.localId];
-
-  return {
-    ...record,
-    title: localized?.title ?? record.title,
-    owner: localized?.owner ?? record.owner,
-    repository: localized?.repository ?? record.repository,
-    summary: localized?.summary ?? record.summary,
-  };
-}
 
 export function localizeStageLabel(stage: string, dictionary: Dictionary) {
   const labels = dictionary.stageLabels as Record<string, string>;

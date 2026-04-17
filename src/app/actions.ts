@@ -51,7 +51,10 @@ export async function createRecord(formData: FormData) {
 export async function register(formData: FormData) {
   const locale = formLocale(formData);
   const payload = registerInputSchema.safeParse({
-    name: formData.get("name"),
+    firstName: formData.get("firstName"),
+    lastName: formData.get("lastName"),
+    firstNameLatin: formData.get("firstNameLatin"),
+    lastNameLatin: formData.get("lastNameLatin"),
     email: formData.get("email"),
     password: formData.get("password"),
   });

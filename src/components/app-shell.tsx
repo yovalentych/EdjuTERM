@@ -84,7 +84,7 @@ export function AppShell({
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
                 <span className="border border-stone-200 bg-stone-50 px-2 py-1 text-stone-700">
-                  {user.name} · {dictionary.roles[user.role]}
+                  {user.firstName} {user.lastName} · {dictionary.roles[user.role]}
                 </span>
                 <form action={logout}>
                   <input type="hidden" name="locale" value={locale} />

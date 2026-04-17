@@ -1,7 +1,6 @@
 import { ObjectId } from "mongodb";
-import { type Locale, getDictionary, localizeRecord } from "@/lib/i18n";
+import { type Locale, getDictionary } from "@/lib/i18n";
 import { getMongoDb, hasMongoConfig } from "@/lib/mongodb";
-import { seedRecords } from "@/lib/project-data";
 import {
   type ProjectRecord,
   type ProjectRecordInput,
@@ -9,7 +8,7 @@ import {
 } from "@/lib/schemas";
 
 const collectionName = "project_records";
-const localRecords = [...seedRecords];
+const localRecords: ProjectRecord[] = [];
 
 export async function getDashboardData(locale: Locale) {
   const dictionary = getDictionary(locale);
@@ -17,11 +16,9 @@ export async function getDashboardData(locale: Locale) {
   const openOrPrepared = records.filter((record) =>
     ["open", "embargoed"].includes(record.access),
   ).length;
-  const localizedRecords = records.map((record) => localizeRecord(record, locale));
 
   return {
-    records: localizedRecords,
-    stages: dictionary.stages,
+    records,
     metrics: [
       {
         label: dictionary.metrics.records,
@@ -44,12 +41,6 @@ export async function getDashboardData(locale: Locale) {
         detail: dictionary.metrics.openReadyDetail,
       },
     ],
-    readiness: [
-      { label: dictionary.readiness.items.dmp, value: 45 },
-      { label: dictionary.readiness.items.protocols, value: 35 },
-      { label: dictionary.readiness.items.metadata, value: 30 },
-      { label: dictionary.readiness.items.repository, value: 40 },
-    ],
   };
 }
 
@@ -66,10 +57,6 @@ export async function listProjectRecords(): Promise<ProjectRecord[]> {
       .sort({ createdAt: -1 })
       .limit(200)
       .toArray();
-
-    if (docs.length === 0) {
-      return localRecords;
-    }
 
     return docs.map((doc) =>
       projectRecordSchema.parse({

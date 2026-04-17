@@ -54,7 +54,10 @@ export type ProjectRecordInput = z.infer<typeof projectRecordInputSchema>;
 export type ProjectRecord = z.infer<typeof projectRecordSchema>;
 
 export const registerInputSchema = z.object({
-  name: z.string().min(2).max(120),
+  firstName: z.string().min(1).max(80),
+  lastName: z.string().min(1).max(80),
+  firstNameLatin: z.string().min(1).max(80),
+  lastNameLatin: z.string().min(1).max(80),
   email: z.string().email().max(240).transform((email) => email.toLowerCase()),
   password: z.string().min(8).max(200),
 });
@@ -66,7 +69,10 @@ export const loginInputSchema = z.object({
 
 export const userSchema = z.object({
   _id: z.string().optional(),
-  name: z.string().min(2).max(120),
+  firstName: z.string().min(1).max(80),
+  lastName: z.string().min(1).max(80),
+  firstNameLatin: z.string().min(1).max(80),
+  lastNameLatin: z.string().min(1).max(80),
   email: z.string().email(),
   passwordHash: z.string(),
   role: z.enum(userRoles).default("user"),

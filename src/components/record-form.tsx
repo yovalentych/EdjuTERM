@@ -34,7 +34,7 @@ export function RecordForm({
         <input
           name="localId"
           className={fieldClass}
-          placeholder="DATA-2027-004"
+          placeholder="DATA-YYYY-NNN"
           required
         />
       </label>
