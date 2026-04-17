@@ -1,4 +1,4 @@
-import { ObjectId } from "mongodb";
+import { ObjectId, type Document, type WithId } from "mongodb";
 import { getMongoDb, hasMongoConfig } from "@/lib/mongodb";
 import { hashPassword } from "@/lib/passwords";
 import {
@@ -15,6 +15,50 @@ const localUsers: User[] = [];
 
 function toSafeUser(user: User): SafeUser {
   return safeUserSchema.parse(user);
+}
+
+function normalizeUserDocument(doc: WithId<Document>) {
+  const fallbackName =
+    typeof doc.name === "string" && doc.name.trim().length > 0
+      ? doc.name.trim()
+      : "";
+  const [fallbackFirstName = "", ...fallbackLastNameParts] =
+    fallbackName.split(/\s+/);
+  const fallbackLastName = fallbackLastNameParts.join(" ");
+
+  return userSchema.parse({
+    ...doc,
+    _id: doc._id.toString(),
+    firstName: doc.firstName ?? fallbackFirstName,
+    lastName: doc.lastName ?? (fallbackLastName || "-"),
+    firstNameLatin: doc.firstNameLatin ?? fallbackFirstName,
+    lastNameLatin: doc.lastNameLatin ?? (fallbackLastName || "-"),
+  });
+}
+
+async function migrateLegacyUserDocument(doc: WithId<Document>, user: User) {
+  if (
+    doc.firstName &&
+    doc.lastName &&
+    doc.firstNameLatin &&
+    doc.lastNameLatin
+  ) {
+    return;
+  }
+
+  const db = await getMongoDb();
+  await db.collection(collectionName).updateOne(
+    { _id: doc._id },
+    {
+      $set: {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        firstNameLatin: user.firstNameLatin,
+        lastNameLatin: user.lastNameLatin,
+        updatedAt: new Date(),
+      },
+    },
+  );
 }
 
 function roleForEmail(email: string): UserRole {
@@ -55,7 +99,9 @@ export async function createUser(input: RegisterInput) {
 
   const db = await getMongoDb();
   await ensureUserIndexes();
-  const result = await db.collection(collectionName).insertOne(user);
+  const { _id, ...insertUser } = user;
+  void _id;
+  const result = await db.collection(collectionName).insertOne(insertUser);
 
   return toSafeUser({ ...user, _id: result.insertedId.toString() });
 }
@@ -70,7 +116,13 @@ export async function findUserByEmail(email: string) {
   const db = await getMongoDb();
   const doc = await db.collection(collectionName).findOne({ email: normalizedEmail });
 
-  return doc ? userSchema.parse({ ...doc, _id: doc._id.toString() }) : null;
+  if (!doc) {
+    return null;
+  }
+
+  const user = normalizeUserDocument(doc);
+  await migrateLegacyUserDocument(doc, user);
+  return user;
 }
 
 export async function findUserById(id: string) {
@@ -81,7 +133,13 @@ export async function findUserById(id: string) {
   const db = await getMongoDb();
   const doc = await db.collection(collectionName).findOne({ _id: new ObjectId(id) });
 
-  return doc ? userSchema.parse({ ...doc, _id: doc._id.toString() }) : null;
+  if (!doc) {
+    return null;
+  }
+
+  const user = normalizeUserDocument(doc);
+  await migrateLegacyUserDocument(doc, user);
+  return user;
 }
 
 export async function getSafeUserById(id: string) {
@@ -110,7 +168,7 @@ export async function setUserRole(id: string, role: UserRole) {
   );
 
   return result
-    ? toSafeUser(userSchema.parse({ ...result, _id: result._id.toString() }))
+    ? toSafeUser(normalizeUserDocument(result))
     : null;
 }
 

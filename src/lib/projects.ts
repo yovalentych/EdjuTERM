@@ -42,7 +42,9 @@ export async function createProjectForUser(input: ProjectInput, user: SafeUser) 
 
   const db = await getMongoDb();
   await ensureProjectIndexes();
-  const result = await db.collection(collectionName).insertOne(project);
+  const { _id, ...insertProject } = project;
+  void _id;
+  const result = await db.collection(collectionName).insertOne(insertProject);
 
   if (user.role === "user") {
     await setUserRole(user._id, "supervisor");

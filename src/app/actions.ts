@@ -4,11 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/current-user";
 import { isLocale } from "@/lib/i18n";
+import { createOpenScienceUpdate } from "@/lib/open-science";
 import { verifyPassword } from "@/lib/passwords";
-import { createProjectForUser } from "@/lib/projects";
+import { createProjectForUser, listProjectsForUser } from "@/lib/projects";
 import { insertProjectRecord } from "@/lib/repositories";
 import {
   loginInputSchema,
+  openScienceUpdateInputSchema,
   projectInputSchema,
   projectRecordInputSchema,
   registerInputSchema,
@@ -32,18 +34,25 @@ export async function createRecord(formData: FormData) {
   }
 
   const payload = {
+    projectId: formData.get("projectId"),
     kind: formData.get("kind"),
     localId: formData.get("localId"),
     title: formData.get("title"),
     stage: formData.get("stage"),
     access: formData.get("access"),
-    owner: formData.get("owner") || "Unassigned",
-    repository: formData.get("repository") || "tbd",
+    owner: formData.get("owner"),
+    repository: formData.get("repository"),
     summary: formData.get("summary") || "",
   };
   const locale = formLocale(formData);
 
   const record = projectRecordInputSchema.parse(payload);
+  const projects = await listProjectsForUser(user);
+
+  if (!projects.some((project) => project._id === record.projectId)) {
+    redirect(`/${locale}/app`);
+  }
+
   await insertProjectRecord(record);
   revalidatePath(`/${locale}/app`);
 }
@@ -80,6 +89,38 @@ export async function register(formData: FormData) {
   }
 
   redirect(`/${locale}/app`);
+}
+
+export async function saveOpenScienceUpdate(formData: FormData) {
+  const locale = formLocale(formData);
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect(`/${locale}/login`);
+  }
+
+  const payload = openScienceUpdateInputSchema.safeParse({
+    projectId: formData.get("projectId"),
+    title: formData.get("title"),
+    summary: formData.get("summary") || "",
+    content: formData.get("content") || "",
+    status: formData.get("status") === "published" ? "published" : "draft",
+  });
+
+  if (!payload.success) {
+    redirect(`/${locale}/app/open-science?error=invalid`);
+  }
+
+  const projects = await listProjectsForUser(user);
+
+  if (!projects.some((project) => project._id === payload.data.projectId)) {
+    redirect(`/${locale}/app/open-science?error=project`);
+  }
+
+  await createOpenScienceUpdate(payload.data, user);
+  revalidatePath(`/${locale}/open-science`);
+  revalidatePath(`/${locale}/app/open-science`);
+  redirect(`/${locale}/app/open-science`);
 }
 
 export async function login(formData: FormData) {

@@ -11,6 +11,7 @@ import {
 import { getDashboardData } from "@/lib/repositories";
 import type { Metadata } from "next";
 import { listProjectsForUser } from "@/lib/projects";
+import Link from "next/link";
 import {
   Activity,
   Archive,
@@ -60,8 +61,11 @@ export default async function LocalizedHome({
     redirect(`/${localeParam}/login`);
   }
 
-  const data = await getDashboardData(localeParam);
   const projects = await listProjectsForUser(user);
+  const projectIds = projects
+    .map((project) => project._id)
+    .filter((id): id is string => Boolean(id));
+  const data = await getDashboardData(localeParam, projectIds);
 
   return (
     <AppShell dictionary={dictionary} locale={localeParam} user={user}>
@@ -70,6 +74,33 @@ export default async function LocalizedHome({
         dictionary={dictionary}
         locale={localeParam}
       />
+      <section className="border border-stone-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-stone-950">
+              {dictionary.openScience.manageTitle}
+            </h2>
+            <p className="text-sm text-stone-600">
+              {dictionary.openScience.manageSummary}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/${localeParam}/app/open-science`}
+              className="bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+            >
+              {dictionary.openScience.manageTitle}
+            </Link>
+            <Link
+              href={`/${localeParam}/open-science`}
+              target="_blank"
+              className="border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-800 transition hover:border-emerald-700 hover:text-emerald-800"
+            >
+              {dictionary.openScience.publicPage}
+            </Link>
+          </div>
+        </div>
+      </section>
       <section className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
         <div className="border border-stone-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -110,7 +141,11 @@ export default async function LocalizedHome({
             </h2>
             <Database className="h-5 w-5 text-emerald-700" />
           </div>
-          <RecordForm dictionary={dictionary} locale={localeParam} />
+          <RecordForm
+            dictionary={dictionary}
+            locale={localeParam}
+            projects={projects}
+          />
         </div>
       </section>
 

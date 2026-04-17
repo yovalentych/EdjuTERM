@@ -1,5 +1,6 @@
 import { createRecord } from "@/app/actions";
 import { localizeStageLabel, type Dictionary, type Locale } from "@/lib/i18n";
+import type { Project } from "@/lib/schemas";
 
 const fieldClass =
   "w-full border border-stone-300 bg-white px-3 py-2 text-sm text-stone-950 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100";
@@ -7,13 +8,35 @@ const fieldClass =
 export function RecordForm({
   dictionary,
   locale,
+  projects,
 }: {
   dictionary: Dictionary;
   locale: Locale;
+  projects: Project[];
 }) {
+  if (projects.length === 0) {
+    return (
+      <div className="mt-5 border border-dashed border-stone-300 p-4 text-sm text-stone-500">
+        {dictionary.projects.none}
+      </div>
+    );
+  }
+
   return (
     <form action={createRecord} className="mt-5 grid gap-3 md:grid-cols-2">
       <input type="hidden" name="locale" value={locale} />
+      <label className="space-y-1 md:col-span-2">
+        <span className="text-sm font-medium text-stone-700">
+          {dictionary.projects.project}
+        </span>
+        <select name="projectId" className={fieldClass} required>
+          {projects.map((project) => (
+            <option key={project._id ?? project.acronym} value={project._id}>
+              {project.title}
+            </option>
+          ))}
+        </select>
+      </label>
       <label className="space-y-1">
         <span className="text-sm font-medium text-stone-700">
           {dictionary.form.kind}
@@ -84,6 +107,7 @@ export function RecordForm({
           name="owner"
           className={fieldClass}
           placeholder={dictionary.form.ownerPlaceholder}
+          required
         />
       </label>
       <label className="space-y-1">
@@ -94,6 +118,7 @@ export function RecordForm({
           name="repository"
           className={fieldClass}
           placeholder={dictionary.form.repositoryPlaceholder}
+          required
         />
       </label>
       <label className="space-y-1 md:col-span-2">

@@ -10,9 +10,9 @@ import {
 const collectionName = "project_records";
 const localRecords: ProjectRecord[] = [];
 
-export async function getDashboardData(locale: Locale) {
+export async function getDashboardData(locale: Locale, projectIds: string[]) {
   const dictionary = getDictionary(locale);
-  const records = await listProjectRecords();
+  const records = await listProjectRecords(projectIds);
   const openOrPrepared = records.filter((record) =>
     ["open", "embargoed"].includes(record.access),
   ).length;
@@ -44,16 +44,22 @@ export async function getDashboardData(locale: Locale) {
   };
 }
 
-export async function listProjectRecords(): Promise<ProjectRecord[]> {
+export async function listProjectRecords(
+  projectIds: string[] = [],
+): Promise<ProjectRecord[]> {
   if (!hasMongoConfig()) {
-    return localRecords;
+    return localRecords.filter((record) => projectIds.includes(record.projectId));
+  }
+
+  if (projectIds.length === 0) {
+    return [];
   }
 
   try {
     const db = await getMongoDb();
     const docs = await db
       .collection(collectionName)
-      .find({})
+      .find({ projectId: { $in: projectIds } })
       .sort({ createdAt: -1 })
       .limit(200)
       .toArray();
@@ -81,8 +87,9 @@ export async function insertProjectRecord(input: ProjectRecordInput) {
   };
 
   if (!hasMongoConfig()) {
-    localRecords.unshift(record);
-    return { ...record, _id: `local-${record.localId}` };
+    const localRecord = { ...record, _id: `local-${record.localId}` };
+    localRecords.unshift(localRecord);
+    return localRecord;
   }
 
   const db = await getMongoDb();
@@ -111,6 +118,21 @@ export async function updateProjectRecord(
     : null;
 }
 
+export async function getProjectRecordById(id: string) {
+  if (!hasMongoConfig()) {
+    return localRecords.find((record) => record._id === id) ?? null;
+  }
+
+  const db = await getMongoDb();
+  const doc = await db
+    .collection(collectionName)
+    .findOne({ _id: new ObjectId(id) });
+
+  return doc
+    ? projectRecordSchema.parse({ ...doc, _id: doc._id.toString() })
+    : null;
+}
+
 export async function deleteProjectRecord(id: string) {
   if (!hasMongoConfig()) {
     return false;
@@ -127,6 +149,7 @@ async function ensureIndexes() {
   const db = await getMongoDb();
   await db.collection(collectionName).createIndexes([
     { key: { localId: 1 }, unique: true },
+    { key: { projectId: 1 } },
     { key: { kind: 1, stage: 1 } },
     { key: { access: 1 } },
     { key: { title: "text", summary: "text" } },

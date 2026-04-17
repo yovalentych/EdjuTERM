@@ -19,6 +19,7 @@ export const accessCategories = [
 export const userRoles = ["admin", "supervisor", "member", "user"] as const;
 
 export const projectRecordInputSchema = z.object({
+  projectId: z.string().min(1).max(120),
   kind: z.enum(recordKinds),
   localId: z.string().min(3).max(80),
   title: z.string().min(3).max(240),
@@ -99,6 +100,22 @@ export const projectSchema = projectInputSchema.extend({
   updatedAt: z.coerce.date(),
 });
 
+export const openScienceUpdateInputSchema = z.object({
+  projectId: z.string().min(1).max(120),
+  title: z.string().min(3).max(240),
+  summary: z.string().max(600).default(""),
+  content: z.string().max(5000).default(""),
+  status: z.enum(["draft", "published"]).default("draft"),
+});
+
+export const openScienceUpdateSchema = openScienceUpdateInputSchema.extend({
+  _id: z.string().optional(),
+  createdBy: z.string(),
+  publishedAt: z.coerce.date().nullable().default(null),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
 export type UserRole = z.infer<typeof userSchema>["role"];
 export type User = z.infer<typeof userSchema>;
 export type SafeUser = z.infer<typeof safeUserSchema>;
@@ -106,3 +123,7 @@ export type RegisterInput = z.infer<typeof registerInputSchema>;
 export type LoginInput = z.infer<typeof loginInputSchema>;
 export type ProjectInput = z.infer<typeof projectInputSchema>;
 export type Project = z.infer<typeof projectSchema>;
+export type OpenScienceUpdateInput = z.infer<
+  typeof openScienceUpdateInputSchema
+>;
+export type OpenScienceUpdate = z.infer<typeof openScienceUpdateSchema>;

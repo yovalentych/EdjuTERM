@@ -37,6 +37,8 @@ MONGODB_DB=grant_project_manager
 - `/uk/register`, `/en/register` - localized registration pages
 - `/uk/app`, `/en/app` - private project workspace for authenticated users
 - `/uk/projects/new`, `/en/projects/new` - private project creation page
+- `/uk/open-science`, `/en/open-science` - public open science data/update pages
+- `/uk/app/open-science`, `/en/app/open-science` - private open science publication editor
 - `/api/records` - `GET` list records, `POST` create record
 - `/api/records/[id]` - `PATCH` update record, `DELETE` delete record
 
@@ -53,6 +55,7 @@ Initial collection:
 - `project_records`
 - `users`
 - `projects`
+- `open_science_updates`
 
 Planned collections:
 
@@ -69,6 +72,14 @@ Planned collections:
 - `user` - default role after registration.
 
 Email confirmation is intentionally not implemented yet; the schema already includes `emailVerifiedAt` for the later verification flow.
+
+## Project-scoped records
+
+Every private project record requires `projectId`. The workspace lists and creates records only inside projects that the current user can access. Legacy records without `projectId` are intentionally excluded from project dashboards until migrated or assigned to a project.
+
+## Open science publishing
+
+Project members can create open science updates from the private editor and either save a draft or publish it. Only records with `status = published` are visible on the public open science page.
 
 Large raw experimental files should not be stored as normal MongoDB document fields. Use MongoDB GridFS or a file/object storage layer and keep checksums, provenance, access category, and storage URI in MongoDB.
 

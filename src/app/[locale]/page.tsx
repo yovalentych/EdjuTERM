@@ -55,6 +55,13 @@ export default async function PublicHome({
                 </Link>
               </>
             )}
+            <Link
+              href={`/${localeParam}/open-science`}
+              target="_blank"
+              className="border border-stone-300 bg-white px-4 py-2 font-semibold text-stone-800 transition hover:border-emerald-700 hover:text-emerald-800"
+            >
+              {dictionary.openScience.publicPage}
+            </Link>
           </div>
         </div>
       </header>

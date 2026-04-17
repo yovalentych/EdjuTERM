@@ -78,6 +78,26 @@ export const dictionaries = {
       createHint:
         "Звичайний користувач стане керівником проєкту після створення власного проєкту.",
       newProject: "Новий проєкт",
+      project: "Проєкт",
+    },
+    openScience: {
+      publicTitle: "Публічні дані відкритої науки",
+      publicSummary:
+        "Тут публікуються відкриті оновлення, дані, протоколи, матеріали та посилання, які команда проєкту робить доступними для відкритої науки.",
+      manageTitle: "Публікації відкритої науки",
+      manageSummary:
+        "Створюйте чернетки або публікуйте оновлення для відкритої сторінки.",
+      title: "Заголовок",
+      summary: "Короткий опис",
+      content: "Зміст або посилання",
+      saveDraft: "Зберегти чернетку",
+      publish: "Опублікувати",
+      publicPage: "Публічна сторінка відкритої науки",
+      noPublished: "Опублікованих матеріалів ще немає.",
+      noUpdates: "Оновлень ще немає.",
+      status: "Статус",
+      draft: "Чернетка",
+      published: "Опубліковано",
     },
     roles: {
       admin: "Адмін",
@@ -230,6 +250,26 @@ export const dictionaries = {
       createHint:
         "A regular user becomes project supervisor after creating an own project.",
       newProject: "New project",
+      project: "Project",
+    },
+    openScience: {
+      publicTitle: "Open science public data",
+      publicSummary:
+        "This page publishes open updates, data, protocols, materials, and links that the project team makes available for open science.",
+      manageTitle: "Open science publications",
+      manageSummary:
+        "Create drafts or publish updates for the public open science page.",
+      title: "Title",
+      summary: "Short summary",
+      content: "Content or links",
+      saveDraft: "Save draft",
+      publish: "Publish",
+      publicPage: "Open science public page",
+      noPublished: "No published materials yet.",
+      noUpdates: "No updates yet.",
+      status: "Status",
+      draft: "Draft",
+      published: "Published",
     },
     roles: {
       admin: "Admin",

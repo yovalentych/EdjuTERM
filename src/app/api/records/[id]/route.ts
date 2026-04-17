@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/current-user";
+import { listProjectsForUser } from "@/lib/projects";
 import {
   deleteProjectRecord,
+  getProjectRecordById,
   updateProjectRecord,
 } from "@/lib/repositories";
 import { projectRecordInputSchema } from "@/lib/schemas";
@@ -14,6 +16,16 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/records/[i
   }
 
   const { id } = await ctx.params;
+  const existingRecord = await getProjectRecordById(id);
+  const projects = await listProjectsForUser(user);
+
+  if (
+    !existingRecord ||
+    !projects.some((project) => project._id === existingRecord.projectId)
+  ) {
+    return NextResponse.json({ error: "Record not found" }, { status: 404 });
+  }
+
   const body = await request.json();
   const patch = projectRecordInputSchema.partial().parse(body);
   const record = await updateProjectRecord(id, patch);
@@ -33,6 +45,16 @@ export async function DELETE(_request: Request, ctx: RouteContext<"/api/records/
   }
 
   const { id } = await ctx.params;
+  const existingRecord = await getProjectRecordById(id);
+  const projects = await listProjectsForUser(user);
+
+  if (
+    !existingRecord ||
+    !projects.some((project) => project._id === existingRecord.projectId)
+  ) {
+    return NextResponse.json({ error: "Record not found" }, { status: 404 });
+  }
+
   const deleted = await deleteProjectRecord(id);
 
   if (!deleted) {
