@@ -1,0 +1,126 @@
+import type { ProjectRecord } from "@/lib/schemas";
+
+const now = new Date("2026-04-17T00:00:00.000Z");
+
+export const seedRecords: ProjectRecord[] = [
+  {
+    kind: "dataset",
+    localId: "DATA-2027-001",
+    title: "Mouse comorbidity model physiological measures",
+    stage: "Stage 1",
+    access: "internal",
+    owner: "Experimental lead",
+    repository: "Zenodo draft",
+    summary:
+      "Blood pressure, glucose, randomization, intervention groups, and core animal model metadata.",
+    status: "planned",
+    relatedIds: ["PROT-2027-001"],
+    rawDataFiles: [],
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    kind: "dataset",
+    localId: "DATA-2027-002",
+    title: "Cell line characterization under glycated albumin exposure",
+    stage: "Stage 1",
+    access: "embargoed",
+    owner: "Cell culture lead",
+    repository: "Zenodo draft",
+    summary:
+      "U-937 and RAW cell line exposure conditions, RAGE expression, functional readouts, and QC metadata.",
+    status: "planned",
+    relatedIds: ["PROT-2027-002"],
+    rawDataFiles: [],
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    kind: "protocol",
+    localId: "PROT-2027-001",
+    title: "Mouse comorbid arterial hypertension and diabetes model",
+    stage: "Stage 1",
+    access: "restricted",
+    owner: "PI",
+    repository: "protocols.io",
+    summary:
+      "Model establishment, intervention schedule, measurement windows, humane endpoints, and ethics linkage.",
+    status: "review",
+    relatedIds: ["DATA-2027-001"],
+    rawDataFiles: [],
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    kind: "protocol",
+    localId: "PROT-2027-003",
+    title: "Bioinformatic screening for candidate non-coding RNAs",
+    stage: "Stage 1",
+    access: "open",
+    owner: "Analysis lead",
+    repository: "protocols.io",
+    summary:
+      "Search sources, inclusion criteria, target prioritization, evidence scoring, and reproducible query log.",
+    status: "active",
+    relatedIds: ["DATA-2027-003"],
+    rawDataFiles: [],
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    kind: "task",
+    localId: "TASK-2026-001",
+    title: "Confirm project acronym and naming convention",
+    stage: "Proposal",
+    access: "internal",
+    owner: "Data steward",
+    repository: "Internal workspace",
+    summary:
+      "Select stable prefix for sample IDs, datasets, protocols, code releases, and repository records.",
+    status: "active",
+    relatedIds: [],
+    rawDataFiles: [],
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    kind: "output",
+    localId: "OUT-2029-002",
+    title: "Final data and code release package",
+    stage: "Stage 3",
+    access: "open",
+    owner: "PI and data steward",
+    repository: "Zenodo",
+    summary:
+      "Final validated datasets, analysis code archive, metadata, protocols, DMP version, and DOI links.",
+    status: "planned",
+    relatedIds: ["DATA-2027-001", "DATA-2028-001", "DATA-2029-001"],
+    rawDataFiles: [],
+    createdAt: now,
+    updatedAt: now,
+  },
+];
+
+export const stages = [
+  {
+    year: "2027",
+    title: "Model, cell systems, candidate search",
+    focus:
+      "Animal model setup, cell line characterization, glycated albumin exposure, RAGE and candidate non-coding RNA screening.",
+    status: "active",
+  },
+  {
+    year: "2028",
+    title: "Mechanisms and validation",
+    focus:
+      "Myeloid suppressor-like phenotypes, inflammatory functions, expression validation, and analysis-ready datasets.",
+    status: "planned",
+  },
+  {
+    year: "2029",
+    title: "Intervention and release",
+    focus:
+      "In vivo modulation, final analysis, publications, public dataset/code releases, and final reporting.",
+    status: "planned",
+  },
+];

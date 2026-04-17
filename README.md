@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Grant Project Manager
 
-## Getting Started
+Next.js web application for managing a research grant project and its open science evidence: stages, datasets, raw data metadata, protocols, samples, team work, risks, outputs, repositories, and DOI-ready release packages.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 App Router
+- TypeScript
+- Tailwind CSS 4
+- MongoDB Node.js driver
+- Zod validation
+- lucide-react icons
+
+## Run locally
 
 ```bash
+npm install
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The app works without MongoDB by showing seed records. To persist records, set:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+MONGODB_URI=mongodb://127.0.0.1:27017
+MONGODB_DB=grant_project_manager
+```
 
-## Learn More
+## Current routes
 
-To learn more about Next.js, take a look at the following resources:
+- `/` - project dashboard and record creation form
+- `/api/records` - `GET` list records, `POST` create record
+- `/api/records/[id]` - `PATCH` update record, `DELETE` delete record
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## MongoDB collections
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Initial collection:
 
-## Deploy on Vercel
+- `project_records`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Planned collections:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `raw_data_files` - file metadata, checksums, storage URI, relation to dataset/sample/protocol
+- `samples` - biological sample inventory and storage metadata
+- `decisions` - scientific and operational decision log
+- `audit_events` - append-only history of changes
+- `users` - team accounts and roles
+
+Large raw experimental files should not be stored as normal MongoDB document fields. Use MongoDB GridFS or a file/object storage layer and keep checksums, provenance, access category, and storage URI in MongoDB.
+
+## Verification
+
+```bash
+npm run lint
+npm run build
+```
+
+## Git
+
+`create-next-app` initialized this folder as a Git repository. Use normal Git flow from this directory:
+
+```bash
+git status
+git add .
+git commit -m "Initial grant project manager app"
+```
+
