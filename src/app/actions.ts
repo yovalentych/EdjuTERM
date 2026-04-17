@@ -35,11 +35,25 @@ function formLocale(formData: FormData) {
     : "uk";
 }
 
+function safeAppReturnTo(formData: FormData, locale: string, fallback: string) {
+  const returnTo = formData.get("returnTo");
+
+  return typeof returnTo === "string" && returnTo.startsWith(`/${locale}/app`)
+    ? returnTo
+    : fallback;
+}
+
+function withQuery(path: string, key: string, value: string) {
+  return `${path}${path.includes("?") ? "&" : "?"}${key}=${encodeURIComponent(value)}`;
+}
+
 export async function createRecord(formData: FormData) {
+  const locale = formLocale(formData);
+  const returnTo = safeAppReturnTo(formData, locale, `/${locale}/app`);
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect(`/${formLocale(formData)}/login`);
+    redirect(`/${locale}/login`);
   }
 
   const payload = {
@@ -53,8 +67,6 @@ export async function createRecord(formData: FormData) {
     repository: formData.get("repository"),
     summary: formData.get("summary") || "",
   };
-  const locale = formLocale(formData);
-
   const record = projectRecordInputSchema.parse(payload);
   const projects = await listProjectsForUser(user);
 
@@ -64,6 +76,7 @@ export async function createRecord(formData: FormData) {
 
   await insertProjectRecord(record);
   revalidatePath(`/${locale}/app`);
+  revalidatePath(returnTo);
 }
 
 export async function register(formData: FormData) {
@@ -102,6 +115,11 @@ export async function register(formData: FormData) {
 
 export async function saveOpenScienceUpdate(formData: FormData) {
   const locale = formLocale(formData);
+  const returnTo = safeAppReturnTo(
+    formData,
+    locale,
+    `/${locale}/app/open-science`,
+  );
   const user = await getCurrentUser();
 
   if (!user) {
@@ -117,23 +135,25 @@ export async function saveOpenScienceUpdate(formData: FormData) {
   });
 
   if (!payload.success) {
-    redirect(`/${locale}/app/open-science?error=invalid`);
+    redirect(withQuery(returnTo, "error", "invalid"));
   }
 
   const projects = await listProjectsForUser(user);
 
   if (!projects.some((project) => project._id === payload.data.projectId)) {
-    redirect(`/${locale}/app/open-science?error=project`);
+    redirect(withQuery(returnTo, "error", "project"));
   }
 
   await createOpenScienceUpdate(payload.data, user);
   revalidatePath(`/${locale}/open-science`);
   revalidatePath(`/${locale}/app/open-science`);
-  redirect(`/${locale}/app/open-science`);
+  revalidatePath(returnTo);
+  redirect(returnTo);
 }
 
 export async function postTeamMessage(formData: FormData) {
   const locale = formLocale(formData);
+  const returnTo = safeAppReturnTo(formData, locale, `/${locale}/app/team`);
   const user = await getCurrentUser();
 
   if (!user) {
@@ -146,18 +166,19 @@ export async function postTeamMessage(formData: FormData) {
   });
 
   if (!payload.success) {
-    redirect(`/${locale}/app/team?error=invalid`);
+    redirect(withQuery(returnTo, "error", "invalid"));
   }
 
   const projects = await listProjectsForUser(user);
 
   if (!projects.some((project) => project._id === payload.data.projectId)) {
-    redirect(`/${locale}/app/team?error=project`);
+    redirect(withQuery(returnTo, "error", "project"));
   }
 
   await createTeamMessage(payload.data, user);
   revalidatePath(`/${locale}/app/team`);
-  redirect(`/${locale}/app/team`);
+  revalidatePath(returnTo);
+  redirect(returnTo);
 }
 
 export async function login(formData: FormData) {

@@ -9,10 +9,12 @@ export function OpenScienceForm({
   dictionary,
   locale,
   projects,
+  returnTo,
 }: {
   dictionary: Dictionary;
   locale: Locale;
   projects: Project[];
+  returnTo?: string;
 }) {
   if (projects.length === 0) {
     return (
@@ -25,6 +27,7 @@ export function OpenScienceForm({
   return (
     <form action={saveOpenScienceUpdate} className="grid gap-3">
       <input type="hidden" name="locale" value={locale} />
+      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
       <label className="space-y-1">
         <span className="text-sm font-medium text-stone-700">
           {dictionary.projects.project}

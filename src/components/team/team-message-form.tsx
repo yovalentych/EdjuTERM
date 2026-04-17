@@ -7,16 +7,19 @@ export function TeamMessageForm({
   dictionary,
   locale,
   projects,
+  returnTo,
 }: {
   dictionary: Dictionary;
   locale: Locale;
   projects: Project[];
+  returnTo?: string;
 }) {
   const hasProjects = projects.length > 0;
 
   return (
     <form action={postTeamMessage} className="space-y-4">
       <input type="hidden" name="locale" value={locale} />
+      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
 
       <div>
         <label

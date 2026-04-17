@@ -1,10 +1,8 @@
 import {
-  ClipboardList,
-  Database,
-  FileText,
   FlaskConical,
   LayoutDashboard,
-  UsersRound,
+  Settings,
+  UserRound,
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -27,11 +25,8 @@ export async function AppShell({
 }) {
   const navItems = [
     { label: dictionary.nav.dashboard, icon: LayoutDashboard, href: `/${locale}/app` },
-    { label: dictionary.nav.datasets, icon: Database, href: `/${locale}/app` },
-    { label: dictionary.nav.protocols, icon: ClipboardList, href: `/${locale}/app` },
-    { label: dictionary.nav.experiments, icon: FlaskConical, href: `/${locale}/app` },
-    { label: dictionary.nav.outputs, icon: FileText, href: `/${locale}/app` },
-    { label: dictionary.nav.team, icon: UsersRound, href: `/${locale}/app/team` },
+    { label: dictionary.nav.profile, icon: UserRound, href: `/${locale}/app/profile` },
+    { label: dictionary.nav.settings, icon: Settings, href: `/${locale}/app/settings` },
   ];
   const databaseStatus = await getMongoStatus();
 

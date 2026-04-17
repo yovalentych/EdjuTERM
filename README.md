@@ -35,16 +35,23 @@ MONGODB_DB=grant_project_manager
 - `/en` - English public project page
 - `/uk/login`, `/en/login` - localized login pages
 - `/uk/register`, `/en/register` - localized registration pages
-- `/uk/app`, `/en/app` - private project workspace for authenticated users
-- `/uk/app/team`, `/en/app/team` - private team page with project members and shared chat
+- `/uk/app`, `/en/app` - private personal dashboard for authenticated users
+- `/uk/app/profile`, `/en/app/profile` - private user profile page
+- `/uk/app/settings`, `/en/app/settings` - private user settings page
+- `/uk/app/project?projectId=...`, `/en/app/project?projectId=...` - private project workspace opened from the dashboard
+- `/uk/app/team`, `/en/app/team` - legacy private team page with project members and shared chat
 - `/uk/projects/new`, `/en/projects/new` - private project creation page
 - `/uk/app/project-settings?projectId=...`, `/en/app/project-settings?projectId=...` - private project settings and member management
 - `/uk/open-science`, `/en/open-science` - public open science data/update pages
-- `/uk/app/open-science`, `/en/app/open-science` - private open science publication editor
+- `/uk/app/open-science`, `/en/app/open-science` - legacy private open science publication editor
 - `/api/records` - `GET` list records, `POST` create record
 - `/api/records/[id]` - `PATCH` update record, `DELETE` delete record
 
-Private pages and record APIs require a signed session cookie.
+Private pages and record APIs require a signed session cookie. After login the
+top-level private area is intentionally personal: dashboard, profile, and user
+settings. Project-specific work is entered from a dashboard project card and
+opens under the project workspace route so team chat, records, evidence matrix,
+and open science drafting stay scoped to the selected project.
 
 ## Localization
 

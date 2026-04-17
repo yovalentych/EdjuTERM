@@ -29,11 +29,9 @@ export const dictionaries = {
     },
     nav: {
       dashboard: "Панель",
-      datasets: "Дані",
-      protocols: "Протоколи",
-      experiments: "Експерименти",
-      outputs: "Результати",
-      team: "Команда",
+      profile: "Профіль",
+      settings: "Налаштування",
+      projectWorkspace: "Простір проєкту",
     },
     footer: {
       instituteName: "Інститут фізіології ім. О. О. Богомольця НАН України",
@@ -86,6 +84,7 @@ export const dictionaries = {
       newTitle: "Створити проєкт",
       settingsTitle: "Налаштування проєкту",
       settings: "Налаштування",
+      openWorkspace: "Відкрити простір",
       saveSettings: "Зберегти налаштування",
       saved: "Зміни збережено.",
       membersTitle: "Учасники проєкту",
@@ -225,6 +224,20 @@ export const dictionaries = {
       title: "Менеджмент проєктів, даних, протоколів і результатів",
       git: "Git-репозиторій активний",
     },
+    account: {
+      profileTitle: "Власний профіль",
+      profileSummary:
+        "Перевірте ім'я, email, роль і транслітерацію, які використовуються в командній роботі.",
+      settingsTitle: "Особисті налаштування",
+      settingsSummary:
+        "Базові персональні налаштування застосунку. Редагування буде розширено після email-підтвердження.",
+      dashboardTitle: "Мій dashboard",
+      dashboardSummary:
+        "Тут видно тільки ваш профіль, персональні налаштування і проєкти. Робота з даними відкривається всередині конкретного проєкту.",
+      email: "Email",
+      role: "Роль",
+      latinName: "Ім'я латинкою",
+    },
     sections: {
       newRecord: "Новий запис проєкту",
       datasets: "Набори даних",
@@ -316,11 +329,9 @@ export const dictionaries = {
     },
     nav: {
       dashboard: "Dashboard",
-      datasets: "Datasets",
-      protocols: "Protocols",
-      experiments: "Experiments",
-      outputs: "Outputs",
-      team: "Team",
+      profile: "Profile",
+      settings: "Settings",
+      projectWorkspace: "Project workspace",
     },
     footer: {
       instituteName: "Bogomoletz Institute of Physiology, NAS of Ukraine",
@@ -373,6 +384,7 @@ export const dictionaries = {
       newTitle: "Create project",
       settingsTitle: "Project settings",
       settings: "Settings",
+      openWorkspace: "Open workspace",
       saveSettings: "Save settings",
       saved: "Changes saved.",
       membersTitle: "Project members",
@@ -511,6 +523,20 @@ export const dictionaries = {
       eyebrow: "Private workspace",
       title: "Project, data, protocol, and output management",
       git: "Git repository active",
+    },
+    account: {
+      profileTitle: "My profile",
+      profileSummary:
+        "Review the name, email, role, and transliteration used in teamwork.",
+      settingsTitle: "Personal settings",
+      settingsSummary:
+        "Basic personal application settings. Editing will be expanded after email verification.",
+      dashboardTitle: "My dashboard",
+      dashboardSummary:
+        "This area shows only your profile, personal settings, and projects. Data work opens inside a specific project.",
+      email: "Email",
+      role: "Role",
+      latinName: "Name in Latin script",
     },
     sections: {
       newRecord: "New project record",

@@ -59,12 +59,21 @@ export function ProjectList({
                 </span>
               </div>
               {project._id ? (
-                <Link
-                  href={`/${locale}/app/project-settings?projectId=${project._id}`}
-                  className="mt-4 inline-flex border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-stone-800 transition hover:border-emerald-700 hover:text-emerald-800"
-                >
-                  {dictionary.projects.settings}
-                </Link>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    href={`/${locale}/app/project?projectId=${project._id}`}
+                    target="_blank"
+                    className="bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+                  >
+                    {dictionary.projects.openWorkspace}
+                  </Link>
+                  <Link
+                    href={`/${locale}/app/project-settings?projectId=${project._id}`}
+                    className="border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-stone-800 transition hover:border-emerald-700 hover:text-emerald-800"
+                  >
+                    {dictionary.projects.settings}
+                  </Link>
+                </div>
               ) : null}
             </article>
           ))

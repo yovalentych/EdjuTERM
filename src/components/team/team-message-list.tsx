@@ -8,12 +8,14 @@ export function TeamMessageList({
   locale,
   messages,
   projects,
+  returnTo,
   usersById,
 }: {
   dictionary: Dictionary;
   locale: Locale;
   messages: TeamMessage[];
   projects: Project[];
+  returnTo?: string;
   usersById: Map<string, SafeUser>;
 }) {
   const projectsById = new Map(
@@ -34,6 +36,7 @@ export function TeamMessageList({
           dictionary={dictionary}
           locale={locale}
           projects={projects}
+          returnTo={returnTo}
         />
       </div>
 
