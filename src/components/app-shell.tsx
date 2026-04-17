@@ -11,6 +11,7 @@ import type { ReactNode } from "react";
 import type { Dictionary, Locale } from "@/lib/i18n";
 import type { SafeUser } from "@/lib/schemas";
 import { logout } from "@/app/actions";
+import { SiteFooter } from "@/components/site-footer";
 
 export function AppShell({
   children,
@@ -24,12 +25,12 @@ export function AppShell({
   user: SafeUser;
 }) {
   const navItems = [
-    { label: dictionary.nav.dashboard, icon: LayoutDashboard },
-    { label: dictionary.nav.datasets, icon: Database },
-    { label: dictionary.nav.protocols, icon: ClipboardList },
-    { label: dictionary.nav.experiments, icon: FlaskConical },
-    { label: dictionary.nav.outputs, icon: FileText },
-    { label: dictionary.nav.team, icon: UsersRound },
+    { label: dictionary.nav.dashboard, icon: LayoutDashboard, href: `/${locale}/app` },
+    { label: dictionary.nav.datasets, icon: Database, href: `/${locale}/app` },
+    { label: dictionary.nav.protocols, icon: ClipboardList, href: `/${locale}/app` },
+    { label: dictionary.nav.experiments, icon: FlaskConical, href: `/${locale}/app` },
+    { label: dictionary.nav.outputs, icon: FileText, href: `/${locale}/app` },
+    { label: dictionary.nav.team, icon: UsersRound, href: `/${locale}/app/team` },
   ];
 
   return (
@@ -51,14 +52,14 @@ export function AppShell({
           </div>
           <nav className="mt-8 space-y-1">
             {navItems.map((item) => (
-              <a
+              <Link
                 key={item.label}
-                href={`/${locale}/app`}
+                href={item.href}
                 className="flex items-center gap-3 px-3 py-2 text-sm text-stone-300 transition hover:bg-stone-800 hover:text-white"
               >
                 <item.icon className="h-4 w-4" />
                 {item.label}
-              </a>
+              </Link>
             ))}
           </nav>
           <div className="mt-8 border border-stone-800 bg-stone-900 p-4">
@@ -118,6 +119,7 @@ export function AppShell({
             </div>
           </header>
           <div className="space-y-4 p-4 md:p-5">{children}</div>
+          <SiteFooter dictionary={dictionary} />
         </main>
       </div>
     </div>

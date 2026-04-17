@@ -116,6 +116,17 @@ export const openScienceUpdateSchema = openScienceUpdateInputSchema.extend({
   updatedAt: z.coerce.date(),
 });
 
+export const teamMessageInputSchema = z.object({
+  projectId: z.string().min(1).max(120),
+  body: z.string().min(1).max(2000),
+});
+
+export const teamMessageSchema = teamMessageInputSchema.extend({
+  _id: z.string().optional(),
+  authorId: z.string(),
+  createdAt: z.coerce.date(),
+});
+
 export type UserRole = z.infer<typeof userSchema>["role"];
 export type User = z.infer<typeof userSchema>;
 export type SafeUser = z.infer<typeof safeUserSchema>;
@@ -127,3 +138,5 @@ export type OpenScienceUpdateInput = z.infer<
   typeof openScienceUpdateInputSchema
 >;
 export type OpenScienceUpdate = z.infer<typeof openScienceUpdateSchema>;
+export type TeamMessageInput = z.infer<typeof teamMessageInputSchema>;
+export type TeamMessage = z.infer<typeof teamMessageSchema>;

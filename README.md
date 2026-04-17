@@ -21,7 +21,7 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-The app works without MongoDB by showing seed records. To persist records, set:
+The app does not ship mock project content. Without MongoDB it uses empty in-memory development stores; to persist records, set:
 
 ```bash
 MONGODB_URI=mongodb://127.0.0.1:27017
@@ -36,6 +36,7 @@ MONGODB_DB=grant_project_manager
 - `/uk/login`, `/en/login` - localized login pages
 - `/uk/register`, `/en/register` - localized registration pages
 - `/uk/app`, `/en/app` - private project workspace for authenticated users
+- `/uk/app/team`, `/en/app/team` - private team page with project members and shared chat
 - `/uk/projects/new`, `/en/projects/new` - private project creation page
 - `/uk/open-science`, `/en/open-science` - public open science data/update pages
 - `/uk/app/open-science`, `/en/app/open-science` - private open science publication editor
@@ -56,6 +57,7 @@ Initial collection:
 - `users`
 - `projects`
 - `open_science_updates`
+- `team_messages`
 
 Planned collections:
 
@@ -81,13 +83,17 @@ Every private project record requires `projectId`. The workspace lists and creat
 
 Project members can create open science updates from the private editor and either save a draft or publish it. Only records with `status = published` are visible on the public open science page.
 
+## Team workspace
+
+The team page lists real project participants from project membership and stores shared chat messages in `team_messages`. Messages are scoped by `projectId`, so users only see messages from projects they can access.
+
 Large raw experimental files should not be stored as normal MongoDB document fields. Use MongoDB GridFS or a file/object storage layer and keep checksums, provenance, access category, and storage URI in MongoDB.
 
 ## Verification
 
 ```bash
 npm run lint
-npm run build
+npx tsc --noEmit
 ```
 
 ## Git

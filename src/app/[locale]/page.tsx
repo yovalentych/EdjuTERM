@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { SiteFooter } from "@/components/site-footer";
 import { getCurrentUser } from "@/lib/current-user";
 import { getDictionary, isLocale } from "@/lib/i18n";
 
@@ -111,6 +112,7 @@ export default async function PublicHome({
           </p>
         </div>
       </section>
+      <SiteFooter dictionary={dictionary} />
     </main>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OpenScienceList } from "@/components/open-science/open-science-list";
+import { SiteFooter } from "@/components/site-footer";
 import { getDictionary, isLocale } from "@/lib/i18n";
 import { listPublishedOpenScienceUpdates } from "@/lib/open-science";
 
@@ -19,8 +20,8 @@ export default async function PublicOpenSciencePage({
   const updates = await listPublishedOpenScienceUpdates();
 
   return (
-    <main className="min-h-screen bg-[#f3f4ef] px-5 py-8 text-stone-950">
-      <section className="mx-auto max-w-5xl">
+    <main className="min-h-screen bg-[#f3f4ef] text-stone-950">
+      <section className="mx-auto max-w-5xl px-5 py-8">
         <div className="border border-stone-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
@@ -51,6 +52,7 @@ export default async function PublicOpenSciencePage({
           />
         </div>
       </section>
+      <SiteFooter dictionary={dictionary} />
     </main>
   );
 }

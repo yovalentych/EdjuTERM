@@ -147,6 +147,43 @@ export async function getSafeUserById(id: string) {
   return user ? toSafeUser(user) : null;
 }
 
+export async function listSafeUsersByIds(ids: string[]) {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+
+  if (uniqueIds.length === 0) {
+    return [];
+  }
+
+  if (!hasMongoConfig()) {
+    return localUsers
+      .filter((user) => user._id && uniqueIds.includes(user._id))
+      .map(toSafeUser);
+  }
+
+  const db = await getMongoDb();
+  const objectIds = uniqueIds
+    .filter((id) => ObjectId.isValid(id))
+    .map((id) => new ObjectId(id));
+
+  if (objectIds.length === 0) {
+    return [];
+  }
+
+  const docs = await db
+    .collection(collectionName)
+    .find({ _id: { $in: objectIds } })
+    .toArray();
+  const users = await Promise.all(
+    docs.map(async (doc) => {
+      const user = normalizeUserDocument(doc);
+      await migrateLegacyUserDocument(doc, user);
+      return toSafeUser(user);
+    }),
+  );
+
+  return users;
+}
+
 export async function setUserRole(id: string, role: UserRole) {
   if (!hasMongoConfig()) {
     const user = localUsers.find((item) => item._id === id);

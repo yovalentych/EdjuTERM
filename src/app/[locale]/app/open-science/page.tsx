@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { AppShell } from "@/components/app-shell";
 import { OpenScienceForm } from "@/components/open-science/open-science-form";
 import { OpenScienceList } from "@/components/open-science/open-science-list";
 import { getCurrentUser } from "@/lib/current-user";
@@ -32,8 +33,8 @@ export default async function ManageOpenSciencePage({
   const updates = await listOpenScienceUpdatesForProjects(projectIds);
 
   return (
-    <main className="min-h-screen bg-[#f3f4ef] px-5 py-8 text-stone-950">
-      <section className="mx-auto grid max-w-5xl gap-4 lg:grid-cols-[0.85fr_1.15fr]">
+    <AppShell dictionary={dictionary} locale={localeParam} user={user}>
+      <section className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
         <div className="border border-stone-200 bg-white p-5 shadow-sm">
           <h1 className="text-2xl font-semibold">
             {dictionary.openScience.manageTitle}
@@ -69,6 +70,6 @@ export default async function ManageOpenSciencePage({
           <OpenScienceList updates={updates} dictionary={dictionary} />
         </div>
       </section>
-    </main>
+    </AppShell>
   );
 }

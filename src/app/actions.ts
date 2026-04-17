@@ -14,8 +14,10 @@ import {
   projectInputSchema,
   projectRecordInputSchema,
   registerInputSchema,
+  teamMessageInputSchema,
 } from "@/lib/schemas";
 import { createSession, destroySession } from "@/lib/session";
+import { createTeamMessage } from "@/lib/team";
 import { createUser, findUserByEmail } from "@/lib/users";
 
 function formLocale(formData: FormData) {
@@ -121,6 +123,34 @@ export async function saveOpenScienceUpdate(formData: FormData) {
   revalidatePath(`/${locale}/open-science`);
   revalidatePath(`/${locale}/app/open-science`);
   redirect(`/${locale}/app/open-science`);
+}
+
+export async function postTeamMessage(formData: FormData) {
+  const locale = formLocale(formData);
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect(`/${locale}/login`);
+  }
+
+  const payload = teamMessageInputSchema.safeParse({
+    projectId: formData.get("projectId"),
+    body: formData.get("body"),
+  });
+
+  if (!payload.success) {
+    redirect(`/${locale}/app/team?error=invalid`);
+  }
+
+  const projects = await listProjectsForUser(user);
+
+  if (!projects.some((project) => project._id === payload.data.projectId)) {
+    redirect(`/${locale}/app/team?error=project`);
+  }
+
+  await createTeamMessage(payload.data, user);
+  revalidatePath(`/${locale}/app/team`);
+  redirect(`/${locale}/app/team`);
 }
 
 export async function login(formData: FormData) {

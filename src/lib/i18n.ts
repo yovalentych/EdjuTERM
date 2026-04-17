@@ -32,6 +32,18 @@ export const dictionaries = {
       outputs: "Результати",
       team: "Команда",
     },
+    footer: {
+      instituteName: "Інститут фізіології ім. О. О. Богомольця НАН України",
+      instituteMark: "ІФБ",
+      affiliation:
+        "Афіліація дослідницької команди та інституційний контекст проєкту.",
+      instituteLink: "Офіційна сторінка інституту",
+      openScience:
+        "Платформа підтримує відкриту науку: FAIR-метадані, контроль доступу, публічні оновлення та підготовку матеріалів до репозиторіїв.",
+      openSource:
+        "Проєкт розвивається як відкритий програмний інструмент для прозорого менеджменту дослідницьких даних і командної роботи.",
+      builtFor: "Створено для грантової команди, аудиту даних і відтворюваних результатів.",
+    },
     public: {
       eyebrow: "Публічна сторінка дослідницького проєкту",
       title: "Платформа для менеджменту гранту та відкритої науки",
@@ -98,6 +110,26 @@ export const dictionaries = {
       status: "Статус",
       draft: "Чернетка",
       published: "Опубліковано",
+    },
+    team: {
+      title: "Команда",
+      summary:
+        "Учасники проєктів, спільний чат і операційна координація дослідницької роботи.",
+      members: "Учасники",
+      chat: "Спільний чат",
+      message: "Повідомлення",
+      messagePlaceholder: "Напишіть оновлення, питання або рішення команди.",
+      send: "Надіслати",
+      noMembers: "Учасників ще не додано.",
+      noMessages: "Повідомлень ще немає.",
+      noProjects:
+        "Спершу створіть або отримайте доступ до проєкту, щоб працювати з командою.",
+      projectScope: "Проєкт",
+      allProjects: "Усі доступні проєкти",
+      roleInProject: "Роль у проєкті",
+      owner: "Власник",
+      supervisor: "Керівник",
+      member: "Учасник",
     },
     roles: {
       admin: "Адмін",
@@ -204,6 +236,18 @@ export const dictionaries = {
       outputs: "Outputs",
       team: "Team",
     },
+    footer: {
+      instituteName: "Bogomoletz Institute of Physiology, NAS of Ukraine",
+      instituteMark: "BIPH",
+      affiliation:
+        "Research team affiliation and institutional project context.",
+      instituteLink: "Official institute page",
+      openScience:
+        "The platform supports open science: FAIR metadata, access control, public updates, and repository-ready materials.",
+      openSource:
+        "The project is developed as an open software tool for transparent research data management and teamwork.",
+      builtFor: "Built for grant teams, data audit, and reproducible outputs.",
+    },
     public: {
       eyebrow: "Public research project page",
       title: "Platform for grant management and open science",
@@ -270,6 +314,26 @@ export const dictionaries = {
       status: "Status",
       draft: "Draft",
       published: "Published",
+    },
+    team: {
+      title: "Team",
+      summary:
+        "Project participants, shared chat, and operational coordination for research work.",
+      members: "Members",
+      chat: "Shared chat",
+      message: "Message",
+      messagePlaceholder: "Write a team update, question, or decision.",
+      send: "Send",
+      noMembers: "No members have been added yet.",
+      noMessages: "No messages yet.",
+      noProjects:
+        "Create or get access to a project first to work with the team.",
+      projectScope: "Project",
+      allProjects: "All accessible projects",
+      roleInProject: "Project role",
+      owner: "Owner",
+      supervisor: "Supervisor",
+      member: "Member",
     },
     roles: {
       admin: "Admin",
