@@ -51,6 +51,7 @@ export const projectTypes = [
   "internship",
 ] as const;
 
+/** @deprecated Use CLASSIFICATION_1021 from classification-1021.ts */
 export const researchFields = [
   "physiology",
   "neuroscience",
@@ -240,6 +241,7 @@ export const userSchema = z.object({
   position: z.string().max(120).default(""),
   affiliation: z.string().max(200).default(""),
   profileBio: z.string().max(1200).default(""),
+  defaultSpecialty: z.string().max(10).default(""),
   passwordHash: z.string(),
   role: z.enum(userRoles).default("user"),
   sessionVersion: z.number().int().min(1).default(1),
@@ -255,7 +257,7 @@ export const projectInputSchema = z.object({
   acronym: z.string().min(2).max(32),
   summary: z.string().max(1200).default(""),
   projectType: z.enum(projectTypes).default("fundamental"),
-  researchField: z.enum(researchFields).default("physiology"),
+  researchField: z.string().max(10).default(""),
   grantProgram: z.string().max(160).default(""),
   startDate: z.string().max(32).default(""),
   endDate: z.string().max(32).default(""),
@@ -294,6 +296,7 @@ export const profileInputSchema = z.object({
   position: z.string().max(120).default(""),
   affiliation: z.string().max(200).default(""),
   profileBio: z.string().max(1200).default(""),
+  defaultSpecialty: z.string().max(10).default(""),
 });
 
 export const openScienceUpdateInputSchema = z.object({
@@ -960,6 +963,7 @@ export const learningTopicInputSchema = z.object({
   completedAt: z.coerce.date().nullable().default(null),
   durationHours: z.coerce.number().min(0).max(100).default(2),
   notes: z.string().max(20000).default(""),
+  linkedLectureId: z.string().max(120).default(""),
 });
 
 export const learningTopicSchema = learningTopicInputSchema.extend({
@@ -1009,6 +1013,7 @@ export type LearningAssessmentInput = z.infer<typeof learningAssessmentInputSche
 export type LearningAssessment = z.infer<typeof learningAssessmentSchema>;
 
 export const attendanceStatuses = ["present", "absent", "excused", "late"] as const;
+export const sessionStatuses = ["active", "cancelled", "rescheduled", "makeup"] as const;
 
 export const learningSessionInputSchema = z.object({
   projectId: z.string().min(1).max(120),
@@ -1026,6 +1031,10 @@ export const learningSessionInputSchema = z.object({
   notes: z.string().max(5000).default(""),
   location: z.string().max(200).default(""),
   orderIndex: z.coerce.number().int().default(0),
+  status: z.enum(sessionStatuses).default("active"),
+  cancellationReason: z.string().max(500).default(""),
+  originalDate: z.string().max(32).default(""),
+  recurringGroupId: z.string().max(120).default(""),
 });
 
 export const learningSessionSchema = learningSessionInputSchema.extend({
@@ -1069,6 +1078,7 @@ export const learningAssignmentSchema = learningAssignmentInputSchema.extend({
 });
 
 export type AttendanceStatus = (typeof attendanceStatuses)[number];
+export type SessionStatus = (typeof sessionStatuses)[number];
 export type AssignmentType = (typeof assignmentTypes)[number];
 export type AssignmentStatus = (typeof assignmentStatuses)[number];
 export type LearningSessionInput = z.infer<typeof learningSessionInputSchema>;
@@ -1337,6 +1347,7 @@ export const phdCurriculumCourseSchema = z.object({
   controlForm: z.string().max(50).default(""),
   studyYear: z.coerce.number().int().min(1).max(4).default(1),
   orderIndex: z.coerce.number().int().default(0),
+  credited: z.boolean().default(false),
 });
 
 export const phdMilestoneSchema = z.object({
@@ -1485,7 +1496,7 @@ export const portfolioAwardSchema = z.object({
 export const portfolioMetaSchema = z.object({
   projectId: z.string().min(1).max(120),
   fullName: z.string().max(200).default(""),
-  educationLevel: z.string().max(100).default("третій освітньо-науковий"),
+  educationLevel: z.string().max(100).default("phd"),
   specialty: z.string().max(200).default(""),
   educationalProgram: z.string().max(300).default(""),
   department: z.string().max(300).default(""),
@@ -1513,3 +1524,40 @@ export type PortfolioConference = z.infer<typeof portfolioConferenceSchema>;
 export type PortfolioAward = z.infer<typeof portfolioAwardSchema>;
 export type PortfolioMeta = z.infer<typeof portfolioMetaSchema>;
 export type Portfolio = z.infer<typeof portfolioSchema>;
+
+// ── Activity diary ────────────────────────────────────────────────────────────
+
+export const diaryEntryTypes = [
+  "note",
+  "meeting",
+  "application",
+  "info_received",
+  "request_received",
+  "task_done",
+  "event",
+] as const;
+
+export const diaryEntrySchema = z.object({
+  _id: z.string().optional(),
+  projectId: z.string().min(1).max(120),
+  userId: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  type: z.enum(diaryEntryTypes),
+  title: z.string().min(1).max(300),
+  body: z.string().max(4000).default(""),
+  // type-specific extras (all optional)
+  person: z.string().max(200).default(""),       // who (meeting, request, info)
+  place: z.string().max(200).default(""),        // where (meeting, event)
+  recipient: z.string().max(200).default(""),    // to whom (application)
+  docRef: z.string().max(100).default(""),       // reference/number (application)
+  outcome: z.string().max(500).default(""),      // result/status
+  tags: z.array(z.string().max(40)).default([]),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
+
+export const diaryEntryInputSchema = diaryEntrySchema.omit({ _id: true, createdAt: true, updatedAt: true });
+
+export type DiaryEntryType = (typeof diaryEntryTypes)[number];
+export type DiaryEntry = z.infer<typeof diaryEntrySchema>;
+export type DiaryEntryInput = z.infer<typeof diaryEntryInputSchema>;

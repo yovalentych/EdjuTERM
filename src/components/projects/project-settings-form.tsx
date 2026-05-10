@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { updateProjectSettings } from "@/app/actions";
 import type { Dictionary, Locale } from "@/lib/i18n";
 import {
@@ -6,8 +9,8 @@ import {
   projectTypes,
   projectVisibilityOptions,
   repositoryPlanOptions,
-  researchFields,
 } from "@/lib/schemas";
+import { SpecialtySelect } from "@/components/ui/specialty-select";
 
 const fieldClass =
   "input-control px-3 py-2 text-sm outline-none";
@@ -21,6 +24,7 @@ export function ProjectSettingsForm({
   locale: Locale;
   project: Project;
 }) {
+  const [researchField, setResearchField] = useState(project.researchField ?? "");
   return (
     <form action={updateProjectSettings} className="surface p-5 md:p-6">
       <input type="hidden" name="locale" value={locale} />
@@ -90,15 +94,14 @@ export function ProjectSettingsForm({
             label: dictionary.projects.typeOptions[value],
           }))}
         />
-        <SelectField
-          label={dictionary.projects.researchField}
-          name="researchField"
-          defaultValue={project.researchField}
-          options={researchFields.map((value) => ({
-            value,
-            label: dictionary.projects.fieldOptions[value],
-          }))}
-        />
+        <label className="block space-y-1">
+          <span className="text-sm font-medium text-stone-700">{dictionary.projects.researchField}</span>
+          <SpecialtySelect
+            name="researchField"
+            value={researchField}
+            onChange={setResearchField}
+          />
+        </label>
         <SelectField
           label={dictionary.projects.visibility}
           name="visibility"

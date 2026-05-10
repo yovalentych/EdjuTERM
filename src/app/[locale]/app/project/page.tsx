@@ -34,6 +34,7 @@ import { getDashboardData } from "@/lib/repositories";
 import { listManuscripts } from "@/lib/manuscripts";
 import { ManuscriptsExplorer } from "@/components/manuscripts/manuscripts-explorer";
 import type { Project, ProjectRecord, SafeUser } from "@/lib/schemas";
+import { getSpecialtyLabel } from "@/lib/classification-1021";
 import { listTeamMessages } from "@/lib/team";
 import { listPublications } from "@/lib/research-publications";
 import { listSafeUsersByIds } from "@/lib/users";
@@ -167,7 +168,7 @@ export default async function ProjectWorkspacePage({
                 />
                 <MetaChip
                   icon={<BookOpen className="h-3.5 w-3.5" />}
-                  label={d.projects.fieldOptions[project.researchField]}
+                  label={getSpecialtyLabel(project.researchField)}
                 />
                 {project.grantProgram && (
                   <MetaChip

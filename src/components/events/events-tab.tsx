@@ -62,6 +62,7 @@ import type {
   SubmissionItem,
 } from "@/lib/schemas";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { InstitutionSearch } from "@/components/ui/institution-search";
 
 // ── Label maps ────────────────────────────────────────────────────────────────
 
@@ -637,7 +638,7 @@ function ParticipationSection({
 
           <div>
             <label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Установа / Афіліація</label>
-            <input type="text" name="affiliation" className="input-control w-full py-1 text-xs" placeholder="КПІ ім. Ігоря Сікорського, Інститут клітинної біології НАН України…" />
+            <InstitutionSearch name="affiliation" placeholder="КПІ ім. Ігоря Сікорського, Інститут клітинної біології НАН України…" />
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -700,7 +701,7 @@ function ParticipationSection({
 
                 <div>
                   <label className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Установа / Афіліація</label>
-                  <input type="text" name="affiliation" defaultValue={p.affiliation} className="input-control w-full py-1 text-xs" placeholder="КПІ ім. Ігоря Сікорського…" />
+                  <InstitutionSearch name="affiliation" defaultValue={p.affiliation} placeholder="КПІ ім. Ігоря Сікорського…" />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>

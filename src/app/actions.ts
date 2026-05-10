@@ -146,7 +146,13 @@ import {
   type ManuscriptInput,
   type ManuscriptStatus,
   type ManuscriptType,
+  diaryEntryInputSchema,
 } from "@/lib/schemas";
+import {
+  createDiaryEntry as createDiaryEntryLib,
+  updateDiaryEntry as updateDiaryEntryLib,
+  deleteDiaryEntry as deleteDiaryEntryLib,
+} from "@/lib/diary";
 import { createSession, destroySession } from "@/lib/session";
 import { createTeamMessage, toggleStarMessage as toggleStarMessageLib, setPinTeamMessage } from "@/lib/team";
 import { createNotificationsForUsers, type NotificationType } from "@/lib/notifications";
@@ -1589,6 +1595,7 @@ export async function updateProfile(formData: FormData) {
     position: formData.get("position") || "",
     affiliation: formData.get("affiliation") || "",
     profileBio: formData.get("profileBio") || "",
+    defaultSpecialty: formData.get("defaultSpecialty") || "",
   });
 
   if (!payload.success) {
@@ -3830,5 +3837,73 @@ export async function deleteManuscriptAction(
   });
 
   revalidatePath(`/[locale]/app/project`, "page");
+  return { ok: true };
+}
+
+// ── Activity diary ────────────────────────────────────────────────────────────
+
+export async function saveDiaryEntry(formData: FormData) {
+  "use server";
+  const user = await getCurrentUser();
+  if (!user?._id) return { ok: false, error: "unauthenticated" };
+
+  const id = formData.get("_id") as string | null;
+
+  const raw = {
+    projectId: formData.get("projectId") as string,
+    userId: user._id,
+    date: formData.get("date") as string,
+    type: formData.get("type") as string,
+    title: formData.get("title") as string,
+    body: (formData.get("body") as string) || "",
+    person: (formData.get("person") as string) || "",
+    place: (formData.get("place") as string) || "",
+    recipient: (formData.get("recipient") as string) || "",
+    docRef: (formData.get("docRef") as string) || "",
+    outcome: (formData.get("outcome") as string) || "",
+    tags: [],
+  };
+
+  const parsed = diaryEntryInputSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "invalid" };
+
+  if (id) {
+    const updated = await updateDiaryEntryLib(id, parsed.data);
+    return updated ? { ok: true, entry: updated } : { ok: false, error: "not_found" };
+  }
+
+  const created = await createDiaryEntryLib(parsed.data);
+  return { ok: true, entry: created };
+}
+
+export async function deleteDiaryEntry(entryId: string) {
+  "use server";
+  const user = await getCurrentUser();
+  if (!user?._id) return { ok: false, error: "unauthenticated" };
+
+  const ok = await deleteDiaryEntryLib(entryId);
+  return { ok };
+}
+
+// ── Almanac quick-patch actions (no redirect) ─────────────────────────────────
+
+export async function patchTaskStatus(taskId: string, status: string, projectId: string) {
+  "use server";
+  const user = await getCurrentUser();
+  if (!user?._id) return { ok: false };
+  await updateTaskStatus(taskId, status as Parameters<typeof updateTaskStatus>[1], user);
+  revalidatePath("/[locale]/app/almanac", "page");
+  revalidatePath("/[locale]/app/planning", "page");
+  return { ok: true };
+}
+
+export async function patchExperimentStatusAlmanac(experimentId: string, status: string, projectId: string) {
+  "use server";
+  const user = await getCurrentUser();
+  if (!user?._id) return { ok: false };
+  if (!(experimentStatuses as readonly string[]).includes(status)) return { ok: false };
+  await updateExperimentStatusLib(experimentId, status as Parameters<typeof updateExperimentStatusLib>[1]);
+  revalidatePath("/[locale]/app/almanac", "page");
+  revalidatePath("/[locale]/app/experiments", "page");
   return { ok: true };
 }

@@ -38,6 +38,7 @@ function normalizeUserDocument(doc: WithId<Document>) {
     position: doc.position ?? "",
     affiliation: doc.affiliation ?? "",
     profileBio: doc.profileBio ?? "",
+    defaultSpecialty: doc.defaultSpecialty ?? "",
     sessionVersion: doc.sessionVersion ?? 1,
   });
 }
@@ -52,6 +53,7 @@ async function migrateLegacyUserDocument(doc: WithId<Document>, user: User) {
     "position" in doc &&
     "affiliation" in doc &&
     "profileBio" in doc &&
+    "defaultSpecialty" in doc &&
     "sessionVersion" in doc
   ) {
     return;
@@ -70,6 +72,7 @@ async function migrateLegacyUserDocument(doc: WithId<Document>, user: User) {
         position: user.position,
         affiliation: user.affiliation,
         profileBio: user.profileBio,
+        defaultSpecialty: user.defaultSpecialty,
         sessionVersion: user.sessionVersion,
         updatedAt: new Date(),
       },
@@ -103,6 +106,7 @@ export async function createUser(input: RegisterInput) {
     position: "",
     affiliation: "",
     profileBio: "",
+    defaultSpecialty: "",
     email: input.email,
     passwordHash: await hashPassword(input.password),
     role: roleForEmail(input.email),

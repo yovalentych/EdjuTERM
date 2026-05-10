@@ -493,6 +493,9 @@ function AssignmentCard({ assignment, sessions, topics, modules, projectId, loca
               {canManage && (
                 <form
                   action={(fd) => {
+                    fd.set("sessionId", assignment.sessionId);
+                    fd.set("topicId", assignment.topicId);
+                    fd.set("moduleId", assignment.moduleId);
                     start(async () => {
                       await saveAssignmentAction(fd);
                       setExpanded(false);
@@ -503,45 +506,74 @@ function AssignmentCard({ assignment, sessions, topics, modules, projectId, loca
                   <input type="hidden" name="locale" value={locale} />
                   <input type="hidden" name="projectId" value={projectId} />
                   <input type="hidden" name="assignmentId" value={assignment._id ?? ""} />
-                  <input type="hidden" name="title" value={assignment.title} />
-                  <input type="hidden" name="description" value={assignment.description} />
-                  <input type="hidden" name="assignmentType" value={assignment.assignmentType} />
-                  <input type="hidden" name="dueDate" value={assignment.dueDate} />
-                  <input type="hidden" name="maxScore" value={assignment.maxScore} />
-                  <input type="hidden" name="sessionId" value={assignment.sessionId} />
-                  <input type="hidden" name="topicId" value={assignment.topicId} />
-                  <input type="hidden" name="moduleId" value={assignment.moduleId} />
+
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Назва</label>
+                    <input name="title" defaultValue={assignment.title} required className="input-control w-full py-1.5 text-xs font-semibold" />
+                  </div>
 
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Статус</label>
-                      <select name="status" defaultValue={assignment.status} className="input-control w-full py-1.5 text-xs">
-                        {(Object.keys(ASSIGN_STATUS_LABELS) as AssignmentStatus[]).map((status) => (
-                          <option key={status} value={status}>{ASSIGN_STATUS_LABELS[status]}</option>
+                      <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Тип роботи</label>
+                      <select name="assignmentType" defaultValue={assignment.assignmentType} className="input-control w-full py-1.5 text-xs">
+                        {(Object.keys(ASSIGN_TYPE_LABELS) as AssignmentType[]).map((type) => (
+                          <option key={type} value={type}>{ASSIGN_TYPE_LABELS[type]}</option>
                         ))}
                       </select>
                     </div>
                     <div>
-                      <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Отримано балів</label>
-                      <input
-                        name="achievedScore"
-                        type="number"
-                        min={0}
-                        max={assignment.maxScore}
-                        defaultValue={assignment.achievedScore ?? ""}
-                        placeholder="—"
-                        className="input-control w-full py-1.5 text-xs font-bold"
-                      />
+                      <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Дедлайн</label>
+                      <input name="dueDate" type="date" defaultValue={assignment.dueDate} className="input-control w-full py-1.5 text-xs" />
                     </div>
                     <div>
-                      <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Дата здачі</label>
-                      <input name="submittedDate" type="date" defaultValue={assignment.submittedDate} className="input-control w-full py-1.5 text-xs" />
+                      <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Макс. балів</label>
+                      <input name="maxScore" type="number" min={0} max={1000} defaultValue={assignment.maxScore} className="input-control w-full py-1.5 text-xs font-bold" />
                     </div>
                   </div>
 
                   <div>
-                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Відгук / коментар викладача</label>
-                    <input name="feedback" defaultValue={assignment.feedback} placeholder="Коментар викладача…" className="input-control w-full py-1.5 text-xs" />
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Умова / опис</label>
+                    <textarea
+                      name="description"
+                      defaultValue={assignment.description}
+                      rows={2}
+                      placeholder="Умова, очікуваний формат, посилання"
+                      className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs transition focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    />
+                  </div>
+
+                  <div className="border-t border-slate-200 pt-3">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Статус</label>
+                        <select name="status" defaultValue={assignment.status} className="input-control w-full py-1.5 text-xs">
+                          {(Object.keys(ASSIGN_STATUS_LABELS) as AssignmentStatus[]).map((status) => (
+                            <option key={status} value={status}>{ASSIGN_STATUS_LABELS[status]}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Отримано балів</label>
+                        <input
+                          name="achievedScore"
+                          type="number"
+                          min={0}
+                          max={assignment.maxScore}
+                          defaultValue={assignment.achievedScore ?? ""}
+                          placeholder="—"
+                          className="input-control w-full py-1.5 text-xs font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Дата здачі</label>
+                        <input name="submittedDate" type="date" defaultValue={assignment.submittedDate} className="input-control w-full py-1.5 text-xs" />
+                      </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Відгук / коментар викладача</label>
+                      <input name="feedback" defaultValue={assignment.feedback} placeholder="Коментар викладача…" className="input-control w-full py-1.5 text-xs" />
+                    </div>
                   </div>
 
                   <div className="flex justify-end">

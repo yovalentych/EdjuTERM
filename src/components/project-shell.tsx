@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   BookOpen,
+  NotebookPen,
   CalendarDays,
   ClipboardList,
   Database,
@@ -12,6 +13,7 @@ import {
   Briefcase,
   LayoutDashboard,
   Microscope,
+  BookMarked,
   Settings,
   Sparkles,
   SquareStack,
@@ -32,6 +34,7 @@ import { SidebarCollapseToggle } from "@/components/sidebar-collapse-toggle";
 import { SiteFooter } from "@/components/site-footer";
 import { PageTransition } from "@/components/ui/page-transition";
 import { ProjectChatWidget } from "@/components/chat/project-chat-widget";
+import { DiaryQuickWidget } from "@/components/learning/diary-quick-widget";
 
 export type ProjectTab =
   | "overview"
@@ -42,10 +45,12 @@ export type ProjectTab =
   | "budget"
   | "planning"
   | "research-plan"
+  | "almanac"
   | "experiments"
   | "events"
   | "reports"
   | "learning"
+  | "diary"
   | "phd-plan"
   | "portfolio"
   | "settings";
@@ -107,6 +112,12 @@ export function ProjectShell({
       href: `/${locale}/app/research-plan?projectId=${project._id}`,
     },
     {
+      id: "almanac",
+      label: isUk ? "Альманах дослідження" : "Research Almanac",
+      icon: BookMarked,
+      href: `/${locale}/app/almanac?projectId=${project._id}`,
+    },
+    {
       id: "planning",
       label: d.planning.openPlanning,
       icon: CalendarDays,
@@ -149,6 +160,12 @@ export function ProjectShell({
       href: `/${locale}/app/learning?projectId=${project._id}`,
     },
     {
+      id: "diary",
+      label: isUk ? "Щоденник діяльності" : "Activity Diary",
+      icon: NotebookPen,
+      href: `/${locale}/app/diary?projectId=${project._id}`,
+    },
+    {
       id: "phd-plan",
       label: isUk ? "Інд. план аспіранта" : "PhD Individual Plan",
       icon: GraduationCap,
@@ -189,7 +206,7 @@ export function ProjectShell({
     {
       label: isUk ? "Планування" : "Planning",
       items: allItems.filter((i) =>
-        ["research-plan", "planning", "budget"].includes(i.id),
+        ["almanac", "research-plan", "planning", "budget"].includes(i.id),
       ),
     },
     {
@@ -202,8 +219,8 @@ export function ProjectShell({
       label: isUk ? "Навчання" : "Education",
       items: allItems.filter((i) =>
         isDissertation
-          ? ["learning", "phd-plan", "portfolio"].includes(i.id)
-          : ["learning"].includes(i.id),
+          ? ["learning", "diary", "phd-plan", "portfolio"].includes(i.id)
+          : ["learning", "diary"].includes(i.id),
       ),
     },
     {
@@ -362,6 +379,10 @@ export function ProjectShell({
         </main>
       </div>
 
+      <DiaryQuickWidget
+        projectId={project._id ?? ""}
+        userId={user._id ?? ""}
+      />
       <ProjectChatWidget
         projectId={project._id ?? ""}
         currentUserId={user._id ?? ""}

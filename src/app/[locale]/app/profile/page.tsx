@@ -1,4 +1,4 @@
-import { BookOpen, Mail, ShieldCheck, UserRound } from "lucide-react";
+import { BookOpen, Mail, ShieldCheck, Sparkles, UserRound } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { updateProfile } from "@/app/actions";
@@ -6,6 +6,8 @@ import { AppShell } from "@/components/app-shell";
 import { Avatar, Badge, Card } from "@/components/ui";
 import { getCurrentUser } from "@/lib/current-user";
 import { getDictionary, isLocale } from "@/lib/i18n";
+import { InstitutionSearch } from "@/components/ui/institution-search";
+import { SpecialtySelect } from "@/components/ui/specialty-select";
 
 export default async function ProfilePage({
   params,
@@ -140,11 +142,7 @@ export default async function ProfilePage({
             <span className="text-sm font-medium text-stone-700">
               {dictionary.account.affiliation}
             </span>
-            <input
-              name="affiliation"
-              defaultValue={user.affiliation}
-              className="input-control px-3 py-2 text-sm outline-none"
-            />
+            <InstitutionSearch name="affiliation" defaultValue={user.affiliation} />
           </label>
           <label className="space-y-1 md:col-span-2">
             <span className="text-sm font-medium text-stone-700">
@@ -156,6 +154,31 @@ export default async function ProfilePage({
               className="input-control min-h-32 resize-y px-3 py-2 text-sm outline-none"
             />
           </label>
+
+          {/* ── Defaults section ───────────────────────────────────────── */}
+          <div className="md:col-span-2 pt-2">
+            <div className="flex items-center gap-2 border-t border-stone-100 pt-4">
+              <Sparkles className="h-4 w-4 text-amber-500" />
+              <h3 className="text-sm font-semibold text-stone-800">
+                {isUk ? "Автозаповнення нових форм" : "Default values for new forms"}
+              </h3>
+            </div>
+            <p className="mt-1 text-xs text-stone-400">
+              {isUk
+                ? "Ці значення автоматично підставляються при створенні нових проєктів, плану аспіранта, портфоліо тощо."
+                : "These values are pre-filled when you create new projects, PhD plans, portfolios, etc."}
+            </p>
+          </div>
+          <div className="space-y-1 md:col-span-2">
+            <span className="text-sm font-medium text-stone-700">
+              {isUk ? "Спеціальність за замовчуванням" : "Default specialty"}
+            </span>
+            <SpecialtySelect
+              name="defaultSpecialty"
+              defaultValue={user.defaultSpecialty}
+            />
+          </div>
+
           <div className="md:col-span-2">
             <button type="submit" className="control-primary px-4 py-2 text-sm font-semibold">
               {dictionary.account.saveProfile}

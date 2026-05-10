@@ -383,6 +383,67 @@ export async function deleteSession(id: string): Promise<void> {
   await db.collection("learningSessions").deleteOne({ _id: new ObjectId(id) });
 }
 
+export async function bulkDeleteSessionsByCourse(projectId: string, courseId: string, onlyCancelled = false): Promise<number> {
+  if (!hasMongoConfig()) {
+    const before = localSessions.length;
+    const keep = localSessions.filter(
+      (s) => !(s.projectId === projectId && s.courseId === courseId && (!onlyCancelled || s.status === "cancelled")),
+    );
+    localSessions.splice(0, localSessions.length, ...keep);
+    return before - localSessions.length;
+  }
+  const db = await getMongoDb();
+  const query: Record<string, unknown> = { projectId, courseId };
+  if (onlyCancelled) query.status = "cancelled";
+  const result = await db.collection("learningSessions").deleteMany(query);
+  return result.deletedCount;
+}
+
+export async function bulkCreateSessions(inputs: LearningSessionInput[]): Promise<void> {
+  if (inputs.length === 0) return;
+  const now = new Date();
+  const docs = inputs.map((input) => ({ ...input, createdAt: now, updatedAt: now }));
+  if (!hasMongoConfig()) {
+    docs.forEach((d, i) => localSessions.push({ ...d, _id: `ls-bulk-${Date.now()}-${i}` }));
+    return;
+  }
+  await ensureIndexes();
+  const db = await getMongoDb();
+  await db.collection("learningSessions").insertMany(docs);
+}
+
+export async function shiftSessionsInGroup(
+  projectId: string,
+  recurringGroupId: string,
+  afterDate: string,
+  shiftDays: number,
+): Promise<void> {
+  if (!recurringGroupId || shiftDays === 0) return;
+  if (!hasMongoConfig()) {
+    localSessions
+      .filter((s) => s.projectId === projectId && s.recurringGroupId === recurringGroupId && s.date > afterDate && s.status !== "cancelled")
+      .forEach((s) => {
+        const d = new Date(s.date);
+        d.setDate(d.getDate() + shiftDays);
+        s.date = d.toISOString().slice(0, 10);
+        s.updatedAt = new Date();
+      });
+    return;
+  }
+  const db = await getMongoDb();
+  const toShift = await db.collection("learningSessions")
+    .find({ projectId, recurringGroupId, date: { $gt: afterDate }, status: { $ne: "cancelled" } })
+    .toArray();
+  for (const doc of toShift) {
+    const d = new Date(doc.date as string);
+    d.setDate(d.getDate() + shiftDays);
+    await db.collection("learningSessions").updateOne(
+      { _id: doc._id },
+      { $set: { date: d.toISOString().slice(0, 10), updatedAt: new Date() } },
+    );
+  }
+}
+
 // ── Assignments ───────────────────────────────────────────────────────────────
 
 export async function createAssignment(input: LearningAssignmentInput, user: SafeUser): Promise<LearningAssignment> {

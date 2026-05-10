@@ -36,7 +36,11 @@ export default async function NewProjectPage({
         </p>
       </section>
       <div className="p-5">
-        <ProjectWizard dictionary={dictionary} locale={localeParam} />
+        <ProjectWizard
+          dictionary={dictionary}
+          locale={localeParam}
+          userDefaults={{ specialty: user.defaultSpecialty, institution: user.affiliation }}
+        />
       </div>
     </AppShell>
   );

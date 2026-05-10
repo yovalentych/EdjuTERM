@@ -2,6 +2,7 @@ import { Database, Globe2 } from "lucide-react";
 import Link from "next/link";
 import type { Dictionary, Locale } from "@/lib/i18n";
 import type { Project, SafeUser } from "@/lib/schemas";
+import { getSpecialtyLabel } from "@/lib/classification-1021";
 
 const TYPE_ACCENT: Record<string, string> = {
   fundamental: "bg-blue-500",
@@ -106,7 +107,7 @@ export function ProjectList({
               {/* Tags */}
               <div className="mt-3 flex flex-wrap gap-1.5">
                 <span className="rounded border border-stone-200 bg-stone-50 px-2 py-0.5 text-[11px] text-stone-600">
-                  {dictionary.projects.fieldOptions[project.researchField]}
+                  {getSpecialtyLabel(project.researchField)}
                 </span>
                 <span className="rounded border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[11px] text-cyan-800">
                   {dictionary.projects.dataPolicyOptions[project.dataPolicy]}

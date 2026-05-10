@@ -79,6 +79,7 @@ export async function addCurriculumCourse(formData: FormData) {
     controlForm: formData.get("controlForm") ?? "",
     studyYear: formData.get("studyYear") ?? 1,
     orderIndex: formData.get("orderIndex") ?? 0,
+    credited: false,
   });
   await upsertCurriculumCourse(projectId, course, user);
   revalidate(locale, projectId);
@@ -101,6 +102,7 @@ export async function updateCurriculumCourse(formData: FormData) {
     controlForm: formData.get("controlForm") ?? "",
     studyYear: formData.get("studyYear") ?? 1,
     orderIndex: formData.get("orderIndex") ?? 0,
+    credited: formData.get("credited") === "true",
   });
   await upsertCurriculumCourse(projectId, course, user);
   revalidate(locale, projectId);
@@ -116,6 +118,66 @@ export async function removeCurriculumCourse(formData: FormData) {
 
   await deleteCurriculumCourse(projectId, formData.get("cid") as string);
   revalidate(locale, projectId);
+}
+
+// Toggle credited status of a single curriculum course from the PhD plan UI
+export async function toggleCurriculumCourseCredit(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+  const locale = (formData.get("locale") as string) ?? "uk";
+  const projectId = formData.get("projectId") as string;
+  const cid = formData.get("cid") as string;
+  const credited = formData.get("credited") === "true";
+  const project = await getProjectForUser(projectId, user);
+  if (!project) return;
+
+  const plan = await getPhdPlan(projectId);
+  const course = plan?.curriculumCourses.find((c) => c.cid === cid);
+  if (!course) return;
+  await upsertCurriculumCourse(projectId, { ...course, credited }, user);
+  revalidate(locale, projectId);
+}
+
+// Called from Learning Journal: find or create a curriculum course and mark it credited
+export async function creditFromLearning(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false };
+  const locale = (formData.get("locale") as string) ?? "uk";
+  const projectId = formData.get("projectId") as string;
+  const title = (formData.get("title") as string).trim();
+  const credits = Number(formData.get("credits") ?? 3);
+  const studyYear = Number(formData.get("studyYear") ?? 1);
+  const project = await getProjectForUser(projectId, user);
+  if (!project) return { ok: false };
+
+  const plan = await getPhdPlan(projectId);
+  const existing = plan?.curriculumCourses.find(
+    (c) => c.title.trim().toLowerCase() === title.toLowerCase(),
+  );
+
+  if (existing) {
+    await upsertCurriculumCourse(projectId, { ...existing, credited: true }, user);
+  } else {
+    await upsertCurriculumCourse(
+      projectId,
+      phdCurriculumCourseSchema.parse({
+        cid: `cc-${Date.now()}`,
+        cycle: "general",
+        subgroup: "mandatory",
+        title,
+        credits,
+        controlForm: "Залік",
+        studyYear,
+        orderIndex: (plan?.curriculumCourses.length ?? 0),
+        credited: true,
+      }),
+      user,
+    );
+  }
+
+  revalidate(locale, projectId);
+  revalidatePath(`/${locale}/app/phd-plan?projectId=${projectId}`);
+  return { ok: true, created: !existing };
 }
 
 // ── Milestones ────────────────────────────────────────────────────────────────

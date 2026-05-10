@@ -49,6 +49,7 @@ import {
 import type { OpenScienceUpdate, Project, ProjectRecord, ResearchPublication, SafeUser } from "@/lib/schemas";
 import { KIND_CONFIGS, getKindsByGroup } from "@/lib/record-field-definitions";
 import type { Dictionary } from "@/lib/i18n";
+import { InstitutionSearch } from "@/components/ui/institution-search";
 
 // ── Types & constants ─────────────────────────────────────────────────────────
 
@@ -727,12 +728,11 @@ function CreatorEditSection({ record }: { record: ProjectRecord }) {
             className={fc}
             required
           />
-          <input
+          <InstitutionSearch
             name={`creator_affiliation_${i}`}
             value={row.affiliation}
-            onChange={(e) => update(i, "affiliation", e.target.value)}
+            onChange={(v) => update(i, "affiliation", v)}
             placeholder="Організація"
-            className={fc}
           />
           <div className="flex gap-1">
             <input

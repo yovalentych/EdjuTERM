@@ -21,13 +21,15 @@ import type {
 } from "@/lib/schemas";
 import {
   savePhdMeta,
-  addCurriculumCourse, updateCurriculumCourse, removeCurriculumCourse,
+  addCurriculumCourse, updateCurriculumCourse, removeCurriculumCourse, toggleCurriculumCourseCredit,
   importCoursesFromYearly,
   addMilestone, updateMilestone, removeMilestone,
   saveYearMeta, saveSemesterDates,
   addYearlyCourse, updateYearlyCourse, removeYearlyCourse,
   addYearlyScientificItem, updateYearlyScientificItem, removeYearlyScientificItem,
 } from "@/app/phd-plan-actions";
+import { SpecialtySelect } from "@/components/ui/specialty-select";
+import { InstitutionSearch } from "@/components/ui/institution-search";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -280,10 +282,11 @@ function ActionBtn({ onClick, variant = "ghost", children, type = "button", clas
 
 // ── ECTS Gauge (manometer) ────────────────────────────────────────────────────
 
-function EctsGauge({ current, target, mandatory, elective }: {
-  current: number; target: number; mandatory: number; elective: number;
+function EctsGauge({ current, earned, target, mandatory, elective }: {
+  current: number; earned: number; target: number; mandatory: number; elective: number;
 }) {
   const pct = target > 0 ? Math.min(current / target, 1) : 0;
+  const earnedPct = target > 0 ? Math.min(earned / target, 1) : 0;
   const cx = 100, cy = 105;
   const rO = 76, rI = 59;
   const startDeg = 150, sweepDeg = 240;
@@ -308,9 +311,10 @@ function EctsGauge({ current, target, mandatory, elective }: {
   }
 
   const progressColor = pct < 0.4 ? "#ef4444" : pct < 0.7 ? "#f59e0b" : "#10b981";
+  const earnedColor = earnedPct < 0.4 ? "#dc2626" : earnedPct < 0.7 ? "#d97706" : "#059669";
 
-  // Needle
-  const needleAngle = startDeg + pct * sweepDeg;
+  // Needle points to earned
+  const needleAngle = startDeg + earnedPct * sweepDeg;
   const tip = polar(needleAngle, 51);
   const bl = polar(needleAngle + 90, 5.5);
   const br = polar(needleAngle - 90, 5.5);
@@ -348,11 +352,20 @@ function EctsGauge({ current, target, mandatory, elective }: {
         <path d={arcPath(startDeg + 0.40 * sweepDeg, startDeg + 0.70 * sweepDeg, rO, rI)} fill="#fde68a" opacity="0.7" />
         <path d={arcPath(startDeg + 0.70 * sweepDeg, startDeg + sweepDeg, rO, rI)} fill="#a7f3d0" opacity="0.7" />
 
-        {/* Active progress arc */}
+        {/* Planned arc (lighter) */}
         {pct > 0.005 && (
           <path
             d={arcPath(startDeg, startDeg + pct * sweepDeg, rO, rI)}
             fill={progressColor}
+            opacity="0.28"
+          />
+        )}
+
+        {/* Earned/credited arc (solid) */}
+        {earnedPct > 0.005 && (
+          <path
+            d={arcPath(startDeg, startDeg + earnedPct * sweepDeg, rO, rI)}
+            fill={earnedColor}
             filter="url(#gauge-glow)"
           />
         )}
@@ -392,37 +405,41 @@ function EctsGauge({ current, target, mandatory, elective }: {
         <circle cx={cx} cy={cy} r={6} fill="#0f172a" />
         <circle cx={cx} cy={cy} r={3} fill="#94a3b8" />
 
-        {/* Value readout */}
+        {/* Value readout — shows earned */}
         <text
           x={cx} y={cy + 22}
           textAnchor="middle" fontSize="26" fontWeight="800"
-          fill={progressColor} fontFamily="ui-monospace, monospace"
+          fill={earnedColor} fontFamily="ui-monospace, monospace"
         >
-          {current}
+          {earned}
         </text>
         <text x={cx} y={cy + 36} textAnchor="middle" fontSize="9" fill="#94a3b8">
           / {target} кредитів ЄКТС
         </text>
         <text x={cx} y={cy + 49} textAnchor="middle" fontSize="8.5" fill="#64748b" fontWeight="600">
-          {Math.round(pct * 100)}% виконано
+          {Math.round(earnedPct * 100)}% зараховано
         </text>
       </svg>
 
       {/* Breakdown strip */}
       <div className="mt-1 flex items-center divide-x divide-slate-200 rounded-lg border border-slate-100 bg-slate-50/80 text-xs overflow-hidden">
-        <div className="px-4 py-2 text-center">
-          <p className="font-bold text-blue-700 tabular-nums">{mandatory}</p>
-          <p className="text-slate-500 mt-0.5">ОК кредити</p>
+        <div className="px-3 py-2 text-center">
+          <p className="font-bold tabular-nums" style={{ color: earnedColor }}>{earned}</p>
+          <p className="text-slate-500 mt-0.5">Зараховано</p>
         </div>
-        <div className="px-4 py-2 text-center">
-          <p className="font-bold text-violet-700 tabular-nums">{elective}</p>
-          <p className="text-slate-500 mt-0.5">ВК кредити</p>
-        </div>
-        <div className="px-4 py-2 text-center">
+        <div className="px-3 py-2 text-center">
           <p className="font-bold tabular-nums" style={{ color: progressColor }}>{current}</p>
-          <p className="text-slate-500 mt-0.5">Всього</p>
+          <p className="text-slate-500 mt-0.5">Заплановано</p>
         </div>
-        <div className="px-4 py-2 text-center">
+        <div className="px-3 py-2 text-center">
+          <p className="font-bold text-blue-700 tabular-nums">{mandatory}</p>
+          <p className="text-slate-500 mt-0.5">ОК</p>
+        </div>
+        <div className="px-3 py-2 text-center">
+          <p className="font-bold text-violet-700 tabular-nums">{elective}</p>
+          <p className="text-slate-500 mt-0.5">ВК</p>
+        </div>
+        <div className="px-3 py-2 text-center">
           <p className="font-bold text-slate-700 tabular-nums">{target}</p>
           <p className="text-slate-500 mt-0.5">Ціль</p>
         </div>
@@ -434,9 +451,10 @@ function EctsGauge({ current, target, mandatory, elective }: {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function PhdPlanView({
-  projectId, locale, canManage, initialPlan,
+  projectId, locale, canManage, initialPlan, userDefaults,
 }: {
   projectId: string; locale: string; canManage: boolean; initialPlan: PhdPlan | null;
+  userDefaults?: { studentName: string; specialty: string; institution: string };
 }) {
   const [tab, setTab] = useState<"meta" | "general" | 1 | 2 | 3 | 4 | "gantt">("meta");
   const [, startTransition] = useTransition();
@@ -485,7 +503,7 @@ export function PhdPlanView({
       </div>
 
       {tab === "meta" && (
-        <MetaTab projectId={projectId} locale={locale} canManage={canManage} plan={plan} onSaved={flash} startTransition={startTransition} />
+        <MetaTab projectId={projectId} locale={locale} canManage={canManage} plan={plan} onSaved={flash} startTransition={startTransition} userDefaults={userDefaults} />
       )}
       {tab === "general" && (
         <GeneralPlanTab projectId={projectId} locale={locale} canManage={canManage} plan={plan} startTransition={startTransition} />
@@ -508,9 +526,10 @@ export function PhdPlanView({
 
 // ── Meta tab ──────────────────────────────────────────────────────────────────
 
-function MetaTab({ projectId, locale, canManage, plan, onSaved, startTransition }: {
+function MetaTab({ projectId, locale, canManage, plan, onSaved, startTransition, userDefaults }: {
   projectId: string; locale: string; canManage: boolean; plan: PhdPlan | null;
   onSaved: () => void; startTransition: ReturnType<typeof useTransition>[1];
+  userDefaults?: { studentName: string; specialty: string; institution: string };
 }) {
   return (
     <form
@@ -527,10 +546,10 @@ function MetaTab({ projectId, locale, canManage, plan, onSaved, startTransition 
       <SectionCard title="Загальні відомості" icon={GraduationCap}>
         <div className="grid gap-3 sm:grid-cols-2">
           <FormField label="ПІБ аспіранта">
-            <Input name="studentName" defaultValue={plan?.studentName} placeholder="Прізвище Ім'я По батькові" />
+            <Input name="studentName" defaultValue={plan?.studentName ?? userDefaults?.studentName} placeholder="Прізвище Ім'я По батькові" />
           </FormField>
-          <FormField label="Спеціальність">
-            <Input name="specialty" defaultValue={plan?.specialty} placeholder="Наприклад: 091 Біологія" />
+          <FormField label="Спеціальність (Постанова КМУ №1021-2024)">
+            <SpecialtySelect name="specialty" defaultValue={plan?.specialty ?? userDefaults?.specialty ?? ""} />
           </FormField>
           <FormField label="Форма навчання">
             <SelectField
@@ -571,7 +590,7 @@ function MetaTab({ projectId, locale, canManage, plan, onSaved, startTransition 
       <SectionCard title="Установа" icon={FileText}>
         <div className="grid gap-3 sm:grid-cols-2">
           <FormField label="Установа">
-            <Input name="institution" defaultValue={plan?.institution} placeholder="Назва наукової установи / університету" />
+            <InstitutionSearch name="institution" defaultValue={plan?.institution ?? userDefaults?.institution} placeholder="Назва наукової установи / університету" />
           </FormField>
           <FormField label="Відділ / Підрозділ">
             <Input name="department" defaultValue={plan?.department} placeholder="Назва відділу або підрозділу" />
@@ -816,6 +835,7 @@ function GeneralPlanTab({ projectId, locale, canManage, plan, startTransition }:
   const mandatoryCredits = courses.filter((c) => c.subgroup === "mandatory").reduce((s, c) => s + c.credits, 0);
   const electiveCredits = courses.filter((c) => c.subgroup === "elective").reduce((s, c) => s + c.credits, 0);
   const totalCredits = mandatoryCredits + electiveCredits;
+  const earnedCredits = courses.filter((c) => c.credited).reduce((s, c) => s + c.credits, 0);
   const targetCredits = plan?.totalCredits && plan.totalCredits > 0 ? plan.totalCredits : 60;
 
   // Collect all yearly courses as suggestions for curriculum add forms
@@ -854,6 +874,7 @@ function GeneralPlanTab({ projectId, locale, canManage, plan, startTransition }:
         <div className="flex justify-center">
           <EctsGauge
             current={totalCredits}
+            earned={earnedCredits}
             target={targetCredits}
             mandatory={mandatoryCredits}
             elective={electiveCredits}
@@ -1034,13 +1055,25 @@ function CurriculumSubgroupSection({ projectId, locale, canManage, cycle, subgro
                     onDone={() => setEditId(null)}
                   />
                 ) : (
-                  <tr key={course.cid} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50">
+                  <tr key={course.cid} className={clsx(
+                    "border-b border-slate-50 last:border-0 hover:bg-slate-50/50",
+                    course.credited && "bg-emerald-50/40",
+                  )}>
                     <td className="px-2 py-1.5 text-slate-400">{i + 1}</td>
-                    <td className="px-2 py-1.5 text-slate-800">{course.title}</td>
+                    <td className="px-2 py-1.5">
+                      <span className={clsx("text-sm", course.credited ? "text-slate-600" : "text-slate-800")}>
+                        {course.title}
+                      </span>
+                      {course.credited && (
+                        <span className="ml-2 inline-flex items-center gap-0.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                          <CheckCircle2 className="h-2.5 w-2.5" />зараховано
+                        </span>
+                      )}
+                    </td>
                     <td className="px-2 py-1.5 text-center">
                       <span className={clsx(
                         "rounded px-1.5 py-0.5 font-semibold tabular-nums",
-                        isOK ? "bg-blue-50 text-blue-700" : "bg-violet-50 text-violet-700",
+                        course.credited ? "bg-emerald-100 text-emerald-700" : isOK ? "bg-blue-50 text-blue-700" : "bg-violet-50 text-violet-700",
                       )}>
                         {course.credits}
                       </span>
@@ -1049,7 +1082,26 @@ function CurriculumSubgroupSection({ projectId, locale, canManage, cycle, subgro
                     <td className="px-2 py-1.5 text-center text-slate-600">{toRoman(course.studyYear)}</td>
                     {canManage && (
                       <td className="px-2 py-1.5">
-                        <div className="flex gap-1">
+                        <div className="flex gap-1 items-center">
+                          <button
+                            title={course.credited ? "Скасувати зарахування" : "Зарахувати"}
+                            onClick={() => {
+                              const fd = new FormData();
+                              fd.set("locale", locale);
+                              fd.set("projectId", projectId);
+                              fd.set("cid", course.cid);
+                              fd.set("credited", String(!course.credited));
+                              startTransition(() => toggleCurriculumCourseCredit(fd));
+                            }}
+                            className={clsx(
+                              "rounded p-0.5 transition",
+                              course.credited
+                                ? "text-emerald-500 hover:text-slate-400"
+                                : "text-slate-300 hover:text-emerald-600",
+                            )}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          </button>
                           <button
                             onClick={() => setEditId(course.cid)}
                             className="rounded p-0.5 text-slate-400 hover:text-blue-600"

@@ -15,6 +15,10 @@ import type {
   PortfolioPublicationType,
 } from "@/lib/schemas";
 import { portfolioPublicationTypes } from "@/lib/schemas";
+import { InstitutionSearch } from "@/components/ui/institution-search";
+import { SpecialtySelect } from "@/components/ui/specialty-select";
+import { EducationLevelSelect } from "@/components/ui/education-level-select";
+import { getSpecialtyLabel } from "@/lib/classification-1021";
 
 const COMPETITION_PLACE_LABELS: Record<string, string> = {
   I: "І місце",
@@ -242,8 +246,9 @@ function formatDateRange(start?: string, end?: string): string {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function PortfolioView({ projectId, locale, canManage, initialPortfolio }: {
+export function PortfolioView({ projectId, locale, canManage, initialPortfolio, userDefaults }: {
   projectId: string; locale: string; canManage: boolean; initialPortfolio: Portfolio | null;
+  userDefaults?: { fullName: string; specialty: string; institution: string };
 }) {
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [tab, setTab] = useState<"info" | "publications" | "conferences" | "awards">("info");
@@ -323,7 +328,7 @@ export function PortfolioView({ projectId, locale, canManage, initialPortfolio }
           </div>
 
           {tab === "info" && (
-            <InfoTab projectId={projectId} locale={locale} canManage={canManage} portfolio={p} onSaved={flash} startTransition={startTransition} />
+            <InfoTab projectId={projectId} locale={locale} canManage={canManage} portfolio={p} onSaved={flash} startTransition={startTransition} userDefaults={userDefaults} />
           )}
           {tab === "publications" && (
             <PublicationsTab projectId={projectId} locale={locale} canManage={canManage} publications={p?.publications ?? []} startTransition={startTransition} />
@@ -342,9 +347,10 @@ export function PortfolioView({ projectId, locale, canManage, initialPortfolio }
 
 // ── Info tab ──────────────────────────────────────────────────────────────────
 
-function InfoTab({ projectId, locale, canManage, portfolio, onSaved, startTransition }: {
+function InfoTab({ projectId, locale, canManage, portfolio, onSaved, startTransition, userDefaults }: {
   projectId: string; locale: string; canManage: boolean; portfolio: Portfolio | null;
   onSaved: () => void; startTransition: ReturnType<typeof useTransition>[1];
+  userDefaults?: { fullName: string; specialty: string; institution: string };
 }) {
   const p = portfolio;
   return (
@@ -363,14 +369,14 @@ function InfoTab({ projectId, locale, canManage, portfolio, onSaved, startTransi
         <div className="grid gap-3 p-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Field label="ПІБ аспіранта (повністю)">
-              <Input name="fullName" defaultValue={p?.fullName} placeholder="Прізвище Ім'я По батькові" />
+              <Input name="fullName" defaultValue={p?.fullName ?? userDefaults?.fullName} placeholder="Прізвище Ім'я По батькові" />
             </Field>
           </div>
-          <Field label="Рівень вищої освіти">
-            <Input name="educationLevel" defaultValue={p?.educationLevel ?? "третій освітньо-науковий"} />
+          <Field label="Рівень вищої освіти (Закон «Про вищу освіту», НРК)">
+            <EducationLevelSelect name="educationLevel" defaultValue={p?.educationLevel ?? "phd"} />
           </Field>
-          <Field label="Спеціальність">
-            <Input name="specialty" defaultValue={p?.specialty} placeholder="Наприклад: 091 «Біологія»" />
+          <Field label="Спеціальність (Постанова КМУ №1021-2024)">
+            <SpecialtySelect name="specialty" defaultValue={p?.specialty ?? userDefaults?.specialty ?? ""} />
           </Field>
           <div className="sm:col-span-2">
             <Field label="Освітньо-наукова програма">
@@ -378,7 +384,7 @@ function InfoTab({ projectId, locale, canManage, portfolio, onSaved, startTransi
             </Field>
           </div>
           <Field label="Установа">
-            <Input name="institution" defaultValue={p?.institution} placeholder="Назва наукової установи / університету" />
+            <InstitutionSearch name="institution" defaultValue={p?.institution ?? userDefaults?.institution} placeholder="Назва наукової установи / університету" />
           </Field>
           <Field label="Відділ / Підрозділ">
             <Input name="department" defaultValue={p?.department} placeholder="Назва відділу або підрозділу" />
@@ -512,11 +518,13 @@ function PublicationRow({ index, pub, canManage, onEdit, onDelete }: {
   onEdit: () => void; onDelete: () => void;
 }) {
   return (
-    <div className="group flex gap-3 rounded px-2 py-2.5 hover:bg-slate-50/60">
-      <span className="mt-0.5 shrink-0 text-xs font-bold text-slate-400">{index}.</span>
+    <div className="group flex gap-3 rounded-lg px-3 py-3 transition hover:bg-slate-50/80">
+      <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1a3564] text-[10px] font-bold text-white">
+        {index}
+      </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm text-slate-800 leading-snug">{pub.authors}</p>
-        <p className="mt-0.5 text-sm font-medium text-slate-900">{pub.title}</p>
+        <p className="text-[11px] text-slate-500 leading-snug">{pub.authors}</p>
+        <p className="mt-0.5 text-sm font-semibold text-slate-900 leading-snug [font-family:var(--font-serif)]">{pub.title}</p>
         <p className="mt-0.5 text-xs text-slate-500 italic">
           {pub.journal}
           {pub.year ? `. ${pub.year}` : ""}
@@ -525,8 +533,8 @@ function PublicationRow({ index, pub, canManage, onEdit, onDelete }: {
           {pub.pages ? `. P. ${pub.pages}` : ""}
         </p>
         {pub.doi && (
-          <div className="mt-0.5 flex flex-wrap items-center gap-1">
-            <span className="text-[11px] text-slate-400">DOI:</span>
+          <div className="mt-1 flex flex-wrap items-center gap-1">
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 tracking-wide">DOI</span>
             <span className="text-[11px] text-slate-600 font-mono">
               {pub.doi.startsWith("http") ? pub.doi : `doi.org/${pub.doi}`}
             </span>
@@ -537,7 +545,7 @@ function PublicationRow({ index, pub, canManage, onEdit, onDelete }: {
       </div>
       {canManage && (
         <div className="hidden shrink-0 items-start gap-1 group-hover:flex">
-          <button onClick={onEdit} className="rounded p-1 text-slate-400 hover:text-blue-600">
+          <button onClick={onEdit} className="rounded p-1 text-slate-400 hover:text-[#1a3564]">
             <Edit3 className="h-3.5 w-3.5" />
           </button>
           <button onClick={onDelete} className="rounded p-1 text-slate-400 hover:text-rose-600">
@@ -681,22 +689,29 @@ function ConferenceCard({ index, conf, canManage, onEdit, onDelete }: {
   onEdit: () => void; onDelete: () => void;
 }) {
   return (
-    <div className="group relative rounded-lg border border-slate-200 bg-white p-4 hover:border-blue-200 transition">
-      <div className="flex items-start gap-3">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-blue-600">
-          {index}
+    <div className="group relative rounded-xl border border-slate-200 bg-white shadow-[0_1px_4px_-1px_rgba(0,0,0,0.06)] transition hover:border-[#1a3564]/30 hover:shadow-[0_2px_8px_-2px_rgba(26,53,100,0.12)]">
+      <div className="flex items-stretch gap-0">
+        {/* left accent column */}
+        <div className="flex w-9 shrink-0 flex-col items-center gap-1 rounded-l-xl bg-[#1a3564] py-3">
+          <span className="text-xs font-bold text-white">{index}</span>
+          {conf.dateStart && (
+            <span className="mt-0.5 text-[9px] font-medium text-white/60 [writing-mode:vertical-rl] rotate-180">
+              {conf.dateStart.slice(0, 4)}
+            </span>
+          )}
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold text-sm text-slate-900 leading-snug">{conf.name}</p>
+        {/* main content */}
+        <div className="min-w-0 flex-1 p-3">
+          <p className="font-semibold text-sm text-slate-900 leading-snug [font-family:var(--font-serif)]">{conf.name}</p>
           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500">
             {conf.organizer && (
               <span className="flex items-center gap-1">
-                <Users className="h-3 w-3" /> {conf.organizer}
+                <Users className="h-3 w-3 shrink-0" /> {conf.organizer}
               </span>
             )}
             {(conf.location || conf.dateStart) && (
               <span className="flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
+                <MapPin className="h-3 w-3 shrink-0" />
                 {conf.location}
                 {conf.location && conf.dateStart ? " — " : ""}
                 {formatDateRange(conf.dateStart, conf.dateEnd)}
@@ -704,10 +719,12 @@ function ConferenceCard({ index, conf, canManage, onEdit, onDelete }: {
             )}
           </div>
           {conf.thesisTitle && (
-            <p className="mt-2 text-xs italic text-slate-600">«{conf.thesisTitle}»</p>
+            <p className="mt-2 border-l-2 border-[#1a3564]/20 pl-2 text-xs italic text-slate-600 leading-relaxed">
+              «{conf.thesisTitle}»
+            </p>
           )}
           {conf.authors && (
-            <p className="mt-0.5 text-xs text-slate-500">{conf.authors}</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">{conf.authors}</p>
           )}
           {(conf.award || conf.isCompetition) && (
             <div className="mt-2 flex flex-wrap gap-1.5 items-center">
@@ -733,8 +750,8 @@ function ConferenceCard({ index, conf, canManage, onEdit, onDelete }: {
           {conf.url && <LinkBadge url={conf.url} />}
         </div>
         {canManage && (
-          <div className="hidden shrink-0 gap-1 group-hover:flex">
-            <button onClick={onEdit} className="rounded p-1 text-slate-400 hover:text-blue-600">
+          <div className="hidden shrink-0 flex-col gap-1 p-2 group-hover:flex">
+            <button onClick={onEdit} className="rounded p-1 text-slate-400 hover:text-[#1a3564]">
               <Edit3 className="h-3.5 w-3.5" />
             </button>
             <button onClick={onDelete} className="rounded p-1 text-slate-400 hover:text-rose-600">
@@ -773,7 +790,7 @@ function ConferenceForm({ projectId, locale, conf, orderIndex, onSave, onCancel 
         </div>
         <div className="sm:col-span-2">
           <Field label="Організатор">
-            <Input name="organizer" defaultValue={conf?.organizer} placeholder="Назва організуючої установи" />
+            <InstitutionSearch name="organizer" defaultValue={conf?.organizer} placeholder="Назва організуючої установи" />
           </Field>
         </div>
         <Field label="Місце проведення">
@@ -921,31 +938,35 @@ function AwardCard({ index, award, canManage, onEdit, onDelete }: {
   onEdit: () => void; onDelete: () => void;
 }) {
   return (
-    <div className="group relative flex flex-col gap-2 rounded-lg border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4 hover:border-amber-300 transition">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100">
-          <Star className="h-4 w-4 text-amber-600" />
+    <div className="group relative flex flex-col rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-white shadow-[0_1px_4px_-1px_rgba(0,0,0,0.06)] transition hover:border-amber-300 hover:shadow-[0_2px_8px_-2px_rgba(180,130,0,0.12)]">
+      {/* header strip */}
+      <div className="flex items-center justify-between rounded-t-xl bg-gradient-to-r from-amber-100/80 to-amber-50/40 px-3 py-2 border-b border-amber-200/60">
+        <div className="flex items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-400/20">
+            <Star className="h-3.5 w-3.5 text-amber-600" />
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">Нагорода #{index}</span>
         </div>
+        {award.date && (
+          <span className="flex items-center gap-1 rounded-full bg-white/70 px-2 py-0.5 text-[10px] text-amber-700 border border-amber-200">
+            <Calendar className="h-2.5 w-2.5" /> {formatDate(award.date)}
+          </span>
+        )}
         {canManage && (
           <div className="hidden gap-1 group-hover:flex">
-            <button onClick={onEdit} className="rounded p-1 text-slate-400 hover:text-blue-600">
+            <button onClick={onEdit} className="rounded p-1 text-amber-400 hover:text-[#1a3564]">
               <Edit3 className="h-3.5 w-3.5" />
             </button>
-            <button onClick={onDelete} className="rounded p-1 text-slate-400 hover:text-rose-600">
+            <button onClick={onDelete} className="rounded p-1 text-amber-400 hover:text-rose-600">
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
         )}
       </div>
-      <div>
-        <p className="font-semibold text-sm text-slate-900 leading-snug">{award.title}</p>
+      <div className="p-3">
+        <p className="font-semibold text-sm text-slate-900 leading-snug [font-family:var(--font-serif)]">{award.title}</p>
         {award.issuer && <p className="mt-0.5 text-xs text-slate-600">{award.issuer}</p>}
-        {award.date && (
-          <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
-            <Calendar className="h-3 w-3" /> {formatDate(award.date)}
-          </p>
-        )}
-        {award.description && <p className="mt-1.5 text-xs text-slate-600">{award.description}</p>}
+        {award.description && <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">{award.description}</p>}
         {award.url && <LinkBadge url={award.url} />}
       </div>
     </div>
@@ -1004,8 +1025,9 @@ function PortfolioPreview({ portfolio }: { portfolio: Portfolio | null }) {
 
   if (!p?.fullName && !p?.publications.length && !p?.conferences.length && !p?.awards.length) {
     return (
-      <div className="rounded-lg border border-dashed border-slate-200 py-16 text-center text-sm text-slate-400">
-        Заповніть дані в режимі редагування, щоб побачити портфоліо.
+      <div className="rounded-2xl border-2 border-dashed border-slate-200 py-20 text-center">
+        <GraduationCap className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+        <p className="text-sm text-slate-400">Заповніть дані в режимі редагування, щоб побачити портфоліо.</p>
       </div>
     );
   }
@@ -1016,210 +1038,295 @@ function PortfolioPreview({ portfolio }: { portfolio: Portfolio | null }) {
   );
 
   return (
-    <div className="mx-auto max-w-3xl">
-      {/* Document card */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="mx-auto max-w-2xl">
+      {/* Paper */}
+      <div className="overflow-hidden rounded-2xl bg-white shadow-[0_4px_32px_-4px_rgba(0,0,0,0.12)] ring-1 ring-black/[0.06]">
 
-        {/* ── Header band ── */}
-        <div className="border-b border-slate-200 bg-slate-50 px-8 py-5 text-center">
+        {/* ── Header ── */}
+        <div className="relative overflow-hidden bg-[#1a3564] px-8 py-9 text-center">
+          {/* Subtle dot grid */}
+          <div
+            className="absolute inset-0 opacity-[0.07]"
+            style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "18px 18px" }}
+          />
           {p?.institution && (
-            <p className="mb-1 text-xs font-medium uppercase tracking-widest text-slate-500">{p.institution}</p>
+            <p className="relative mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-blue-200/80">
+              {p.institution}
+            </p>
           )}
-          <h1 className="text-2xl font-black tracking-tight text-slate-900">ПОРТФОЛІО</h1>
-          <p className="text-base font-semibold text-slate-600">аспіранта</p>
+          <h1 className="relative text-[2rem] font-bold leading-none tracking-tight text-white [font-family:var(--font-serif)]">
+            Портфоліо
+          </h1>
+          <p className="relative mt-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-blue-200/60">
+            аспіранта
+          </p>
+          {p?.fullName && (
+            <>
+              <div className="relative mx-auto my-5 h-px w-20 bg-gradient-to-r from-transparent via-blue-300/50 to-transparent" />
+              <p className="relative text-[1.2rem] font-semibold text-white [font-family:var(--font-serif)]">
+                {p.fullName}
+              </p>
+              {(p.specialty || p.department) && (
+                <p className="relative mt-1 text-[11px] text-blue-200/60">
+                  {[p.specialty ? getSpecialtyLabel(p.specialty) : "", p.department].filter(Boolean).join(" · ")}
+                </p>
+              )}
+            </>
+          )}
         </div>
 
-        <div className="px-8 py-6 space-y-6">
+        {/* ── Body ── */}
+        <div className="space-y-8 px-8 py-8">
 
-          {/* ── Profile section ── */}
-          <div className="flex flex-col gap-5 sm:flex-row sm:gap-8">
-            <div className="flex-1 space-y-2">
-              {p?.fullName && (
-                <h2 className="text-xl font-bold text-slate-900">{p.fullName}</h2>
-              )}
-              <dl className="space-y-1 text-sm">
-                {p?.educationLevel && (
-                  <div className="flex gap-2">
-                    <dt className="shrink-0 font-semibold text-slate-700">Рівень вищої освіти:</dt>
-                    <dd className="text-slate-600">{p.educationLevel}</dd>
-                  </div>
-                )}
-                {p?.specialty && (
-                  <div className="flex gap-2">
-                    <dt className="shrink-0 font-semibold text-slate-700">Спеціальність:</dt>
-                    <dd className="text-slate-600">{p.specialty}</dd>
-                  </div>
-                )}
-                {p?.educationalProgram && (
-                  <div className="flex gap-2">
-                    <dt className="shrink-0 font-semibold text-slate-700">Освітньо-наукова програма:</dt>
-                    <dd className="text-slate-600">{p.educationalProgram}</dd>
-                  </div>
-                )}
-                {p?.department && (
-                  <div className="flex gap-2">
-                    <dt className="shrink-0 font-semibold text-slate-700">Відділ:</dt>
-                    <dd className="text-slate-600">{p.department}</dd>
-                  </div>
-                )}
-                {(p?.studyPeriodStart || p?.studyPeriodEnd) && (
-                  <div className="flex gap-2">
-                    <dt className="shrink-0 font-semibold text-slate-700">Термін навчання:</dt>
-                    <dd className="text-slate-600">{formatDateRange(p.studyPeriodStart, p.studyPeriodEnd)}</dd>
-                  </div>
-                )}
+          {/* Profile info + photo */}
+          {(p?.educationLevel || p?.educationalProgram || p?.department || p?.studyPeriodStart || p?.supervisor || p?.dissertationTopic) && (
+            <section className="flex items-start gap-6">
+              <div className="min-w-0 flex-1">
+                <dl className="space-y-1.5">
+                  {[
+                    { label: "Рівень освіти", value: p?.educationLevel },
+                    { label: "Освітньо-наук. програма", value: p?.educationalProgram },
+                    { label: "Відділ / кафедра", value: p?.department },
+                    {
+                      label: "Термін навчання",
+                      value: formatDateRange(p?.studyPeriodStart, p?.studyPeriodEnd),
+                    },
+                    {
+                      label: "Науковий керівник",
+                      value: [p?.supervisorTitle, p?.supervisor].filter(Boolean).join(" "),
+                    },
+                  ]
+                    .filter((r) => r.value)
+                    .map(({ label, value }) => (
+                      <div key={label} className="flex items-baseline gap-2.5">
+                        <dt className="w-[9.5rem] shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                          {label}:
+                        </dt>
+                        <dd className="text-[13px] leading-snug text-slate-800">{value}</dd>
+                      </div>
+                    ))}
+                </dl>
                 {p?.dissertationTopic && (
-                  <div className="flex gap-2">
-                    <dt className="shrink-0 font-semibold text-slate-700">Тема дисертаційного дослідження:</dt>
-                    <dd className="text-slate-600">{p.dissertationTopic}</dd>
+                  <div className="mt-4 rounded-lg border-l-[3px] border-[#1a3564]/25 bg-[#1a3564]/[0.03] px-4 py-3">
+                    <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.18em] text-[#1a3564]/50">
+                      Тема дисертаційного дослідження
+                    </p>
+                    <p className="text-[13px] italic leading-relaxed text-slate-700 [font-family:var(--font-serif)]">
+                      {p.dissertationTopic}
+                    </p>
                   </div>
                 )}
-                {p?.supervisor && (
-                  <div className="flex gap-2">
-                    <dt className="shrink-0 font-semibold text-slate-700">Науковий керівник:</dt>
-                    <dd className="text-slate-600">
-                      {p.supervisorTitle ? `${p.supervisorTitle} ` : ""}{p.supervisor}
-                    </dd>
-                  </div>
-                )}
-              </dl>
-            </div>
-
-            {/* Photo placeholder */}
-            <div className="flex-shrink-0">
-              <div className="h-32 w-28 rounded border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center text-slate-400">
-                <User className="h-10 w-10" />
               </div>
-            </div>
-          </div>
+              {/* Photo placeholder */}
+              <div className="shrink-0">
+                <div className="flex h-36 w-28 flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/80 text-slate-300">
+                  <User className="h-11 w-11" />
+                  <span className="text-[9px] uppercase tracking-wider">Фото</span>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* ── Publications ── */}
           {(p?.publications.length ?? 0) > 0 && (
-            <div>
-              <PreviewSection title="ПУБЛІКАЦІЇ" />
+            <section className="space-y-5">
+              <PreviewSection icon={BookOpen} title="Публікації" count={p!.publications.length} />
               {portfolioPublicationTypes.map((type) => {
                 const pubs = pubsByType[type];
                 if (!pubs.length) return null;
                 return (
-                  <div key={type} className="mb-4">
-                    <p className="mb-2 text-xs font-bold underline text-slate-700">{PUB_TYPE_LABELS[type]}:</p>
-                    <ol className="list-decimal list-inside space-y-2 marker:text-slate-400">
-                      {pubs.map((pub) => (
-                        <li key={pub.pubid} className="text-sm text-slate-700 leading-relaxed">
-                          {pub.authors}
-                          {pub.title ? (
-                            <> <span className="italic">{pub.title}</span></>
-                          ) : null}
-                          {pub.journal ? <> / <span className="italic">{pub.journal}</span></> : null}
-                          {pub.year ? `. ${pub.year}` : ""}
-                          {pub.volume ? `. Vol. ${pub.volume}` : ""}
-                          {pub.issue ? `, no. ${pub.issue}` : ""}
-                          {pub.pages ? `. P. ${pub.pages}` : ""}
-                          {pub.doi ? (
-                            <>
-                              {". "}
-                              <a
-                                href={pub.doi.startsWith("http") ? pub.doi : `https://doi.org/${pub.doi}`}
-                                target="_blank" rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline break-all"
-                              >
-                                {pub.doi.startsWith("http") ? pub.doi : `https://doi.org/${pub.doi}`}
-                              </a>
-                            </>
-                          ) : null}
+                  <div key={type} className="space-y-2.5">
+                    <p className="border-b border-slate-100 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                      {PUB_TYPE_LABELS[type]}
+                    </p>
+                    <ol className="space-y-3">
+                      {pubs.map((pub, i) => (
+                        <li key={pub.pubid} className="flex gap-3">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1a3564] text-[9px] font-bold text-white tabular-nums">
+                            {i + 1}
+                          </span>
+                          <span className="text-[13px] leading-relaxed text-slate-700">
+                            {pub.authors && <>{pub.authors}. </>}
+                            {pub.title && (
+                              <span className="font-medium text-slate-900 [font-family:var(--font-serif)] italic">
+                                {pub.title}
+                              </span>
+                            )}
+                            {pub.journal && (
+                              <> / <span className="italic text-slate-600">{pub.journal}</span></>
+                            )}
+                            {pub.year ? `. ${pub.year}` : ""}
+                            {pub.volume ? `. Vol. ${pub.volume}` : ""}
+                            {pub.issue ? `, no. ${pub.issue}` : ""}
+                            {pub.pages ? `. P. ${pub.pages}` : ""}
+                            {pub.doi && (
+                              <>
+                                {". "}
+                                <a
+                                  href={pub.doi.startsWith("http") ? pub.doi : `https://doi.org/${pub.doi}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="break-all font-mono text-[11px] text-blue-600 hover:underline"
+                                >
+                                  {pub.doi.startsWith("http") ? pub.doi : `https://doi.org/${pub.doi}`}
+                                </a>
+                              </>
+                            )}
+                          </span>
                         </li>
                       ))}
                     </ol>
                   </div>
                 );
               })}
-            </div>
+            </section>
           )}
 
           {/* ── Conferences ── */}
           {(p?.conferences.length ?? 0) > 0 && (
-            <div>
-              <PreviewSection title="УЧАСТЬ У КОНФЕРЕНЦІЯХ" />
-              <div className="space-y-4">
+            <section className="space-y-4">
+              <PreviewSection icon={Mic2} title="Участь у конференціях" count={p!.conferences.length} />
+              <div className="space-y-3">
                 {(p?.conferences ?? []).map((conf, i) => (
-                  <div key={conf.confid} className="text-sm text-slate-700">
-                    <p className="font-bold">{i + 1}) {conf.name}</p>
-                    {conf.organizer && (
-                      <p><span className="font-semibold">Організатор:</span> {conf.organizer}</p>
-                    )}
-                    {(conf.location || conf.dateStart) && (
-                      <p>
-                        <span className="font-semibold">Місце/дата:</span>{" "}
-                        {conf.location}
-                        {conf.location && conf.dateStart ? " — " : ""}
-                        <span className="font-semibold">{formatDateRange(conf.dateStart, conf.dateEnd)}</span>
+                  <div key={conf.confid} className="flex gap-4 rounded-xl border border-slate-100 bg-white p-4 shadow-[0_1px_6px_-1px_rgba(0,0,0,0.06)]">
+                    {/* Index + year column */}
+                    <div className="flex shrink-0 flex-col items-center gap-1.5 pt-0.5">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1a3564] text-[11px] font-bold text-white">
+                        {i + 1}
+                      </div>
+                      {conf.dateStart && (
+                        <span className="text-[10px] font-semibold tabular-nums text-slate-400">
+                          {new Date(conf.dateStart + "T12:00:00").getFullYear()}
+                        </span>
+                      )}
+                    </div>
+                    {/* Content */}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold leading-snug text-slate-900 [font-family:var(--font-serif)]">
+                        {conf.name}
                       </p>
-                    )}
-                    {conf.thesisTitle && (
-                      <p>
-                        <span className="font-semibold">Тези:</span>{" "}
-                        <span className="italic">{conf.thesisTitle}</span>
-                      </p>
-                    )}
-                    {conf.authors && <p><span className="font-semibold">Автори:</span> {conf.authors}</p>}
-                    {(conf.award || conf.isCompetition) && (
-                      <p className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                        <span className="font-bold">Відзнака:</span>
-                        {conf.isCompetition && conf.competitionPlace && (
-                          <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 border border-amber-200">
-                            {COMPETITION_PLACE_LABELS[conf.competitionPlace] ?? conf.competitionPlace}
+                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
+                        {conf.organizer && (
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3 shrink-0" />
+                            {conf.organizer}
                           </span>
                         )}
-                        {conf.isCompetition && conf.competitionNomination && (
-                          <span className="text-xs italic text-amber-700">{conf.competitionNomination}</span>
+                        {(conf.location || conf.dateStart) && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3 shrink-0" />
+                            {[conf.location, formatDateRange(conf.dateStart, conf.dateEnd)]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
                         )}
-                        {conf.award && <span className="font-semibold">{conf.award}</span>}
-                      </p>
-                    )}
+                      </div>
+                      {conf.thesisTitle && (
+                        <p className="mt-2 text-[12px] italic leading-snug text-slate-600">
+                          «{conf.thesisTitle}»
+                        </p>
+                      )}
+                      {conf.authors && (
+                        <p className="mt-0.5 text-[11px] text-slate-500">{conf.authors}</p>
+                      )}
+                      {(conf.isCompetition || conf.award) && (
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          {conf.isCompetition && conf.competitionPlace && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/60 bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
+                              <Medal className="h-3 w-3" />
+                              {COMPETITION_PLACE_LABELS[conf.competitionPlace] ?? conf.competitionPlace}
+                            </span>
+                          )}
+                          {conf.isCompetition && conf.competitionNomination && (
+                            <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] italic text-amber-700">
+                              {conf.competitionNomination}
+                            </span>
+                          )}
+                          {conf.award && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] text-amber-800">
+                              <Star className="h-3 w-3" />
+                              {conf.award}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {conf.url && <LinkBadge url={conf.url} />}
+                    </div>
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
           )}
 
           {/* ── Awards ── */}
           {(p?.awards.length ?? 0) > 0 && (
-            <div>
-              <PreviewSection title="НАГОРОДИ ТА ВІДЗНАКИ" />
+            <section className="space-y-4">
+              <PreviewSection icon={Award} title="Нагороди та відзнаки" count={p!.awards.length} />
               <div className="grid gap-3 sm:grid-cols-2">
                 {(p?.awards ?? []).map((aw) => (
-                  <div key={aw.awid} className="rounded-lg border border-amber-200 bg-amber-50/60 p-3">
-                    <div className="flex items-start gap-2">
-                      <Medal className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{aw.title}</p>
-                        {aw.issuer && <p className="text-xs text-slate-600">{aw.issuer}</p>}
-                        {aw.date && <p className="text-xs text-slate-500">{formatDate(aw.date)}</p>}
-                        {aw.description && <p className="mt-1 text-xs text-slate-600">{aw.description}</p>}
+                  <div
+                    key={aw.awid}
+                    className="relative overflow-hidden rounded-xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-white p-4 shadow-sm"
+                  >
+                    {/* Decorative circle */}
+                    <div className="absolute -right-5 -top-5 h-16 w-16 rounded-full bg-amber-100/50" />
+                    <div className="relative flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-600 shadow-sm">
+                        <Medal className="h-5 w-5 text-white" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold leading-snug text-slate-900 [font-family:var(--font-serif)]">
+                          {aw.title}
+                        </p>
+                        {aw.issuer && <p className="mt-0.5 text-xs text-slate-600">{aw.issuer}</p>}
+                        {aw.date && (
+                          <p className="mt-1 flex items-center gap-1 text-xs font-medium text-amber-700">
+                            <Calendar className="h-3 w-3 shrink-0" />
+                            {formatDate(aw.date)}
+                          </p>
+                        )}
+                        {aw.description && (
+                          <p className="mt-1.5 text-xs leading-relaxed text-slate-600">{aw.description}</p>
+                        )}
+                        {aw.url && <LinkBadge url={aw.url} />}
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
           )}
         </div>
 
         {/* ── Footer ── */}
-        <div className="border-t border-slate-100 bg-slate-50 px-8 py-3 text-center text-xs text-slate-400">
-          Портфоліо аспіранта · {p?.institution}
+        <div className="flex items-center justify-between border-t border-slate-100 bg-gradient-to-r from-[#1a3564]/[0.04] to-transparent px-8 py-3.5">
+          <span className="text-[11px] text-slate-400">{p?.institution}</span>
+          <span className="text-[11px] italic tracking-wide text-slate-400 [font-family:var(--font-serif)]">
+            Portfolio
+          </span>
         </div>
       </div>
     </div>
   );
 }
 
-function PreviewSection({ title }: { title: string }) {
+function PreviewSection({ icon: Icon, title, count }: {
+  icon: typeof BookOpen; title: string; count?: number;
+}) {
   return (
-    <div className="mb-3 flex items-center gap-3">
-      <div className="h-px flex-1 bg-slate-300" />
-      <h3 className="text-xs font-black uppercase tracking-widest text-slate-700">{title}</h3>
-      <div className="h-px flex-1 bg-slate-300" />
+    <div className="flex items-center gap-2.5">
+      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#1a3564]">
+        <Icon className="h-3.5 w-3.5 text-white" />
+      </div>
+      <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#1a3564] [font-family:var(--font-serif)]">
+        {title}
+      </h3>
+      {count !== undefined && (
+        <span className="rounded-full bg-[#1a3564]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#1a3564]">
+          {count}
+        </span>
+      )}
+      <div className="h-px flex-1 bg-gradient-to-r from-[#1a3564]/20 to-transparent" />
     </div>
   );
 }

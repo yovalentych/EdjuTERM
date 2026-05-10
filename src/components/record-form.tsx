@@ -23,6 +23,7 @@ import { localizeStageLabel, type Dictionary, type Locale } from "@/lib/i18n";
 import type { Project, ProjectRecord, SafeUser } from "@/lib/schemas";
 import { KIND_CONFIGS, getKindsByGroup } from "@/lib/record-field-definitions";
 import { TypedRecordFormFields } from "@/components/records/typed-record-form-fields";
+import { InstitutionSearch } from "@/components/ui/institution-search";
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -782,7 +783,7 @@ export function RecordForm({
                     </label>
                     <label className="block space-y-0.5">
                       <span className="text-[10px] font-medium text-stone-500">{isUk ? "Аффіліація" : "Affiliation"}</span>
-                      <input className={field} value={cr.affiliation} onChange={(e) => updateCreator(i, "affiliation", e.target.value)} placeholder="НАН України, Інститут..." />
+                      <InstitutionSearch value={cr.affiliation} onChange={(v) => updateCreator(i, "affiliation", v)} placeholder="НАН України, Інститут..." />
                     </label>
                     <label className="block space-y-0.5">
                       <span className="text-[10px] font-medium text-stone-500">ORCID iD</span>
@@ -816,7 +817,7 @@ export function RecordForm({
                     <div className="grid grid-cols-2 gap-1.5">
                       <input className={field} value={ct.name} onChange={(e) => updateContributor(i, "name", e.target.value)} placeholder="Прізвище Ім'я" />
                       <input className={field} value={ct.nameEn} onChange={(e) => updateContributor(i, "nameEn", e.target.value)} placeholder="Last, First (латиниця)" />
-                      <input className={field} value={ct.affiliation} onChange={(e) => updateContributor(i, "affiliation", e.target.value)} placeholder="Організація" />
+                      <InstitutionSearch value={ct.affiliation} onChange={(v) => updateContributor(i, "affiliation", v)} placeholder="Організація" />
                       <input className={field} value={ct.orcid} onChange={(e) => updateContributor(i, "orcid", e.target.value)} placeholder="ORCID" />
                     </div>
                     <div className="flex items-center gap-2">

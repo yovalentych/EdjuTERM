@@ -21,7 +21,9 @@ import {
 import { createProjectWithTemplate } from "@/app/actions";
 import { PROJECT_TEMPLATES, type TemplateId } from "@/lib/project-templates";
 import type { Dictionary, Locale } from "@/lib/i18n";
-import { projectTypes, researchFields } from "@/lib/schemas";
+import { projectTypes } from "@/lib/schemas";
+import { InstitutionSearch } from "@/components/ui/institution-search";
+import { SpecialtySelect } from "@/components/ui/specialty-select";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -220,9 +222,11 @@ const visibilityOptions = (isUk: boolean) => [
 export function ProjectWizard({
   locale,
   dictionary,
+  userDefaults,
 }: {
   locale: Locale;
   dictionary: Dictionary;
+  userDefaults?: { specialty: string; institution: string };
 }) {
   const isUk = locale === "uk";
   const [step, setStep] = useState(1);
@@ -231,12 +235,12 @@ export function ProjectWizard({
   const [data, setData] = useState<WizardData>({
     title: "",
     acronym: "",
-    grantProgram: "",
+    grantProgram: userDefaults?.institution ?? "",
     summary: "",
     startDate: "",
     endDate: "",
     projectType: "fundamental",
-    researchField: "physiology",
+    researchField: userDefaults?.specialty ?? "",
     defaultLocale: locale,
     visibility: "private",
     dataPolicy: "embargo_then_open",
@@ -424,13 +428,21 @@ export function ProjectWizard({
 
       {/* Adaptive program / institution field */}
       <Field label={pf.label} required={pf.required} hint={pf.hint}>
-        <input
-          className={inputCls}
-          value={data.grantProgram}
-          onChange={(e) => set("grantProgram", e.target.value)}
-          placeholder={pf.placeholder}
-          maxLength={160}
-        />
+        {["dissertation", "fundamental", "internship"].includes(data.projectType) ? (
+          <InstitutionSearch
+            value={data.grantProgram}
+            onChange={(v) => set("grantProgram", v)}
+            placeholder={pf.placeholder}
+          />
+        ) : (
+          <input
+            className={inputCls}
+            value={data.grantProgram}
+            onChange={(e) => set("grantProgram", e.target.value)}
+            placeholder={pf.placeholder}
+            maxLength={160}
+          />
+        )}
       </Field>
 
       {/* Abstract */}
@@ -486,13 +498,12 @@ export function ProjectWizard({
 
       {/* Research field */}
       <div>
-        <SectionLabel icon={<BookOpen className="h-3.5 w-3.5" />} text={isUk ? "Галузь досліджень" : "Research field"} />
+        <SectionLabel icon={<BookOpen className="h-3.5 w-3.5" />} text={isUk ? "Галузь та спеціальність (Постанова КМУ №1021-2024)" : "Field & specialty (CMU Resolution 1021-2024)"} />
         <div className="mt-2">
-          <select className={inputCls} value={data.researchField} onChange={(e) => set("researchField", e.target.value)}>
-            {researchFields.map((v) => (
-              <option key={v} value={v}>{dictionary.projects.fieldOptions[v]}</option>
-            ))}
-          </select>
+          <SpecialtySelect
+            value={data.researchField}
+            onChange={(v) => set("researchField", v)}
+          />
         </div>
       </div>
 

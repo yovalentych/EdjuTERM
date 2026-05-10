@@ -170,13 +170,7 @@ export const dictionaries = {
         experimental: "ДКР",
         internship: "Стажування",
       },
-      fieldOptions: {
-        physiology: "Фізіологія",
-        neuroscience: "Нейронаука",
-        molecular_biology: "Молекулярна біологія",
-        bioinformatics: "Біоінформатика",
-        biomedicine: "Біомедицина",
-      },
+      fieldOptions: {} as Record<string, string>,
       visibilityOptions: {
         private: "Приватний",
         team: "Видимий команді",
@@ -1051,13 +1045,7 @@ export const dictionaries = {
         experimental: "Dev. / R&D",
         internship: "Internship",
       },
-      fieldOptions: {
-        physiology: "Physiology",
-        neuroscience: "Neuroscience",
-        molecular_biology: "Molecular biology",
-        bioinformatics: "Bioinformatics",
-        biomedicine: "Biomedicine",
-      },
+      fieldOptions: {} as Record<string, string>,
       visibilityOptions: {
         private: "Private",
         team: "Visible to team",

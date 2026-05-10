@@ -59,6 +59,11 @@ export default async function PhdPlanPage({
         locale={localeParam}
         canManage={canManage}
         initialPlan={plan}
+        userDefaults={{
+          studentName: `${user.lastName} ${user.firstName}`,
+          specialty: user.defaultSpecialty,
+          institution: user.affiliation,
+        }}
       />
     </ProjectShell>
   );

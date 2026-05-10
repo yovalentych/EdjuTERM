@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { CalendarDays, Database, FlaskConical, Settings2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { createProject } from "@/app/actions";
@@ -8,8 +11,8 @@ import {
   projectTypes,
   projectVisibilityOptions,
   repositoryPlanOptions,
-  researchFields,
 } from "@/lib/schemas";
+import { SpecialtySelect } from "@/components/ui/specialty-select";
 
 const fieldClass =
   "input-control w-full px-3 py-2 text-sm text-stone-950 outline-none";
@@ -26,6 +29,7 @@ export function ProjectCreateForm({
   locale: Locale;
   error?: string;
 }) {
+  const [researchField, setResearchField] = useState("");
   return (
     <form action={createProject} className="space-y-4">
       <input type="hidden" name="locale" value={locale} />
@@ -90,14 +94,14 @@ export function ProjectCreateForm({
               label: dictionary.projects.typeOptions[value],
             }))}
           />
-          <SelectField
-            label={dictionary.projects.researchField}
-            name="researchField"
-            options={researchFields.map((value) => ({
-              value,
-              label: dictionary.projects.fieldOptions[value],
-            }))}
-          />
+          <label className="block space-y-1">
+            <span className="text-sm font-medium text-stone-700">{dictionary.projects.researchField}</span>
+            <SpecialtySelect
+              name="researchField"
+              value={researchField}
+              onChange={setResearchField}
+            />
+          </label>
         </div>
         <RadioGroup
           label={dictionary.projects.visibility}

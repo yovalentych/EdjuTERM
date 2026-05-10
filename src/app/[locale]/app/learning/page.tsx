@@ -78,6 +78,7 @@ export default async function LearningPage({
         assessments={allAssessments}
         sessions={allSessions}
         assignments={allAssignments}
+        isDissertation={project.projectType === "dissertation"}
       />
     </ProjectShell>
   );

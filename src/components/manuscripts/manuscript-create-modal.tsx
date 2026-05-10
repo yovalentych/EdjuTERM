@@ -24,6 +24,9 @@ import type {
   SafeUser,
 } from "@/lib/schemas";
 import { createManuscriptAction } from "@/app/actions";
+import { InstitutionSearch } from "@/components/ui/institution-search";
+import { SpecialtySelect } from "@/components/ui/specialty-select";
+import { SPECIALTY_BY_CODE, FIELD_BY_CODE } from "@/lib/classification-1021";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -530,43 +533,30 @@ export function ManuscriptCreateModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs font-semibold text-slate-600">
-                    {isUk ? "Шифр спеціальності" : "Specialty code"}
-                  </label>
-                  <input
-                    type="text"
-                    value={specialtyCode}
-                    onChange={(e) => setSpecialtyCode(e.target.value)}
-                    placeholder="14.03.05"
-                    className="input-control w-full px-2.5 py-2 text-sm outline-none"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="mb-1 block text-xs font-semibold text-slate-600">
-                    {isUk ? "Назва спеціальності" : "Specialty name"}
-                  </label>
-                  <input
-                    type="text"
-                    value={specialty}
-                    onChange={(e) => setSpecialty(e.target.value)}
-                    placeholder={isUk ? "Фізіологія..." : "Physiology..."}
-                    className="input-control w-full px-2.5 py-2 text-sm outline-none"
-                  />
-                </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">
+                  {isUk ? "Спеціальність (Постанова КМУ №1021-2024)" : "Specialty (CMU Resolution 1021-2024)"}
+                </label>
+                <SpecialtySelect
+                  value={specialtyCode}
+                  onChange={(code) => {
+                    setSpecialtyCode(code);
+                    const s = SPECIALTY_BY_CODE[code];
+                    if (s) { setSpecialty(s.name); return; }
+                    const f = FIELD_BY_CODE[code as keyof typeof FIELD_BY_CODE];
+                    if (f) setSpecialty(f.name);
+                  }}
+                />
               </div>
 
               <div>
                 <label className="mb-1 block text-xs font-semibold text-slate-600">
                   {isUk ? "Установа підготовки здобувача" : "Applicant's training institution"}
                 </label>
-                <input
-                  type="text"
+                <InstitutionSearch
                   value={institution}
-                  onChange={(e) => setInstitution(e.target.value)}
+                  onChange={setInstitution}
                   placeholder={isUk ? "Назва наукової установи / університету" : "Institution name..."}
-                  className="input-control w-full px-2.5 py-2 text-sm outline-none"
                 />
               </div>
 
@@ -574,12 +564,10 @@ export function ManuscriptCreateModal({
                 <label className="mb-1 block text-xs font-semibold text-slate-600">
                   {isUk ? "Установа, де відбудеться захист" : "Institution where defense will be held"}
                 </label>
-                <input
-                  type="text"
+                <InstitutionSearch
                   value={defenseInstitution}
-                  onChange={(e) => setDefenseInstitution(e.target.value)}
+                  onChange={setDefenseInstitution}
                   placeholder={isUk ? "Назва установи та спеціалізованої вченої ради" : "Institution with specialized council..."}
-                  className="input-control w-full px-2.5 py-2 text-sm outline-none"
                 />
               </div>
 

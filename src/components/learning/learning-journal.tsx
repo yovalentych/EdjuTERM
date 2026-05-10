@@ -3,10 +3,10 @@
 import { useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  BarChart3, Calendar, Plus, ChevronRight,
+  BarChart3, Calendar, Plus, ChevronRight, ChevronDown,
   Users, Settings, Layers, FileText, Clock, Award, Trash2, X,
   TrendingUp, AlertCircle, CheckCircle2, Check,
-  BookOpen, GraduationCap, ClipboardList, Edit3,
+  BookOpen, GraduationCap, ClipboardList, Edit3, BookMarked, Wand2,
 } from "lucide-react";
 import clsx from "clsx";
 import type {
@@ -20,10 +20,12 @@ import { AssignmentsPanel } from "@/components/learning/assignments-panel";
 import { LearningCalendar } from "@/components/learning/learning-calendar";
 import {
   addCourse, saveCourse, removeCourse,
-  addModule, removeModule,
+  addModule, saveModule, removeModule,
   addTopic, saveTopic, removeTopic,
   addAssessment, saveAssessment, removeAssessment,
+  generateTopicsFromLectures,
 } from "@/app/learning-actions";
+import { creditFromLearning } from "@/app/phd-plan-actions";
 
 // ── Label maps ────────────────────────────────────────────────────────────────
 
@@ -386,7 +388,7 @@ function AddTopicRow({ projectId, locale, courseId, moduleId, orderIndex, onDone
             <option key={t} value={t}>{TOPIC_TYPE_LABELS[t]}</option>
           ))}
         </select>
-        <input name="title" required autoFocus
+        <input name="title" required autoFocus maxLength={300}
           className="flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
           placeholder="Назва теми…" />
         <input name="durationHours" type="number" min={0} max={100} defaultValue={2}
@@ -411,7 +413,7 @@ function TopicRow({ topic, projectId, locale, canManage, linkedAssessments }: {
   topic: LearningTopic; projectId: string; locale: string; canManage: boolean;
   linkedAssessments: LearningAssessment[];
 }) {
-  const [showNotes, setShowNotes] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [pending, start] = useTransition();
 
   const toggleComplete = () => {
@@ -449,6 +451,13 @@ function TopicRow({ topic, projectId, locale, canManage, linkedAssessments }: {
           {topic.title}
         </span>
 
+        {topic.linkedLectureId && (
+          <span className="flex-shrink-0 flex items-center gap-0.5 rounded bg-violet-50 px-1.5 py-0.5 text-[9px] font-medium text-violet-500"
+            title="Автоматично прив'язано до лекції">
+            <Wand2 className="h-2.5 w-2.5" />л
+          </span>
+        )}
+
         {topic.durationHours > 0 && (
           <span className="flex-shrink-0 flex items-center gap-0.5 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
             <Clock className="h-2.5 w-2.5" />{topic.durationHours}г
@@ -467,10 +476,10 @@ function TopicRow({ topic, projectId, locale, canManage, linkedAssessments }: {
 
         {canManage && (
           <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition">
-            <button type="button" onClick={() => setShowNotes((v) => !v)}
+            <button type="button" onClick={() => setShowEdit((v) => !v)}
               className={clsx("rounded p-1 transition",
-                showNotes ? "bg-indigo-100 text-indigo-600" : "text-slate-400 hover:bg-slate-100")}>
-              <FileText className="h-3.5 w-3.5" />
+                showEdit ? "bg-indigo-100 text-indigo-600" : "text-slate-400 hover:bg-indigo-50 hover:text-indigo-600")}>
+              <Edit3 className="h-3.5 w-3.5" />
             </button>
             <form action={async (fd) => { start(() => removeTopic(fd)); }}>
               <input type="hidden" name="locale" value={locale} />
@@ -485,27 +494,54 @@ function TopicRow({ topic, projectId, locale, canManage, linkedAssessments }: {
       </div>
 
       <AnimatePresence>
-        {showNotes && (
+        {showEdit && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
-            <div className="border-t border-slate-100 px-4 pb-3 pt-2.5">
-              <form action={async (fd) => { start(async () => { await saveTopic(fd); setShowNotes(false); }); }}>
+            <div className="border-t border-indigo-50 bg-slate-50/60 px-4 pb-4 pt-3">
+              <form action={async (fd) => { start(async () => { await saveTopic(fd); setShowEdit(false); }); }}>
                 <input type="hidden" name="locale" value={locale} />
                 <input type="hidden" name="projectId" value={projectId} />
                 <input type="hidden" name="topicId" value={topic._id ?? ""} />
-                <input type="hidden" name="title" value={topic.title} />
-                <input type="hidden" name="description" value={topic.description} />
-                <input type="hidden" name="topicType" value={topic.topicType} />
-                <input type="hidden" name="durationHours" value={String(topic.durationHours)} />
                 <input type="hidden" name="isCompleted" value={String(topic.isCompleted)} />
-                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">Конспект / нотатки</p>
-                <textarea name="notes" rows={3} defaultValue={topic.notes}
-                  placeholder="Нотатки до теми, посилання на матеріали…"
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white transition resize-none" />
-                <div className="mt-2 flex justify-end">
-                  <button type="submit"
-                    className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 transition">
-                    Зберегти
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Назва</label>
+                    <input name="title" defaultValue={topic.title} maxLength={300}
+                      className="input-control w-full py-1.5 text-sm" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Тип</label>
+                    <select name="topicType" defaultValue={topic.topicType} className="input-control w-full py-1.5 text-xs">
+                      {(Object.keys(TOPIC_TYPE_LABELS) as TopicType[]).map((t) => (
+                        <option key={t} value={t}>{TOPIC_TYPE_LABELS[t]}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Годин</label>
+                    <input name="durationHours" type="number" min={0} max={100} step={0.5}
+                      defaultValue={topic.durationHours} className="input-control w-full py-1.5 text-sm" />
+                  </div>
+                  <div className="sm:col-span-4">
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Опис</label>
+                    <input name="description" defaultValue={topic.description}
+                      placeholder="Короткий опис теми" className="input-control w-full py-1.5 text-xs" />
+                  </div>
+                  <div className="sm:col-span-4">
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Конспект / нотатки</label>
+                    <textarea name="notes" rows={3} defaultValue={topic.notes}
+                      placeholder="Нотатки, посилання, конспект…"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none transition" />
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center justify-end gap-2">
+                  <button type="button" onClick={() => setShowEdit(false)}
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-100 transition">
+                    Скасувати
+                  </button>
+                  <button type="submit" disabled={pending}
+                    className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 transition disabled:opacity-60">
+                    <Check className="h-3 w-3" />Зберегти
                   </button>
                 </div>
               </form>
@@ -524,7 +560,12 @@ function ModuleCard({ mod, topics, assessments, projectId, locale, canManage }: 
   projectId: string; locale: string; canManage: boolean;
 }) {
   const [open, setOpen] = useState(true);
+  const [editMod, setEditMod] = useState(false);
+  const [modTitle, setModTitle] = useState(mod.title);
+  const [modDesc, setModDesc] = useState(mod.description);
   const [addingTopic, setAddingTopic] = useState(false);
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [generateStatus, setGenerateStatus] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   const modTopics = topics.filter((t) => t.moduleId === mod._id);
@@ -532,55 +573,114 @@ function ModuleCard({ mod, topics, assessments, projectId, locale, canManage }: 
   const done = modTopics.filter((t) => t.isCompleted).length;
   const pct = modTopics.length ? Math.round((done / modTopics.length) * 100) : 0;
   const totalHours = modTopics.reduce((s, t) => s + (t.durationHours || 0), 0);
+  const hasLectures = modTopics.some((t) => t.topicType === "lecture");
+
+  function handleGenerate(topicType: "seminar" | "practical" | "lab") {
+    setGenerateOpen(false);
+    setGenerateStatus(null);
+    const fd = new FormData();
+    fd.set("locale", locale);
+    fd.set("projectId", projectId);
+    fd.set("courseId", mod.courseId);
+    fd.set("moduleId", mod._id ?? "");
+    fd.set("topicType", topicType);
+    start(async () => {
+      const res = await generateTopicsFromLectures(fd);
+      if (res?.ok) {
+        setGenerateStatus(res.count > 0 ? `✓ Створено: ${res.count}` : "Всі вже є");
+      } else {
+        setGenerateStatus("Помилка");
+      }
+      setTimeout(() => setGenerateStatus(null), 3000);
+    });
+  }
 
   return (
     <div className="group overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex cursor-pointer select-none items-center gap-3 px-4 py-3 hover:bg-slate-50 transition"
-        onClick={() => setOpen((v) => !v)}>
-        <motion.div animate={{ rotate: open ? 90 : 0 }} transition={{ duration: 0.15 }}>
-          <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-        </motion.div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-slate-800 text-sm">{mod.title}</span>
-            {mod.isCompleted && (
-              <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
-                <Check className="h-2.5 w-2.5" />завершено
-              </span>
-            )}
-            {totalHours > 0 && <span className="text-[11px] text-slate-400">{totalHours}г</span>}
+      {editMod ? (
+        /* ── Inline module edit form ── */
+        <form
+          className="flex items-start gap-2 px-4 py-3"
+          action={(fd) => {
+            fd.set("locale", locale); fd.set("projectId", projectId);
+            fd.set("moduleId", mod._id ?? "");
+            fd.set("isCompleted", String(mod.isCompleted));
+            start(async () => { await saveModule(fd); setEditMod(false); });
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex-1 space-y-2">
+            <input name="title" value={modTitle} onChange={(e) => setModTitle(e.target.value)}
+              className="w-full rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+            <input name="description" value={modDesc} onChange={(e) => setModDesc(e.target.value)}
+              placeholder="Опис модуля (необов'язково)"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
           </div>
-          {modTopics.length > 0 && (
-            <div className="mt-1.5 flex items-center gap-2">
-              <div className="flex-1 h-1 overflow-hidden rounded-full bg-slate-100">
-                <div className={clsx("h-full rounded-full transition-all duration-500",
-                  pct === 100 ? "bg-emerald-500" : "bg-indigo-400")} style={{ width: `${pct}%` }} />
+          <div className="flex shrink-0 gap-1 pt-0.5">
+            <button type="submit" disabled={pending}
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
+              <Check className="h-3.5 w-3.5" />
+            </button>
+            <button type="button" onClick={() => { setEditMod(false); setModTitle(mod.title); setModDesc(mod.description); }}
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="flex cursor-pointer select-none items-center gap-3 px-4 py-3 hover:bg-slate-50 transition"
+          onClick={() => setOpen((v) => !v)}>
+          <motion.div animate={{ rotate: open ? 90 : 0 }} transition={{ duration: 0.15 }}>
+            <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+          </motion.div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-slate-800 text-sm">{mod.title}</span>
+              {mod.isCompleted && (
+                <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                  <Check className="h-2.5 w-2.5" />завершено
+                </span>
+              )}
+              {totalHours > 0 && <span className="text-[11px] text-slate-400">{totalHours}г</span>}
+            </div>
+            {modTopics.length > 0 && (
+              <div className="mt-1.5 flex items-center gap-2">
+                <div className="flex-1 h-1 overflow-hidden rounded-full bg-slate-100">
+                  <div className={clsx("h-full rounded-full transition-all duration-500",
+                    pct === 100 ? "bg-emerald-500" : "bg-indigo-400")} style={{ width: `${pct}%` }} />
+                </div>
+                <span className="flex-shrink-0 text-[11px] text-slate-400">{done}/{modTopics.length}</span>
               </div>
-              <span className="flex-shrink-0 text-[11px] text-slate-400">{done}/{modTopics.length}</span>
+            )}
+          </div>
+          {modAssessments.length > 0 && (
+            <div className="hidden sm:flex flex-shrink-0 gap-1">
+              {modAssessments.slice(0, 2).map((a) => (
+                <span key={a._id} className={clsx("rounded-full border px-2 py-0.5 text-[10px] font-semibold", ASSESSMENT_TYPE_BADGE[a.assessmentType])}>
+                  {ASSESSMENT_TYPE_LABELS[a.assessmentType]}
+                </span>
+              ))}
+            </div>
+          )}
+          {canManage && (
+            <div className="flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100 transition" onClick={(e) => e.stopPropagation()}>
+              <button type="button" onClick={() => { setEditMod(true); setModTitle(mod.title); setModDesc(mod.description); }}
+                className="rounded p-1 text-slate-300 hover:bg-indigo-50 hover:text-indigo-600 transition">
+                <Edit3 className="h-3.5 w-3.5" />
+              </button>
+              <form action={(fd) => { start(() => removeModule(fd)); }}>
+                <input type="hidden" name="locale" value={locale} />
+                <input type="hidden" name="projectId" value={projectId} />
+                <input type="hidden" name="moduleId" value={mod._id ?? ""} />
+                <button type="submit"
+                  className="rounded p-1 text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </form>
             </div>
           )}
         </div>
-        {modAssessments.length > 0 && (
-          <div className="hidden sm:flex flex-shrink-0 gap-1">
-            {modAssessments.slice(0, 2).map((a) => (
-              <span key={a._id} className={clsx("rounded-full border px-2 py-0.5 text-[10px] font-semibold", ASSESSMENT_TYPE_BADGE[a.assessmentType])}>
-                {ASSESSMENT_TYPE_LABELS[a.assessmentType]}
-              </span>
-            ))}
-          </div>
-        )}
-        {canManage && (
-          <form action={(fd) => { start(() => removeModule(fd)); }} onClick={(e) => e.stopPropagation()}>
-            <input type="hidden" name="locale" value={locale} />
-            <input type="hidden" name="projectId" value={projectId} />
-            <input type="hidden" name="moduleId" value={mod._id ?? ""} />
-            <button type="submit"
-              className="rounded p-1 text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition opacity-0 group-hover:opacity-100">
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </form>
-        )}
-      </div>
+      )}
 
       <AnimatePresence initial={false}>
         {open && (
@@ -600,10 +700,53 @@ function ModuleCard({ mod, topics, assessments, projectId, locale, canManage }: 
                   orderIndex={modTopics.length} onDone={() => setAddingTopic(false)} />
               )}
               {canManage && !addingTopic && (
-                <button type="button" onClick={() => setAddingTopic(true)}
-                  className="ml-7 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600">
-                  <Plus className="h-3 w-3" /> Додати тему
-                </button>
+                <div className="ml-7 flex items-center gap-2 flex-wrap">
+                  <button type="button" onClick={() => setAddingTopic(true)}
+                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600">
+                    <Plus className="h-3 w-3" /> Додати тему
+                  </button>
+
+                  {hasLectures && (
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setGenerateOpen((v) => !v)}
+                        disabled={pending}
+                        className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-violet-500 transition hover:bg-violet-50 hover:text-violet-700 disabled:opacity-40"
+                      >
+                        <Wand2 className="h-3 w-3" />
+                        Згенерувати…
+                        <ChevronDown className="h-2.5 w-2.5" />
+                      </button>
+
+                      {generateOpen && (
+                        <div className="absolute bottom-full left-0 mb-1 z-10 flex flex-col overflow-hidden rounded-xl border border-violet-100 bg-white shadow-lg">
+                          {(["seminar", "practical", "lab"] as const).map((type) => {
+                            const labels: Record<string, string> = {
+                              seminar: "Семінари",
+                              practical: "Практичні",
+                              lab: "Лабораторні",
+                            };
+                            return (
+                              <button
+                                key={type}
+                                type="button"
+                                onClick={() => handleGenerate(type)}
+                                className="px-4 py-2 text-left text-xs text-slate-700 hover:bg-violet-50 hover:text-violet-700 transition"
+                              >
+                                {labels[type]}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {generateStatus && (
+                    <span className="text-xs text-violet-600 font-medium">{generateStatus}</span>
+                  )}
+                </div>
               )}
             </div>
           </motion.div>
@@ -990,15 +1133,16 @@ const COURSE_TABS = [
 
 type CourseTab = typeof COURSE_TABS[number]["id"];
 
-function CourseView({ course, modules, topics, assessments, sessions, assignments, projectId, locale, canManage }: {
+function CourseView({ course, modules, topics, assessments, sessions, assignments, projectId, locale, canManage, isDissertation }: {
   course: LearningCourse; modules: LearningModule[]; topics: LearningTopic[];
   assessments: LearningAssessment[]; sessions: LearningSession[]; assignments: LearningAssignment[];
-  projectId: string; locale: string; canManage: boolean;
+  projectId: string; locale: string; canManage: boolean; isDissertation?: boolean;
 }) {
   const [tab, setTab] = useState<CourseTab>("modules");
   const [addingModule, setAddingModule] = useState(false);
   const [showAssessmentModal, setShowAssessmentModal] = useState(false);
   const [editAssessment, setEditAssessment] = useState<LearningAssessment | null>(null);
+  const [creditStatus, setCreditStatus] = useState<"idle" | "pending" | "done">("idle");
   const [pending, start] = useTransition();
 
   const courseMods = modules.filter((m) => m.courseId === course._id);
@@ -1032,6 +1176,40 @@ function CourseView({ course, modules, topics, assessments, sessions, assignment
                 <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                   Сем. {course.semester}
                 </span>
+
+                {isDissertation && course.status === "completed" && (
+                  <button
+                    type="button"
+                    disabled={creditStatus !== "idle"}
+                    onClick={() => {
+                      setCreditStatus("pending");
+                      const fd = new FormData();
+                      fd.set("locale", locale);
+                      fd.set("projectId", projectId);
+                      fd.set("title", course.title);
+                      fd.set("credits", String(course.credits));
+                      fd.set("studyYear", String(course.year ?? 1));
+                      start(async () => {
+                        await creditFromLearning(fd);
+                        setCreditStatus("done");
+                      });
+                    }}
+                    className={clsx(
+                      "flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition",
+                      creditStatus === "done"
+                        ? "border-emerald-300 bg-emerald-100 text-emerald-700"
+                        : "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-60",
+                    )}
+                  >
+                    {creditStatus === "done" ? (
+                      <><CheckCircle2 className="h-3 w-3" /> Зараховано до ІНД. ПЛАНУ</>
+                    ) : creditStatus === "pending" ? (
+                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+                    ) : (
+                      <><Award className="h-3 w-3" /> Зарахувати до ІНД. ПЛАНУ</>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
             {score !== null && (
@@ -1391,10 +1569,12 @@ function OverviewPanel({ courses, topics, assessments, assignments }: {
 export function LearningJournal({
   projectId, locale, canManage, initialCourseId,
   courses, modules, topics, assessments, sessions, assignments,
+  isDissertation,
 }: {
   projectId: string; locale: string; canManage: boolean; initialCourseId: string | null;
   courses: LearningCourse[]; modules: LearningModule[]; topics: LearningTopic[];
   assessments: LearningAssessment[]; sessions: LearningSession[]; assignments: LearningAssignment[];
+  isDissertation?: boolean;
 }) {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(
     initialCourseId ?? (courses.length > 0 ? (courses[0]._id ?? null) : null),
@@ -1482,7 +1662,8 @@ export function LearningJournal({
               transition={{ duration: 0.15 }}>
               <CourseView course={selectedCourse} modules={modules} topics={topics}
                 assessments={assessments} sessions={sessions} assignments={assignments}
-                projectId={projectId} locale={locale} canManage={canManage} />
+                projectId={projectId} locale={locale} canManage={canManage}
+                isDissertation={isDissertation} />
             </motion.div>
           ) : showCalendar ? (
             <motion.div key="calendar" className="flex-1 min-w-0"

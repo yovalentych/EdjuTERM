@@ -9,8 +9,11 @@ import {
   createTopic, updateTopic, deleteTopic,
   createAssessment, updateAssessment, deleteAssessment,
   createSession, updateSession, deleteSession,
+  bulkCreateSessions, bulkDeleteSessionsByCourse, shiftSessionsInGroup,
   createAssignment, updateAssignment, deleteAssignment,
+  listTopicsForProject, listSessions,
 } from "@/lib/learning";
+import type { TopicType } from "@/lib/schemas";
 import {
   learningCourseInputSchema,
   learningModuleInputSchema,
@@ -192,6 +195,59 @@ export async function removeTopic(formData: FormData) {
   if (!project) return;
   await deleteTopic(id);
   revalidate(locale, projectId);
+}
+
+export async function generateTopicsFromLectures(formData: FormData) {
+  "use server";
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, count: 0 };
+  const locale = (formData.get("locale") as string) ?? "uk";
+  const projectId = formData.get("projectId") as string;
+  const courseId = formData.get("courseId") as string;
+  const moduleId = formData.get("moduleId") as string;
+  const topicType = (formData.get("topicType") as string) ?? "seminar";
+  const project = await getProjectForUser(projectId, user);
+  if (!project) return { ok: false, count: 0 };
+
+  // Fetch all topics in this module to find lectures and already-linked generated topics
+  const { listTopics } = await import("@/lib/learning");
+  const allModuleTopics = (await listTopics(courseId)).filter((t) => t.moduleId === moduleId);
+
+  const lectures = allModuleTopics.filter((t) => t.topicType === "lecture");
+  if (!lectures.length) return { ok: true, count: 0 };
+
+  // Find lecture IDs that already have a generated topic of this type
+  const alreadyLinked = new Set(
+    allModuleTopics
+      .filter((t) => t.topicType === topicType && t.linkedLectureId)
+      .map((t) => t.linkedLectureId),
+  );
+
+  const toGenerate = lectures.filter((l) => !alreadyLinked.has(l._id ?? ""));
+  if (!toGenerate.length) return { ok: true, count: 0 };
+
+  const baseOrder = allModuleTopics.length;
+  await Promise.all(
+    toGenerate.map((lecture, i) =>
+      createTopic({
+        projectId,
+        courseId,
+        moduleId,
+        title: lecture.title,
+        description: "",
+        topicType: topicType as "seminar" | "practical" | "lab",
+        orderIndex: baseOrder + i,
+        isCompleted: false,
+        completedAt: null,
+        durationHours: lecture.durationHours,
+        notes: "",
+        linkedLectureId: lecture._id ?? "",
+      }),
+    ),
+  );
+
+  revalidate(locale, projectId);
+  return { ok: true, count: toGenerate.length };
 }
 
 // ── Assessments ───────────────────────────────────────────────────────────────
@@ -405,4 +461,193 @@ export async function removeAssignmentAction(formData: FormData) {
   if (!project) return;
   await deleteAssignment(id);
   revalidate(locale, projectId);
+}
+
+// ── Recurring schedule ────────────────────────────────────────────────────────
+
+export async function generateRecurringSchedule(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false };
+  const locale = (formData.get("locale") as string) ?? "uk";
+  const projectId = formData.get("projectId") as string;
+  const courseId = formData.get("courseId") as string;
+  const project = await getProjectForUser(projectId, user);
+  if (!project) return { ok: false };
+
+  const weekdays = (formData.get("weekdays") as string).split(",").map(Number).filter((n) => !isNaN(n));
+  const startDate = formData.get("startDate") as string;
+  const count = Number(formData.get("count") || 0);
+  const startTime = (formData.get("startTime") as string) || "";
+  const endTime = (formData.get("endTime") as string) || "";
+  const durationHours = Number(formData.get("durationHours") || 1.5);
+  const location = (formData.get("location") as string) || "";
+  const assignMode = (formData.get("assignMode") as string) || "single_type";
+  const singleType = (formData.get("singleType") as TopicType) || "lecture";
+  const patternStr = (formData.get("pattern") as string) || "lecture";
+  const pattern = patternStr.split(",") as TopicType[];
+
+  if (!startDate || count <= 0 || weekdays.length === 0) return { ok: false, reason: "no_params" };
+  const dates: string[] = [];
+  const cur = new Date(startDate);
+  let safety = 0;
+  while (dates.length < count && safety < 500) {
+    if (weekdays.includes(cur.getDay())) dates.push(cur.toISOString().slice(0, 10));
+    cur.setDate(cur.getDate() + 1);
+    safety++;
+  }
+  if (dates.length === 0) return { ok: false, reason: "no_dates" };
+
+  let courseTopics: { _id?: string; moduleId: string; title: string; topicType: TopicType }[] = [];
+  if (assignMode === "sequential") {
+    const allTopics = await listTopicsForProject(projectId);
+    courseTopics = allTopics.filter((t) => t.courseId === courseId);
+  }
+
+  const existingCount = (await listSessions(courseId)).length;
+  const recurringGroupId = `rg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+  const inputs = dates.map((date, i) => {
+    let topicId = "";
+    let moduleId = "";
+    let title = "";
+    let sessionType: TopicType = singleType;
+
+    if (assignMode === "sequential" && courseTopics.length > 0) {
+      const t = courseTopics[i % courseTopics.length];
+      topicId = t._id ?? "";
+      moduleId = t.moduleId;
+      title = t.title;
+      sessionType = t.topicType;
+    } else if (assignMode === "alternating" && pattern.length > 0) {
+      sessionType = pattern[i % pattern.length];
+    }
+
+    return learningSessionInputSchema.parse({
+      projectId, courseId, topicId, moduleId, title,
+      sessionType, date, startTime, endTime, durationHours,
+      location, notes: "", attendance: null, grade: null,
+      orderIndex: existingCount + i,
+      status: "active", cancellationReason: "", originalDate: "", recurringGroupId,
+    });
+  });
+
+  await bulkCreateSessions(inputs);
+  revalidate(locale, projectId);
+  return { ok: true, count: dates.length };
+}
+
+export async function cancelSessionAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false };
+  const locale = (formData.get("locale") as string) ?? "uk";
+  const projectId = formData.get("projectId") as string;
+  const sessionId = formData.get("sessionId") as string;
+  const project = await getProjectForUser(projectId, user);
+  if (!project) return { ok: false };
+
+  const reason = (formData.get("cancellationReason") as string) || "";
+  const mode = (formData.get("cancelMode") as string) || "drop";
+  const shiftDays = Number(formData.get("shiftDays") || 7);
+  const recurringGroupId = (formData.get("recurringGroupId") as string) || "";
+  const sessionDate = (formData.get("sessionDate") as string) || "";
+
+  await updateSession(sessionId, { status: "cancelled", cancellationReason: reason });
+
+  if (mode === "shift" && recurringGroupId && sessionDate) {
+    await shiftSessionsInGroup(projectId, recurringGroupId, sessionDate, shiftDays);
+  }
+
+  revalidate(locale, projectId);
+  return { ok: true };
+}
+
+export async function rescheduleSessionAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false };
+  const locale = (formData.get("locale") as string) ?? "uk";
+  const projectId = formData.get("projectId") as string;
+  const sessionId = formData.get("sessionId") as string;
+  const project = await getProjectForUser(projectId, user);
+  if (!project) return { ok: false };
+
+  const oldDate = (formData.get("originalDate") as string) || "";
+  const newDate = (formData.get("newDate") as string) || "";
+  const newStartTime = (formData.get("newStartTime") as string) || "";
+  const newEndTime = (formData.get("newEndTime") as string) || "";
+  const shiftSubsequent = formData.get("shiftSubsequent") === "true";
+  const shiftDays = Number(formData.get("shiftDays") || 7);
+  const recurringGroupId = (formData.get("recurringGroupId") as string) || "";
+
+  await updateSession(sessionId, {
+    status: "rescheduled",
+    date: newDate,
+    startTime: newStartTime,
+    endTime: newEndTime,
+    originalDate: oldDate,
+  });
+
+  if (shiftSubsequent && recurringGroupId && oldDate) {
+    await shiftSessionsInGroup(projectId, recurringGroupId, oldDate, shiftDays);
+  }
+
+  revalidate(locale, projectId);
+  return { ok: true };
+}
+
+export async function restoreSessionAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+  const locale = (formData.get("locale") as string) ?? "uk";
+  const projectId = formData.get("projectId") as string;
+  const sessionId = formData.get("sessionId") as string;
+  const project = await getProjectForUser(projectId, user);
+  if (!project) return;
+
+  await updateSession(sessionId, { status: "active", cancellationReason: "" });
+  revalidate(locale, projectId);
+}
+
+export async function clearCourseSchedule(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false };
+  const locale = (formData.get("locale") as string) ?? "uk";
+  const projectId = formData.get("projectId") as string;
+  const courseId = formData.get("courseId") as string;
+  const mode = (formData.get("mode") as string) || "all";
+  const project = await getProjectForUser(projectId, user);
+  if (!project) return { ok: false };
+
+  const count = await bulkDeleteSessionsByCourse(projectId, courseId, mode === "cancelled");
+  revalidate(locale, projectId);
+  return { ok: true, count };
+}
+
+export async function addUnscheduledTopicsAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false };
+  const locale = (formData.get("locale") as string) ?? "uk";
+  const projectId = formData.get("projectId") as string;
+  const courseId = formData.get("courseId") as string;
+  const project = await getProjectForUser(projectId, user);
+  if (!project) return { ok: false };
+
+  type TopicEntry = {
+    topicId: string; moduleId: string; title: string; sessionType: TopicType;
+    durationHours: number; date: string; startTime: string; endTime: string; location: string;
+  };
+  const entries = JSON.parse((formData.get("topicsJson") as string) || "[]") as TopicEntry[];
+  const existingCount = Number(formData.get("existingCount") ?? 0);
+
+  const inputs = entries.map((t, i) => learningSessionInputSchema.parse({
+    projectId, courseId, topicId: t.topicId, moduleId: t.moduleId,
+    title: t.title, sessionType: t.sessionType, date: t.date,
+    startTime: t.startTime, endTime: t.endTime, durationHours: t.durationHours,
+    location: t.location, notes: "", attendance: null, grade: null,
+    orderIndex: existingCount + i,
+    status: "active", cancellationReason: "", originalDate: "", recurringGroupId: "",
+  }));
+
+  await bulkCreateSessions(inputs);
+  revalidate(locale, projectId);
+  return { ok: true, count: inputs.length };
 }
