@@ -12,10 +12,10 @@ import {
 } from "@/lib/schemas";
 
 const fieldClass =
-  "w-full border border-stone-300 bg-white px-3 py-2 text-sm text-stone-950 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100";
+  "input-control w-full px-3 py-2 text-sm text-stone-950 outline-none";
 
 const radioClass =
-  "border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 transition has-checked:border-emerald-700 has-checked:bg-emerald-50 has-checked:text-emerald-950";
+  "border border-stone-200 bg-white/65 px-3 py-2 text-sm text-stone-700 shadow-sm shadow-stone-900/5 transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/60 has-checked:border-emerald-600 has-checked:bg-emerald-50 has-checked:text-emerald-950";
 
 export function ProjectCreateForm({
   dictionary,
@@ -201,10 +201,10 @@ export function ProjectCreateForm({
         </div>
       </FormSection>
 
-      <div className="sticky bottom-0 border border-stone-200 bg-white p-4 shadow-sm">
+      <div className="sticky bottom-0 surface p-4 backdrop-blur">
         <button
           type="submit"
-          className="w-full bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800"
+          className="w-full bg-gradient-to-r from-emerald-700 to-teal-700 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-emerald-900/20 transition hover:-translate-y-0.5 hover:from-emerald-800 hover:to-teal-800"
         >
           {dictionary.projects.submit}
         </button>
@@ -223,9 +223,9 @@ function FormSection({
   title: string;
 }) {
   return (
-    <section className="border border-stone-200 bg-white p-5 shadow-sm">
+    <section className="surface p-5">
       <div className="mb-4 flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center bg-emerald-50 text-emerald-700">
+        <div className="flex h-9 w-9 items-center justify-center bg-gradient-to-br from-emerald-50 to-cyan-50 text-emerald-700 shadow-sm shadow-emerald-900/10">
           {icon}
         </div>
         <h2 className="text-lg font-semibold text-stone-950">{title}</h2>
@@ -307,7 +307,7 @@ function Toggle({
   name: string;
 }) {
   return (
-    <label className="flex min-h-12 items-center justify-between gap-3 border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 transition has-checked:border-emerald-700 has-checked:bg-emerald-50 has-checked:text-emerald-950">
+    <label className="flex min-h-12 items-center justify-between gap-3 border border-stone-200 bg-white/65 px-3 py-2 text-sm text-stone-700 shadow-sm shadow-stone-900/5 transition hover:-translate-y-0.5 hover:border-emerald-200 hover:bg-emerald-50/60 has-checked:border-emerald-600 has-checked:bg-emerald-50 has-checked:text-emerald-950">
       <span>{label}</span>
       <input
         type="checkbox"

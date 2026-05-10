@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { IBM_Plex_Serif } from "next/font/google";
 import { headers } from "next/headers";
+import Script from "next/script";
 import { isLocale } from "@/lib/i18n";
 import "./globals.css";
 
@@ -7,6 +9,14 @@ export const metadata: Metadata = {
   title: "Grant Project Manager",
   description: "Project management and open science workspace for a research grant",
 };
+
+const ibmPlexSerif = IBM_Plex_Serif({
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  variable: "--font-serif",
+  display: "swap",
+});
 
 const cleanExtensionRootAttrs = `
   (function () {
@@ -38,6 +48,23 @@ const cleanExtensionRootAttrs = `
   })();
 `;
 
+const privateShellPreferencesScript = `
+  (function () {
+    try {
+      var theme = window.localStorage.getItem("grant-manager-private-theme");
+      if (theme === "soft") {
+        document.documentElement.dataset.privateTheme = "soft";
+      }
+      var sidebarCollapsed = window.localStorage.getItem("grant-manager-sidebar-collapsed");
+      if (sidebarCollapsed === "true" || sidebarCollapsed === "false") {
+        document.documentElement.dataset.sidebarCollapsed = sidebarCollapsed;
+      }
+    } catch (error) {
+      // localStorage can be unavailable in restricted contexts.
+    }
+  })();
+`;
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -48,12 +75,26 @@ export default async function RootLayout({
   const lang = locale && isLocale(locale) ? locale : "uk";
 
   return (
-    <html lang={lang} className="h-full antialiased" suppressHydrationWarning>
+    <html
+      lang={lang}
+      className={`h-full antialiased ${ibmPlexSerif.variable}`}
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+    >
+      <head />
       <body className="min-h-full flex flex-col">
-        <script
+        <Script
+          id="private-shell-preferences"
+          strategy="beforeInteractive"
+        >
+          {privateShellPreferencesScript}
+        </Script>
+        <Script
           id="clean-extension-root-attrs"
-          dangerouslySetInnerHTML={{ __html: cleanExtensionRootAttrs }}
-        />
+          strategy="beforeInteractive"
+        >
+          {cleanExtensionRootAttrs}
+        </Script>
         {children}
       </body>
     </html>

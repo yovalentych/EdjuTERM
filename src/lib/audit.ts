@@ -6,6 +6,7 @@ import {
   type SafeUser,
   auditEventSchema,
 } from "@/lib/schemas";
+import { getRequestId } from "@/lib/request-context";
 
 const collectionName = "audit_events";
 const localAuditEvents: AuditEvent[] = [];
@@ -16,6 +17,9 @@ export async function createAuditEvent({
   projectId,
   targetUserId,
   targetEmail,
+  targetEntity,
+  before,
+  after,
   metadata = {},
 }: {
   action: AuditAction;
@@ -23,12 +27,16 @@ export async function createAuditEvent({
   projectId?: string;
   targetUserId?: string;
   targetEmail?: string;
-  metadata?: Record<string, string>;
+  targetEntity?: string;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  metadata?: AuditEvent["metadata"];
 }) {
   if (!actor._id) {
     return null;
   }
 
+  const requestId = await getRequestId();
   const event: AuditEvent = {
     action,
     actorId: actor._id,
@@ -36,6 +44,10 @@ export async function createAuditEvent({
     projectId,
     targetUserId,
     targetEmail,
+    targetEntity,
+    requestId,
+    before,
+    after,
     metadata,
     createdAt: new Date(),
   };
@@ -80,7 +92,50 @@ export async function listAuditEvents({
     .toArray();
 
   return docs.map((doc) =>
-    auditEventSchema.parse({ ...doc, _id: (doc._id as ObjectId).toString() }),
+    auditEventSchema.parse({
+      ...doc,
+      _id: (doc._id as ObjectId).toString(),
+      projectId: doc.projectId ?? undefined,
+      targetUserId: doc.targetUserId ?? undefined,
+      targetEmail: doc.targetEmail ?? undefined,
+      targetEntity: doc.targetEntity ?? undefined,
+      requestId: doc.requestId ?? undefined,
+      before: doc.before ?? undefined,
+      after: doc.after ?? undefined,
+    }),
+  );
+}
+
+export async function listAuditEventsForRecord(
+  recordId: string,
+  limit = 20,
+): Promise<AuditEvent[]> {
+  if (!hasMongoConfig()) {
+    return localAuditEvents
+      .filter((e) => e.metadata?.recordId === recordId)
+      .slice(0, limit);
+  }
+
+  const db = await getMongoDb();
+  const docs = await db
+    .collection(collectionName)
+    .find({ "metadata.recordId": recordId })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .toArray();
+
+  return docs.map((doc) =>
+    auditEventSchema.parse({
+      ...doc,
+      _id: (doc._id as ObjectId).toString(),
+      projectId: doc.projectId ?? undefined,
+      targetUserId: doc.targetUserId ?? undefined,
+      targetEmail: doc.targetEmail ?? undefined,
+      targetEntity: doc.targetEntity ?? undefined,
+      requestId: doc.requestId ?? undefined,
+      before: doc.before ?? undefined,
+      after: doc.after ?? undefined,
+    }),
   );
 }
 
@@ -91,5 +146,6 @@ async function ensureAuditIndexes() {
     { key: { projectId: 1, createdAt: -1 } },
     { key: { actorId: 1, createdAt: -1 } },
     { key: { action: 1, createdAt: -1 } },
+    { key: { requestId: 1 } },
   ]);
 }

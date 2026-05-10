@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { OpenScienceForm } from "@/components/open-science/open-science-form";
 import { OpenScienceList } from "@/components/open-science/open-science-list";
+import { Breadcrumb, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/current-user";
 import { getDictionary, isLocale } from "@/lib/i18n";
 import { listOpenScienceUpdatesForProjects } from "@/lib/open-science";
@@ -34,36 +35,34 @@ export default async function ManageOpenSciencePage({
 
   return (
     <AppShell dictionary={dictionary} locale={localeParam} user={user}>
+      <PageHeader
+        eyebrow="Open science"
+        title={dictionary.openScience.manageTitle}
+        breadcrumb={
+          <Breadcrumb
+            items={[{ label: dictionary.openScience.manageTitle }]}
+            homeHref={`/${localeParam}/app`}
+          />
+        }
+        description={dictionary.openScience.manageSummary}
+        actions={
+          <Link
+            href={`/${localeParam}/open-science`}
+            target="_blank"
+            className="control-primary px-3 py-2 text-sm font-semibold"
+          >
+            {dictionary.openScience.publicPage}
+          </Link>
+        }
+      />
+
       <section className="grid gap-4 lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="border border-stone-200 bg-white p-5 shadow-sm">
-          <h1 className="text-2xl font-semibold">
-            {dictionary.openScience.manageTitle}
-          </h1>
-          <p className="mt-2 text-sm leading-6 text-stone-600">
-            {dictionary.openScience.manageSummary}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link
-              href={`/${localeParam}/app`}
-              className="border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-stone-800 transition hover:border-emerald-700 hover:text-emerald-800"
-            >
-              {dictionary.nav.dashboard}
-            </Link>
-            <Link
-              href={`/${localeParam}/open-science`}
-              target="_blank"
-              className="bg-stone-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-stone-800"
-            >
-              {dictionary.openScience.publicPage}
-            </Link>
-          </div>
-          <div className="mt-5">
-            <OpenScienceForm
-              dictionary={dictionary}
-              locale={localeParam}
-              projects={projects}
-            />
-          </div>
+        <div className="surface p-5">
+          <OpenScienceForm
+            dictionary={dictionary}
+            locale={localeParam}
+            projects={projects}
+          />
         </div>
 
         <div>

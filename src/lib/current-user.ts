@@ -8,5 +8,16 @@ export async function getCurrentUser() {
     return null;
   }
 
-  return getSafeUserById(session.userId);
+  try {
+    const user = await getSafeUserById(session.userId);
+
+    if (!user || user.sessionVersion !== session.sessionVersion) {
+      return null;
+    }
+
+    return user;
+  } catch (error) {
+    console.error("Failed to resolve current user from session", error);
+    return null;
+  }
 }

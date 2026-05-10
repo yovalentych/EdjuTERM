@@ -1,7 +1,9 @@
-import { BriefcaseBusiness, Building2, Fingerprint, Mail, UserRound } from "lucide-react";
+import { BriefcaseBusiness, Building2, Fingerprint, Mail } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { AppShell } from "@/components/app-shell";
+import { Avatar } from "@/components/ui/avatar";
+import { Breadcrumb, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/current-user";
 import { getDictionary, isLocale } from "@/lib/i18n";
 import { getProjectForUser } from "@/lib/projects";
@@ -52,21 +54,19 @@ export default async function MemberProfilePage({
 
   return (
     <AppShell dictionary={dictionary} locale={localeParam} user={currentUser}>
-      <section className="border border-stone-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center bg-emerald-50 text-emerald-700">
-            <UserRound className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-semibold tracking-normal text-stone-950">
-              {dictionary.account.publicProfile}
-            </h1>
-            <p className="mt-2 text-sm text-stone-600">
-              {member.firstName} {member.lastName}
-            </p>
-          </div>
-        </div>
-      </section>
+      <PageHeader
+        eyebrow={dictionary.account.publicProfile}
+        title={`${member.firstName} ${member.lastName}`}
+        breadcrumb={
+          <Breadcrumb
+            items={[{ label: `${member.firstName} ${member.lastName}` }]}
+            homeHref={`/${localeParam}/app`}
+          />
+        }
+        actions={
+          <Avatar firstName={member.firstName} lastName={member.lastName} size="xl" />
+        }
+      />
 
       <section className="grid gap-4 lg:grid-cols-2">
         <ProfileItem
@@ -92,11 +92,11 @@ export default async function MemberProfilePage({
       </section>
 
       {member.profileBio ? (
-        <section className="border border-stone-200 bg-white p-5 shadow-sm">
-          <h2 className="text-xl font-semibold text-stone-950">
+        <section className="surface p-5">
+          <h2 className="text-base font-semibold text-slate-900">
             {dictionary.account.profileBio}
           </h2>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
             {member.profileBio}
           </p>
         </section>
@@ -115,10 +115,10 @@ function ProfileItem({
   value: string;
 }) {
   return (
-    <article className="border border-stone-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center gap-2 text-emerald-700">{icon}</div>
-      <p className="mt-3 text-sm text-stone-500">{label}</p>
-      <p className="mt-1 font-semibold text-stone-950">{value}</p>
+    <article className="surface p-5">
+      <div className="flex items-center gap-2 text-blue-600">{icon}</div>
+      <p className="mt-3 text-xs text-slate-500">{label}</p>
+      <p className="mt-1 font-semibold text-slate-900">{value}</p>
     </article>
   );
 }

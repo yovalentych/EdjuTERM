@@ -10,7 +10,7 @@ import {
 } from "@/lib/schemas";
 
 const fieldClass =
-  "w-full border border-stone-300 bg-white px-3 py-2 text-sm text-stone-950 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100";
+  "input-control px-3 py-2 text-sm outline-none";
 
 export function ProjectSettingsForm({
   dictionary,
@@ -22,10 +22,18 @@ export function ProjectSettingsForm({
   project: Project;
 }) {
   return (
-    <form action={updateProjectSettings} className="border border-stone-200 bg-white p-5 shadow-sm">
+    <form action={updateProjectSettings} className="surface p-5 md:p-6">
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="projectId" value={project._id} />
-      <div className="grid gap-3 md:grid-cols-[1.4fr_0.6fr]">
+      <div className="mb-5 border-b border-stone-200 pb-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
+          Project identity
+        </p>
+        <h2 className="mt-1 text-xl font-semibold text-stone-950">
+          {dictionary.projects.settingsTitle}
+        </h2>
+      </div>
+      <div className="grid gap-4 md:grid-cols-[1.4fr_0.6fr]">
         <TextField label={dictionary.projects.title} name="title" defaultValue={project.title} />
         <TextField label={dictionary.projects.acronym} name="acronym" defaultValue={project.acronym} />
       </div>
@@ -39,9 +47,23 @@ export function ProjectSettingsForm({
           className={`${fieldClass} min-h-28 resize-y`}
         />
       </label>
-      <div className="mt-3 grid gap-3 md:grid-cols-3">
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
         <TextField
-          label={dictionary.projects.grantProgram}
+          label={
+            project.projectType === "grant"
+              ? dictionary.projects.grantProgram
+              : project.projectType === "dissertation"
+              ? (locale === "uk" ? "Університет / кафедра / спеціальність" : "University / department / specialisation")
+              : project.projectType === "fundamental"
+              ? (locale === "uk" ? "Установа / тема НДР" : "Institution / research topic")
+              : project.projectType === "applied"
+              ? (locale === "uk" ? "Замовник / фінансувальник" : "Client / funder")
+              : project.projectType === "experimental"
+              ? (locale === "uk" ? "Замовник / договір" : "Client / contract")
+              : project.projectType === "internship"
+              ? (locale === "uk" ? "Приймаюча установа / програма" : "Host institution / programme")
+              : (locale === "uk" ? "Установа / програма" : "Institution / programme")
+          }
           name="grantProgram"
           defaultValue={project.grantProgram}
         />
@@ -58,7 +80,7 @@ export function ProjectSettingsForm({
           defaultValue={project.endDate}
         />
       </div>
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
         <SelectField
           label={dictionary.projects.projectType}
           name="projectType"
@@ -124,7 +146,7 @@ export function ProjectSettingsForm({
           ]}
         />
       </div>
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <Toggle name="hasHumanData" label={dictionary.projects.hasHumanData} defaultChecked={project.hasHumanData} />
         <Toggle name="hasAnimalData" label={dictionary.projects.hasAnimalData} defaultChecked={project.hasAnimalData} />
         <Toggle name="hasPersonalData" label={dictionary.projects.hasPersonalData} defaultChecked={project.hasPersonalData} />
@@ -135,7 +157,7 @@ export function ProjectSettingsForm({
       </div>
       <button
         type="submit"
-        className="mt-5 bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+        className="control-primary mt-5 px-4 py-2 text-sm font-semibold"
       >
         {dictionary.projects.saveSettings}
       </button>
@@ -203,7 +225,7 @@ function Toggle({
   name: string;
 }) {
   return (
-    <label className="flex min-h-12 items-center justify-between gap-3 border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700 transition has-checked:border-emerald-700 has-checked:bg-emerald-50 has-checked:text-emerald-950">
+    <label className="surface-muted flex min-h-12 items-center justify-between gap-3 px-3 py-2 text-sm text-stone-700 transition has-checked:border-emerald-700 has-checked:bg-emerald-50 has-checked:text-emerald-950">
       <span>{label}</span>
       <input
         type="checkbox"

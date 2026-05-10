@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="gradMain" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" /> <!-- Blue -->
+      <stop offset="100%" stop-color="#14b8a6" /> <!-- Teal -->
+    </linearGradient>
+  </defs>
+  
+  <!-- Document Base representing Grants and Reporting -->
+  <path d="M160 64 C142.33 64 128 78.33 128 96 L128 416 C128 433.67 142.33 448 160 448 L352 448 C369.67 448 384 433.67 384 416 L384 160 L288 64 Z" fill="none" stroke="url(#gradMain)" stroke-width="32" stroke-linejoin="round"/>
+  
+  <!-- Folded Corner of the document -->
+  <path d="M288 64 L288 160 L384 160" fill="none" stroke="url(#gradMain)" stroke-width="32" stroke-linejoin="round" stroke-linecap="round"/>
+
+  <!-- Network / Science Nodes inside representing Project Management and Science -->
+  <circle cx="210" cy="240" r="24" fill="#3b82f6"/>
+  <circle cx="300" cy="200" r="20" fill="#14b8a6"/>
+  <circle cx="280" cy="320" r="28" fill="#3b82f6"/>
+  
+  <!-- Lines connecting nodes (connections, management, progress) -->
+  <line x1="228" y1="230" x2="284" y2="208" stroke="#14b8a6" stroke-width="10" stroke-linecap="round"/>
+  <line x1="225" y1="258" x2="265" y2="300" stroke="#3b82f6" stroke-width="10" stroke-linecap="round"/>
+  <line x1="295" y1="218" x2="285" y2="295" stroke="#14b8a6" stroke-width="10" stroke-linecap="round"/>
+</svg>

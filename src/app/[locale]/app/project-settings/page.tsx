@@ -1,7 +1,10 @@
+import { ClipboardList } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
-import { AppShell } from "@/components/app-shell";
+import { ProjectShell } from "@/components/project-shell";
 import { ProjectMembersManager } from "@/components/projects/project-members-manager";
 import { ProjectSettingsForm } from "@/components/projects/project-settings-form";
+import { AuditLog } from "@/components/audit/audit-log";
+import { Breadcrumb, PageHeader } from "@/components/ui";
 import { listAuditEvents } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/current-user";
 import { getDictionary, isLocale } from "@/lib/i18n";
@@ -52,32 +55,39 @@ export default async function ProjectSettingsPage({
       ...project.memberIds,
     ]),
     listProjectInvitations(project._id ?? ""),
-    listAuditEvents({ projectId: project._id, limit: 50 }),
+    listAuditEvents({ projectId: project._id, limit: 500 }),
   ]);
 
   return (
-    <AppShell dictionary={dictionary} locale={localeParam} user={user}>
-      <section className="border border-stone-200 bg-white p-5 shadow-sm">
-        <p className="font-mono text-xs text-stone-500">{project.acronym}</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-normal text-stone-950">
-          {dictionary.projects.settingsTitle}
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
-          {project.title}
+    <ProjectShell dictionary={dictionary} locale={localeParam} user={user} project={project} activeTab="settings">
+      <PageHeader
+        eyebrow={project.acronym}
+        title={dictionary.projects.settingsTitle}
+        description={project.title}
+        breadcrumb={
+          <Breadcrumb
+            items={[
+              { label: project.acronym, href: `/${localeParam}/app/project?projectId=${project._id}` },
+              { label: dictionary.projects.settingsTitle },
+            ]}
+            homeHref={`/${localeParam}/app`}
+          />
+        }
+      />
+
+      {saved && (
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          {dictionary.projects.saved}
         </p>
-        {saved ? (
-          <p className="mt-3 border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-            {dictionary.projects.saved}
-          </p>
-        ) : null}
-        {error ? (
-          <p className="mt-3 border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">
-            {error === "user"
-              ? dictionary.projects.memberNotFound
-              : dictionary.projects.settingsForbidden}
-          </p>
-        ) : null}
-      </section>
+      )}
+      {error && (
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+          {error === "user"
+            ? dictionary.projects.memberNotFound
+            : dictionary.projects.settingsForbidden}
+        </p>
+      )}
+
       <ProjectSettingsForm
         dictionary={dictionary}
         locale={localeParam}
@@ -90,33 +100,23 @@ export default async function ProjectSettingsPage({
         members={members}
         project={project}
       />
-      <section className="border border-stone-200 bg-white p-5 shadow-sm">
-        <h2 className="text-xl font-semibold text-stone-950">
-          {dictionary.audit.title}
-        </h2>
-        <div className="mt-4 space-y-2">
-          {auditEvents.length === 0 ? (
-            <p className="border border-dashed border-stone-300 p-3 text-sm text-stone-500">
-              {dictionary.audit.noEvents}
+
+      <section className="surface overflow-hidden">
+        <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-600">
+            <ClipboardList className="h-4 w-4" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-slate-900">{dictionary.audit.title}</h2>
+            <p className="text-xs text-slate-500">
+              Усі дії учасників проєкту
             </p>
-          ) : (
-            auditEvents.map((event) => (
-              <article
-                key={event._id ?? `${event.action}-${event.createdAt.toISOString()}`}
-                className="grid gap-2 border border-stone-200 p-3 text-sm md:grid-cols-[1fr_1fr_auto]"
-              >
-                <p className="font-medium text-stone-950">{event.action}</p>
-                <p className="text-stone-600">
-                  {event.actorEmail ?? event.actorId}
-                </p>
-                <time className="text-stone-500">
-                  {event.createdAt.toLocaleString(localeParam)}
-                </time>
-              </article>
-            ))
-          )}
+          </div>
+        </div>
+        <div className="p-5">
+          <AuditLog events={auditEvents} />
         </div>
       </section>
-    </AppShell>
+    </ProjectShell>
   );
 }

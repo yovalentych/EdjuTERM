@@ -8,14 +8,21 @@ import {
 } from "@/lib/repositories";
 import { projectRecordInputSchema } from "@/lib/schemas";
 
-export async function PATCH(request: Request, ctx: RouteContext<"/api/records/[id]">) {
+export async function PATCH(
+  request: Request,
+  {
+    params,
+  }: {
+    params: Promise<{ id: string }>;
+  },
+) {
   const user = await getCurrentUser();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await ctx.params;
+  const { id } = await params;
   const existingRecord = await getProjectRecordById(id);
   const projects = await listProjectsForUser(user);
 
@@ -37,14 +44,21 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/records/[i
   return NextResponse.json({ record });
 }
 
-export async function DELETE(_request: Request, ctx: RouteContext<"/api/records/[id]">) {
+export async function DELETE(
+  _request: Request,
+  {
+    params,
+  }: {
+    params: Promise<{ id: string }>;
+  },
+) {
   const user = await getCurrentUser();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await ctx.params;
+  const { id } = await params;
   const existingRecord = await getProjectRecordById(id);
   const projects = await listProjectsForUser(user);
 

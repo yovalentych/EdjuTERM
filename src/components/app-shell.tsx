@@ -1,17 +1,19 @@
-import {
-  FlaskConical,
-  LayoutDashboard,
-  ShieldCheck,
-  Settings,
-  UserRound,
-} from "lucide-react";
-import Link from "next/link";
+import { Database, LayoutDashboard } from "lucide-react";
 import type { ReactNode } from "react";
+import Image from "next/image";
 import type { Dictionary, Locale } from "@/lib/i18n";
 import { getMongoStatus } from "@/lib/mongodb";
 import type { SafeUser } from "@/lib/schemas";
 import { logout } from "@/app/actions";
+import { AppSidebarNav, type AppNavItem } from "@/components/app-sidebar-nav";
+import { GlobalSearch } from "@/components/global-search";
+import { LanguageToggle } from "@/components/language-toggle";
+import { NotificationBell } from "@/components/notification-bell";
+import { PrivateThemeToggle } from "@/components/private-theme-toggle";
+import { SidebarCollapseToggle } from "@/components/sidebar-collapse-toggle";
 import { SiteFooter } from "@/components/site-footer";
+import { PageTransition } from "@/components/ui/page-transition";
+import { readPrefs } from "@/lib/prefs";
 
 export async function AppShell({
   children,
@@ -24,125 +26,140 @@ export async function AppShell({
   locale: Locale;
   user: SafeUser;
 }) {
-  const navItems = [
-    { label: dictionary.nav.dashboard, icon: LayoutDashboard, href: `/${locale}/app` },
-    { label: dictionary.nav.profile, icon: UserRound, href: `/${locale}/app/profile` },
-    { label: dictionary.nav.settings, icon: Settings, href: `/${locale}/app/settings` },
+  const prefs = await readPrefs();
+  const isUk = locale === "uk";
+
+  const navItems: AppNavItem[] = [
+    {
+      id: "dashboard",
+      label: dictionary.nav.dashboard,
+      href: `/${locale}/app`,
+    },
+    {
+      id: "library",
+      label: isUk ? "Довідка" : "Library",
+      href: `/${locale}/app/library`,
+    },
+    {
+      id: "profile",
+      label: dictionary.nav.profile,
+      href: `/${locale}/app/profile`,
+    },
+    {
+      id: "settings",
+      label: dictionary.nav.settings,
+      href: `/${locale}/app/settings`,
+    },
     ...(user.role === "admin"
-      ? [{ label: dictionary.nav.admin, icon: ShieldCheck, href: `/${locale}/app/admin` }]
+      ? [
+          {
+            id: "admin" as const,
+            label: dictionary.nav.admin,
+            href: `/${locale}/app/admin`,
+          },
+        ]
       : []),
   ];
   const databaseStatus = await getMongoStatus();
 
   return (
-    <div className="min-h-screen bg-[#f3f4ef] text-stone-950">
-      <div className="grid min-h-screen lg:grid-cols-[260px_1fr]">
-        <aside className="border-r border-stone-200 bg-stone-950 px-4 py-5 text-white">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center bg-emerald-500 text-stone-950">
-              <FlaskConical className="h-5 w-5" />
+    <div className={`private-shell flex min-h-screen flex-col text-stone-950${prefs.compact ? " is-compact" : ""}`}>
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <header className="private-shell-header sticky top-0 z-40 border-b border-slate-200/80 px-4 py-3 md:px-5">
+        <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded border border-blue-200 bg-blue-50 p-1">
+              <Image
+                src="/logo.svg"
+                alt="Logo"
+                width={28}
+                height={28}
+                priority
+              />
             </div>
-            <div>
-              <p className="text-sm text-stone-300">
-                {dictionary.shell.appName}
+            <div className="min-w-0">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-widest text-blue-600">
+                {dictionary.shell.eyebrow}
               </p>
-              <p className="font-semibold">
-                {dictionary.shell.projectShortName}
+              <p className="truncate text-sm font-semibold leading-tight text-stone-900">
+                {dictionary.shell.title}
               </p>
             </div>
           </div>
-          <nav className="mt-8 space-y-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="flex items-center gap-3 px-3 py-2 text-sm text-stone-300 transition hover:bg-stone-800 hover:text-white"
+
+          <div className="flex shrink-0 items-center gap-1.5">
+            <GlobalSearch locale={locale} />
+            <SidebarCollapseToggle />
+            {prefs.notifications && <NotificationBell />}
+            <PrivateThemeToggle />
+            <span className="shell-chip hidden border border-stone-200 bg-white/70 px-2 py-1 text-xs text-stone-600 sm:inline">
+              {user.firstName} {user.lastName}
+              <span className="mx-1 text-stone-300">·</span>
+              {dictionary.roles[user.role]}
+            </span>
+            <LanguageToggle
+              locale={locale}
+              alternateLocale={dictionary.alternateLocale}
+            />
+            <form action={logout}>
+              <input type="hidden" name="locale" value={locale} />
+              <button
+                type="submit"
+                className="shell-chip border border-rose-100 bg-white/80 px-2 py-1 text-xs text-stone-600 transition hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
               >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-          <div className="mt-8 border border-stone-800 bg-stone-900 p-4">
-            <p className="text-sm font-medium text-stone-200">
-              {dictionary.shell.databaseTarget}
-            </p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span
-                className={`border px-2 py-1 text-xs font-semibold ${
-                  databaseStatus.connected
-                    ? "border-emerald-400 bg-emerald-500 text-stone-950"
-                    : "border-rose-400 bg-rose-950 text-rose-100"
-                }`}
-              >
-                {databaseStatus.connected
-                  ? dictionary.shell.databaseConnected
-                  : dictionary.shell.databaseDisconnected}
+                {dictionary.auth.logout}
+              </button>
+            </form>
+          </div>
+        </div>
+      </header>
+
+      {/* ── Mobile tab bar ───────────────────────────────────────────────── */}
+      <div className="border-b border-slate-200 bg-white/90 px-3 py-2 backdrop-blur lg:hidden">
+        <AppSidebarNav items={navItems} />
+      </div>
+
+      {/* ── Desktop layout: grid sidebar + main ─────────────────────────── */}
+      <div className="grid private-shell-layout flex-1">
+        {/* Sidebar */}
+        <aside className="private-shell-sidebar sticky top-[61px] hidden h-[calc(100vh-61px)] flex-col overflow-y-auto shell-scrollbar lg:flex">
+          <div className="p-3 pb-2">
+            <div className="sidebar-nav-link pointer-events-none opacity-50">
+              <LayoutDashboard className="sidebar-nav-icon h-4 w-4 shrink-0" />
+              <span className="sidebar-expanded-only text-[10px] font-bold uppercase tracking-wider">
+                {isUk ? "Навігація" : "Navigation"}
               </span>
-              {databaseStatus.host ? (
-                <span className="border border-stone-700 bg-stone-950 px-2 py-1 text-xs text-stone-400">
-                  {dictionary.shell.databaseHost}: {databaseStatus.host}
-                </span>
-              ) : null}
             </div>
-            <p className="mt-2 font-mono text-xs leading-5 text-stone-400">
-              {dictionary.shell.databaseCollections}
-            </p>
-            {!databaseStatus.connected && databaseStatus.error ? (
-              <p className="mt-2 break-words font-mono text-xs leading-5 text-rose-200">
-                {databaseStatus.error}
-              </p>
-            ) : null}
+          </div>
+
+          <div className="sidebar-divider" />
+
+          <AppSidebarNav items={navItems} isVertical />
+
+          {/* Database status at bottom */}
+          <div className="p-3 pt-2">
+            <div className="sidebar-divider mb-3" />
+            <div className="sidebar-expanded-only space-y-2 rounded border border-blue-200 bg-blue-50/60 p-2.5">
+              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-blue-600">
+                <Database className="h-3 w-3" />
+                {dictionary.shell.databaseConnected}
+              </div>
+              {databaseStatus.host && (
+                <p className="font-mono text-[9px] text-slate-400 truncate">
+                  {databaseStatus.host}
+                </p>
+              )}
+            </div>
           </div>
         </aside>
 
+        {/* Main content */}
         <main className="min-w-0">
-          <header className="border-b border-stone-200 bg-white px-5 py-4">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-sm text-stone-500">
-                  {dictionary.shell.eyebrow}
-                </p>
-                <p className="font-semibold text-stone-950">
-                  {dictionary.shell.title}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
-                <span className="border border-stone-200 bg-stone-50 px-2 py-1 text-stone-700">
-                  {user.firstName} {user.lastName} · {dictionary.roles[user.role]}
-                </span>
-                <form action={logout}>
-                  <input type="hidden" name="locale" value={locale} />
-                  <button
-                    type="submit"
-                    className="border border-stone-300 bg-white px-2 py-1 text-stone-700 transition hover:border-rose-700 hover:text-rose-800"
-                  >
-                    {dictionary.auth.logout}
-                  </button>
-                </form>
-                <Link
-                  href={`/${dictionary.alternateLocale}`}
-                  hrefLang={dictionary.alternateLocale}
-                  className="border border-stone-300 bg-white px-2 py-1 text-stone-700 transition hover:border-emerald-700 hover:text-emerald-800"
-                >
-                  {dictionary.shell.languageSwitch}
-                </Link>
-                <span className="border border-stone-200 bg-stone-50 px-2 py-1 text-stone-600">
-                  {locale.toUpperCase()}
-                </span>
-                <span className="border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-800">
-                  FAIR
-                </span>
-                <span className="border border-cyan-200 bg-cyan-50 px-2 py-1 text-cyan-800">
-                  DOI-ready
-                </span>
-                <span className="border border-amber-200 bg-amber-50 px-2 py-1 text-amber-800">
-                  DMP
-                </span>
-              </div>
+          <PageTransition>
+            <div className="private-shell-main mx-auto w-full max-w-[1320px] space-y-4 p-4 md:p-5 lg:p-6">
+              {children}
             </div>
-          </header>
-          <div className="space-y-4 p-4 md:p-5">{children}</div>
+          </PageTransition>
           <SiteFooter dictionary={dictionary} />
         </main>
       </div>

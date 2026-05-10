@@ -116,6 +116,45 @@ The team page lists real project participants from project membership and stores
 
 Large raw experimental files should not be stored as normal MongoDB document fields. Use MongoDB GridFS or a file/object storage layer and keep checksums, provenance, access category, and storage URI in MongoDB.
 
+## File storage
+
+Record uploads use a storage adapter. Local development stores files under
+`.data/project-record-files`; production can use Cloudflare R2 through its
+S3-compatible API.
+
+Uploads are constrained by file count, file size, MIME type, and extension.
+Production deployments should also wire a scanner provider before setting
+`FILE_SCAN_MODE=required`.
+
+For local storage:
+
+```bash
+FILE_STORAGE_DRIVER=local
+```
+
+For Cloudflare R2:
+
+```bash
+FILE_STORAGE_DRIVER=r2
+R2_ACCOUNT_ID=your-cloudflare-account-id
+R2_BUCKET=grant-project-files
+R2_ACCESS_KEY_ID=your-r2-access-key-id
+R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
+R2_REGION=auto
+```
+
+## Security operations
+
+See `docs/security-hardening.md` for the production configuration checklist,
+authorization matrix, session invalidation behavior, and remaining hardening
+items.
+
+Create the bucket in Cloudflare Dashboard under R2, then create an R2 API token
+with `Object Read & Write` scoped to that bucket. R2 uses endpoint
+`https://<ACCOUNT_ID>.r2.cloudflarestorage.com` and region `auto`. New uploads get
+`r2://<bucket>/<object-key>` storage URIs in MongoDB; existing local files keep
+working from their `.data/...` storage URIs.
+
 ## Verification
 
 ```bash

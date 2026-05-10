@@ -38,6 +38,7 @@ function normalizeUserDocument(doc: WithId<Document>) {
     position: doc.position ?? "",
     affiliation: doc.affiliation ?? "",
     profileBio: doc.profileBio ?? "",
+    sessionVersion: doc.sessionVersion ?? 1,
   });
 }
 
@@ -50,7 +51,8 @@ async function migrateLegacyUserDocument(doc: WithId<Document>, user: User) {
     "orcid" in doc &&
     "position" in doc &&
     "affiliation" in doc &&
-    "profileBio" in doc
+    "profileBio" in doc &&
+    "sessionVersion" in doc
   ) {
     return;
   }
@@ -68,6 +70,7 @@ async function migrateLegacyUserDocument(doc: WithId<Document>, user: User) {
         position: user.position,
         affiliation: user.affiliation,
         profileBio: user.profileBio,
+        sessionVersion: user.sessionVersion,
         updatedAt: new Date(),
       },
     },
@@ -103,6 +106,7 @@ export async function createUser(input: RegisterInput) {
     email: input.email,
     passwordHash: await hashPassword(input.password),
     role: roleForEmail(input.email),
+    sessionVersion: 1,
     emailVerifiedAt: null,
     createdAt: now,
     updatedAt: now,
@@ -145,6 +149,10 @@ export async function findUserByEmail(email: string) {
 export async function findUserById(id: string) {
   if (!hasMongoConfig()) {
     return localUsers.find((user) => user._id === id) ?? null;
+  }
+
+  if (!ObjectId.isValid(id)) {
+    return null;
   }
 
   const db = await getMongoDb();
@@ -236,6 +244,10 @@ export async function updateUserProfile(id: string, input: ProfileInput) {
     return toSafeUser(user);
   }
 
+  if (!ObjectId.isValid(id)) {
+    return null;
+  }
+
   const db = await getMongoDb();
   const result = await db.collection(collectionName).findOneAndUpdate(
     { _id: new ObjectId(id) },
@@ -259,6 +271,10 @@ export async function setUserRole(id: string, role: UserRole) {
     return toSafeUser(user);
   }
 
+  if (!ObjectId.isValid(id)) {
+    return null;
+  }
+
   const db = await getMongoDb();
   const result = await db.collection(collectionName).findOneAndUpdate(
     { _id: new ObjectId(id) },
@@ -269,6 +285,26 @@ export async function setUserRole(id: string, role: UserRole) {
   return result
     ? toSafeUser(normalizeUserDocument(result))
     : null;
+}
+
+export async function updateUserPassword(email: string, newPasswordHash: string): Promise<boolean> {
+  const normalized = email.toLowerCase();
+
+  if (!hasMongoConfig()) {
+    const user = localUsers.find((u) => u.email === normalized);
+    if (!user) return false;
+    user.passwordHash = newPasswordHash;
+    user.sessionVersion += 1;
+    user.updatedAt = new Date();
+    return true;
+  }
+
+  const db = await getMongoDb();
+  const result = await db.collection(collectionName).updateOne(
+    { email: normalized },
+    { $set: { passwordHash: newPasswordHash, updatedAt: new Date() }, $inc: { sessionVersion: 1 } },
+  );
+  return result.modifiedCount > 0;
 }
 
 async function ensureUserIndexes() {

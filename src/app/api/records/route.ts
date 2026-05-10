@@ -5,6 +5,7 @@ import {
   insertProjectRecord,
   listProjectRecords,
 } from "@/lib/repositories";
+import { assertRateLimit, RateLimitError } from "@/lib/rate-limit";
 import { projectRecordInputSchema } from "@/lib/schemas";
 
 export async function GET() {
@@ -23,14 +24,30 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  try {
+    await assertRateLimit("api:records:write", { limit: 60, windowMs: 60 * 1000 });
+  } catch (error) {
+    if (error instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: "Rate limited" },
+        { status: 429, headers: { "retry-after": String(error.retryAfterSeconds) } },
+      );
+    }
+    throw error;
+  }
+
   const user = await getCurrentUser();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const input = projectRecordInputSchema.parse(body);
+  const body = await request.json().catch(() => null);
+  const parsed = projectRecordInputSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid record payload" }, { status: 400 });
+  }
+  const input = parsed.data;
   const projects = await listProjectsForUser(user);
 
   if (!projects.some((project) => project._id === input.projectId)) {

@@ -1,6 +1,6 @@
-import { ObjectId } from "mongodb";
 import { randomBytes } from "node:crypto";
 import { getMongoDb, hasMongoConfig } from "@/lib/mongodb";
+import { toObjectId } from "@/lib/object-id";
 import {
   type Project,
   type ProjectInput,
@@ -8,6 +8,7 @@ import {
   projectSchema,
 } from "@/lib/schemas";
 import { findUserByEmail, setUserRole } from "@/lib/users";
+import { createManuscript } from "./manuscripts";
 
 const collectionName = "projects";
 const localProjects: Project[] = [];
@@ -28,6 +29,7 @@ export async function createProjectForUser(input: ProjectInput, user: SafeUser) 
     supervisorId: user._id,
     memberIds: [user._id],
     joinCode: generateJoinCode(),
+    supervisorJoinCode: "",
     status: "active",
     createdAt: now,
     updatedAt: now,
@@ -44,6 +46,40 @@ export async function createProjectForUser(input: ProjectInput, user: SafeUser) 
       await setUserRole(user._id, "supervisor");
     }
 
+    // Auto-init for local fallback
+    if (localProject.projectType === "dissertation") {
+      void createManuscript(
+        {
+          projectId: localProject._id,
+          title: localProject.defaultLocale === "en" ? "Dissertation" : "Дисертація",
+          type: "dissertation",
+          abstract: "",
+          keywords: [],
+          authors: [],
+          journal: "",
+          doi: "",
+          blocks: [
+            { id: "b1", type: "h1", content: localProject.defaultLocale === "en" ? "Introduction" : "Вступ" },
+            { id: "b2", type: "paragraph", content: "" },
+            { id: "b3", type: "h1", content: localProject.defaultLocale === "en" ? "Literature Review" : "Огляд літератури" },
+            { id: "b4", type: "paragraph", content: "" },
+            { id: "b5", type: "h1", content: localProject.defaultLocale === "en" ? "Materials and Methods" : "Матеріали та методи" },
+            { id: "b6", type: "paragraph", content: "" },
+            { id: "b7", type: "h1", content: localProject.defaultLocale === "en" ? "Results" : "Результати" },
+            { id: "b8", type: "paragraph", content: "" },
+            { id: "b9", type: "h1", content: localProject.defaultLocale === "en" ? "Discussion" : "Обговорення" },
+            { id: "b10", type: "paragraph", content: "" },
+            { id: "b11", type: "h1", content: localProject.defaultLocale === "en" ? "Conclusions" : "Висновки" },
+            { id: "b12", type: "paragraph", content: "" },
+          ],
+          attachedRecordIds: [],
+          attachedExperimentIds: [],
+          note: "Auto-generated default manuscript",
+        },
+        user,
+      );
+    }
+
     return localProject;
   }
 
@@ -57,7 +93,47 @@ export async function createProjectForUser(input: ProjectInput, user: SafeUser) 
     await setUserRole(user._id, "supervisor");
   }
 
-  return { ...project, _id: result.insertedId.toString() };
+  const createdProject = { ...project, _id: result.insertedId.toString() };
+
+  // ── Auto-initialize Dissertation Manuscript ───────────────────────────
+  if (project.projectType === "dissertation") {
+    try {
+      await createManuscript(
+        {
+          projectId: createdProject._id,
+          title: project.defaultLocale === "en" ? "Dissertation" : "Дисертація",
+          type: "dissertation",
+          abstract: "",
+          keywords: [],
+          authors: [],
+          journal: "",
+          doi: "",
+          blocks: [
+            { id: "b1", type: "h1", content: project.defaultLocale === "en" ? "Introduction" : "Вступ" },
+            { id: "b2", type: "paragraph", content: "" },
+            { id: "b3", type: "h1", content: project.defaultLocale === "en" ? "Literature Review" : "Огляд літератури" },
+            { id: "b4", type: "paragraph", content: "" },
+            { id: "b5", type: "h1", content: project.defaultLocale === "en" ? "Materials and Methods" : "Матеріали та методи" },
+            { id: "b6", type: "paragraph", content: "" },
+            { id: "b7", type: "h1", content: project.defaultLocale === "en" ? "Results" : "Результати" },
+            { id: "b8", type: "paragraph", content: "" },
+            { id: "b9", type: "h1", content: project.defaultLocale === "en" ? "Discussion" : "Обговорення" },
+            { id: "b10", type: "paragraph", content: "" },
+            { id: "b11", type: "h1", content: project.defaultLocale === "en" ? "Conclusions" : "Висновки" },
+            { id: "b12", type: "paragraph", content: "" },
+          ],
+          attachedRecordIds: [],
+          attachedExperimentIds: [],
+          note: "Auto-generated default manuscript",
+        },
+        user,
+      );
+    } catch (e) {
+      console.error("Failed to auto-initialize dissertation manuscript:", e);
+    }
+  }
+
+  return createdProject;
 }
 
 export async function listProjectsForUser(user: SafeUser) {
@@ -133,12 +209,17 @@ export async function updateProjectForUser(
     return updatedProject;
   }
 
+  const objectId = toObjectId(projectId);
+  if (!objectId) {
+    throw new Error("PROJECT_FORBIDDEN");
+  }
+
   const db = await getMongoDb();
   const { _id, ...updateProject } = updatedProject;
   void _id;
   await db
     .collection(collectionName)
-    .updateOne({ _id: new ObjectId(projectId) }, { $set: updateProject });
+    .updateOne({ _id: objectId }, { $set: updateProject });
 
   return updatedProject;
 }
@@ -295,14 +376,15 @@ async function getProjectById(projectId: string) {
     return localProjects.find((project) => project._id === projectId) ?? null;
   }
 
-  if (!ObjectId.isValid(projectId)) {
+  const objectId = toObjectId(projectId);
+  if (!objectId) {
     return null;
   }
 
   const db = await getMongoDb();
   const doc = await db
     .collection(collectionName)
-    .findOne({ _id: new ObjectId(projectId) });
+    .findOne({ _id: objectId });
 
   return doc ? projectSchema.parse({ ...doc, _id: doc._id.toString() }) : null;
 }
@@ -322,6 +404,47 @@ async function getProjectByJoinCode(joinCode: string) {
   return doc ? projectSchema.parse({ ...doc, _id: doc._id.toString() }) : null;
 }
 
+async function getProjectBySupervisorJoinCode(supervisorJoinCode: string) {
+  if (!hasMongoConfig()) {
+    return localProjects.find((p) => p.supervisorJoinCode === supervisorJoinCode) ?? null;
+  }
+
+  const db = await getMongoDb();
+  const doc = await db.collection(collectionName).findOne({ supervisorJoinCode });
+
+  return doc ? projectSchema.parse({ ...doc, _id: doc._id.toString() }) : null;
+}
+
+export async function joinProjectBySupervisorCode(code: string, user: SafeUser) {
+  if (!user._id) throw new Error("USER_ID_REQUIRED");
+
+  const normalizedCode = code.trim().toUpperCase();
+  const project = await getProjectBySupervisorJoinCode(normalizedCode);
+
+  if (!project?._id) throw new Error("PROJECT_NOT_FOUND");
+
+  const memberIds = [...new Set([...project.memberIds, user._id])];
+  await saveProjectMembership(project._id, { supervisorId: user._id, memberIds });
+
+  if (user.role !== "admin") {
+    await setUserRole(user._id, "supervisor");
+  }
+
+  return project;
+}
+
+export async function generateProjectSupervisorJoinCode(projectId: string, actor: SafeUser) {
+  const project = await getProjectById(projectId);
+
+  if (!project || !canManageProject(project, actor)) {
+    throw new Error("PROJECT_FORBIDDEN");
+  }
+
+  const supervisorJoinCode = generateJoinCode();
+  await saveProjectMembership(projectId, { supervisorJoinCode });
+  return supervisorJoinCode;
+}
+
 function canViewProject(project: Project, user: SafeUser) {
   return (
     user.role === "admin" ||
@@ -333,7 +456,7 @@ function canViewProject(project: Project, user: SafeUser) {
 
 async function saveProjectMembership(
   projectId: string,
-  update: Pick<Partial<Project>, "memberIds" | "supervisorId" | "joinCode">,
+  update: Pick<Partial<Project>, "memberIds" | "supervisorId" | "joinCode" | "supervisorJoinCode">,
 ) {
   if (!hasMongoConfig()) {
     const project = localProjects.find((item) => item._id === projectId);
@@ -345,9 +468,12 @@ async function saveProjectMembership(
     return;
   }
 
+  const objectId = toObjectId(projectId);
+  if (!objectId) return;
+
   const db = await getMongoDb();
   await db.collection(collectionName).updateOne(
-    { _id: new ObjectId(projectId) },
+    { _id: objectId },
     {
       $set: {
         ...update,
