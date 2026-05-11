@@ -163,6 +163,7 @@ export async function listProjectsForUser(user: SafeUser) {
         { supervisorId: user._id },
         { memberIds: user._id },
       ],
+      deletedAt: { $exists: false },
     })
     .sort({ createdAt: -1 })
     .toArray();
@@ -492,4 +493,55 @@ async function ensureProjectIndexes() {
     { key: { acronym: 1 } },
     { key: { joinCode: 1 }, sparse: true },
   ]);
+}
+
+export const SOFT_DELETE_GRACE_DAYS = 30;
+
+export async function softDeleteProject(projectId: string, actorId: string) {
+  const objectId = toObjectId(projectId);
+  if (!objectId) throw new Error("INVALID_ID");
+
+  const db = await getMongoDb();
+  await db.collection(collectionName).updateOne(
+    { _id: objectId },
+    { $set: { deletedAt: new Date(), deletedBy: actorId, updatedAt: new Date() } },
+  );
+}
+
+export async function restoreProject(projectId: string) {
+  const objectId = toObjectId(projectId);
+  if (!objectId) throw new Error("INVALID_ID");
+
+  const db = await getMongoDb();
+  await db.collection(collectionName).updateOne(
+    { _id: objectId },
+    { $unset: { deletedAt: "", deletedBy: "" }, $set: { updatedAt: new Date() } },
+  );
+}
+
+export async function hardDeleteProject(projectId: string) {
+  const objectId = toObjectId(projectId);
+  if (!objectId) throw new Error("INVALID_ID");
+
+  const db = await getMongoDb();
+  await db.collection(collectionName).deleteOne({ _id: objectId });
+}
+
+export async function getDeletedProjectsForUser(user: SafeUser) {
+  if (!user._id) return [];
+  if (!hasMongoConfig()) return [];
+
+  const db = await getMongoDb();
+  const docs = await db
+    .collection(collectionName)
+    .find({
+      $or: [{ ownerId: user._id }, { supervisorId: user._id }],
+      deletedAt: { $exists: true },
+    })
+    .sort({ deletedAt: -1 })
+    .toArray();
+
+  return docs.map((doc) =>
+    projectSchema.parse({ ...doc, _id: doc._id.toString() }),
+  );
 }

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ProjectShell } from "@/components/project-shell";
 import { ProjectMembersManager } from "@/components/projects/project-members-manager";
 import { ProjectSettingsForm } from "@/components/projects/project-settings-form";
+import { ProjectDangerZone } from "@/components/projects/project-danger-zone";
 import { AuditLog } from "@/components/audit/audit-log";
 import { Breadcrumb, PageHeader } from "@/components/ui";
 import { listAuditEvents } from "@/lib/audit";
@@ -17,7 +18,7 @@ export default async function ProjectSettingsPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ error?: string; projectId?: string; saved?: string }>;
+  searchParams: Promise<{ error?: string; projectId?: string; saved?: string; wrong_confirmation?: string }>;
 }) {
   const { locale: localeParam } = await params;
 
@@ -80,7 +81,12 @@ export default async function ProjectSettingsPage({
           {dictionary.projects.saved}
         </p>
       )}
-      {error && (
+      {error === "wrong_confirmation" && (
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+          {dictionary.projects.hardDeleteConfirmMismatch}
+        </p>
+      )}
+      {error && error !== "wrong_confirmation" && (
         <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
           {error === "user"
             ? dictionary.projects.memberNotFound
@@ -101,6 +107,12 @@ export default async function ProjectSettingsPage({
         project={project}
       />
 
+      <ProjectDangerZone
+        project={project}
+        locale={localeParam}
+        dictionary={dictionary}
+      />
+
       <section className="surface overflow-hidden">
         <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-600">
@@ -109,7 +121,7 @@ export default async function ProjectSettingsPage({
           <div>
             <h2 className="font-semibold text-slate-900">{dictionary.audit.title}</h2>
             <p className="text-xs text-slate-500">
-              Усі дії учасників проєкту
+              {localeParam === "uk" ? "Усі дії учасників проєкту" : "All project member actions"}
             </p>
           </div>
         </div>

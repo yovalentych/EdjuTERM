@@ -532,21 +532,20 @@ export default async function PublicHome({
                 </defs>
               </svg>
 
-              {/* Floating label chips */}
-              <div className="absolute -left-4 top-1/3 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-md">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">Projects</p>
-                <div className="mt-1 flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-blue-500" />
-                  <span className="text-xs font-semibold text-slate-700">Active</span>
-                </div>
-              </div>
-
-              <div className="absolute -right-4 bottom-1/3 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-md">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">DOI</p>
-                <div className="mt-1 flex items-center gap-1.5">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                  <span className="text-xs font-semibold text-slate-700">Zenodo-ready</span>
-                </div>
+              {/* Feature badges below diagram */}
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                  {isUk ? "Гранти та дисертації" : "Grants & dissertations"}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                  <CheckCircle2 className="h-3 w-3" />
+                  {isUk ? "DOI через Zenodo" : "DOI via Zenodo"}
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-violet-500" />
+                  FAIR data
+                </span>
               </div>
             </div>
           </div>

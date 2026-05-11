@@ -92,6 +92,9 @@ import {
   getProjectForUser,
   setProjectSupervisor,
   updateProjectForUser,
+  softDeleteProject,
+  restoreProject,
+  hardDeleteProject,
 } from "@/lib/projects";
 import {
   createManuscript as createManuscriptLib,
@@ -2581,7 +2584,10 @@ export async function updateExperiment(formData: FormData) {
     metadata: { experimentId, title: parsed.data.title },
   });
 
+  const returnPath = formData.get("returnPath") as string | null;
   revalidatePath(`/${locale}/app/experiments`);
+  revalidatePath(`/${locale}/app/experiments/${experimentId}`);
+  if (returnPath?.startsWith("/")) redirect(returnPath);
   redirect(`/${locale}/app/experiments?projectId=${projectId}&saved=updated`);
 }
 
@@ -2603,7 +2609,10 @@ export async function updateExperimentStatus(formData: FormData) {
   if (!project?._id) redirect(`/${locale}/app`);
 
   await updateExperimentStatusLib(experimentId, status as Parameters<typeof updateExperimentStatusLib>[1]);
+  const returnPath = formData.get("returnPath") as string | null;
   revalidatePath(`/${locale}/app/experiments`);
+  revalidatePath(`/${locale}/app/experiments/${experimentId}`);
+  if (returnPath?.startsWith("/")) redirect(returnPath);
   redirect(`/${locale}/app/experiments?projectId=${projectId}&saved=status`);
 }
 
@@ -2622,6 +2631,34 @@ export async function deleteExperiment(formData: FormData) {
   await deleteExperimentLib(experimentId, projectId);
   revalidatePath(`/${locale}/app/experiments`);
   redirect(`/${locale}/app/experiments?projectId=${projectId}&saved=deleted`);
+}
+
+export async function addExperimentJournalEntry(formData: FormData) {
+  const locale = formLocale(formData);
+  const user = await getCurrentUser();
+  if (!user) redirect(`/${locale}/login`);
+
+  const projectId = formData.get("projectId") as string;
+  const experimentId = formData.get("experimentId") as string;
+  const text = ((formData.get("text") as string) ?? "").trim();
+  if (!projectId || !experimentId || !text) return;
+
+  const project = await getProjectForUser(projectId, user);
+  if (!project?._id || !canManageProject(project, user)) return;
+
+  const exp = await getExperimentByIdLib(experimentId);
+  if (!exp) return;
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric" })
+    + ", " + now.toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" });
+  const entry = `${dateStr}\n${text}`;
+  const newNotes = exp.notes ? `${entry}\n\n---\n\n${exp.notes}` : entry;
+
+  await updateExperimentLib(experimentId, { notes: newNotes });
+  revalidatePath(`/${locale}/app/experiments`);
+  revalidatePath(`/${locale}/app/experiments/${experimentId}`);
+  redirect(`/${locale}/app/experiments/${experimentId}?projectId=${projectId}`);
 }
 
 export async function linkMethodologyToExperiment(formData: FormData) {
@@ -2643,7 +2680,10 @@ export async function linkMethodologyToExperiment(formData: FormData) {
   await updateExperimentLib(experimentId, { linkedMethodologyId });
   await createAuditEvent({ action: "experiment.methodology_linked", actor: user, projectId, metadata: { experimentId, linkedMethodologyId } });
   revalidatePath(`/${locale}/app/experiments`);
-  redirect(`/${locale}/app/experiments?projectId=${projectId}&exp=${experimentId}&saved=linked`);
+  revalidatePath(`/${locale}/app/experiments/${experimentId}`);
+  const returnPath = formData.get("returnPath") as string | null;
+  if (returnPath?.startsWith("/")) redirect(returnPath);
+  redirect(`/${locale}/app/experiments/${experimentId}?projectId=${projectId}`);
 }
 
 export async function createRecordFromExperiment(formData: FormData) {
@@ -3906,4 +3946,71 @@ export async function patchExperimentStatusAlmanac(experimentId: string, status:
   revalidatePath("/[locale]/app/almanac", "page");
   revalidatePath("/[locale]/app/experiments", "page");
   return { ok: true };
+}
+
+// ── Project deletion ────────────────────────────────────────────────────────
+
+export async function softDeleteProjectAction(formData: FormData) {
+  "use server";
+  const projectId = String(formData.get("projectId") ?? "");
+  const locale = String(formData.get("locale") ?? "uk");
+
+  const user = await getCurrentUser();
+  if (!user?._id) redirect(`/${locale}/login`);
+
+  const project = await getProjectForUser(projectId, user);
+  if (!project?._id || !canManageProject(project, user)) redirect(`/${locale}/app`);
+
+  await softDeleteProject(projectId, user._id);
+  await createAuditEvent({
+    action: "project.soft_deleted",
+    actor: user,
+    projectId,
+    metadata: { title: project.title, acronym: project.acronym },
+  });
+
+  redirect(`/${locale}/app?deleted=${project.acronym}`);
+}
+
+export async function restoreProjectAction(formData: FormData) {
+  "use server";
+  const projectId = String(formData.get("projectId") ?? "");
+  const locale = String(formData.get("locale") ?? "uk");
+
+  const user = await getCurrentUser();
+  if (!user?._id) redirect(`/${locale}/login`);
+
+  const project = await getProjectForUser(projectId, user);
+  if (!project?._id || !canManageProject(project, user)) redirect(`/${locale}/app`);
+
+  await restoreProject(projectId);
+  await createAuditEvent({
+    action: "project.restored",
+    actor: user,
+    projectId,
+    metadata: { title: project.title, acronym: project.acronym },
+  });
+
+  redirect(`/${locale}/app/project-settings?projectId=${projectId}&saved=1`);
+}
+
+export async function hardDeleteProjectAction(formData: FormData) {
+  "use server";
+  const projectId = String(formData.get("projectId") ?? "");
+  const locale = String(formData.get("locale") ?? "uk");
+  const confirmation = String(formData.get("confirmation") ?? "");
+
+  const user = await getCurrentUser();
+  if (!user?._id) redirect(`/${locale}/login`);
+
+  const project = await getProjectForUser(projectId, user);
+  if (!project?._id || !canManageProject(project, user)) redirect(`/${locale}/app`);
+
+  if (confirmation !== project.acronym) {
+    redirect(`/${locale}/app/project-settings?projectId=${projectId}&error=wrong_confirmation`);
+  }
+
+  await hardDeleteProject(projectId);
+
+  redirect(`/${locale}/app?hardDeleted=1`);
 }

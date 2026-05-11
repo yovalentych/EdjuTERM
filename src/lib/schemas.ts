@@ -257,7 +257,7 @@ export const projectInputSchema = z.object({
   acronym: z.string().min(2).max(32),
   summary: z.string().max(1200).default(""),
   projectType: z.enum(projectTypes).default("fundamental"),
-  researchField: z.string().max(10).default(""),
+  researchField: z.string().max(100).default(""),
   grantProgram: z.string().max(160).default(""),
   startDate: z.string().max(32).default(""),
   endDate: z.string().max(32).default(""),
@@ -283,6 +283,8 @@ export const projectSchema = projectInputSchema.extend({
   joinCode: z.string().max(32).default(""),
   supervisorJoinCode: z.string().max(32).default(""),
   status: z.enum(["active", "archived"]).default("active"),
+  deletedAt: z.coerce.date().optional(),
+  deletedBy: z.string().optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -680,7 +682,7 @@ export const experimentInputSchema = z.object({
   methods: z.string().max(5000).default(""),
   results: z.string().max(5000).default(""),
   conclusion: z.string().max(2000).default(""),
-  notes: z.string().max(2000).default(""),
+  notes: z.string().max(50000).default(""),
   linkedMethodologyId: z.string().max(120).default(""),
   linkedRecordIds: z.array(z.string()).default([]),
   outputRecordIds: z.array(z.string()).default([]),
@@ -767,6 +769,9 @@ export const auditActions = [
   "event.submission.added",
   "event.submission.updated",
   "event.submission.removed",
+  "project.soft_deleted",
+  "project.restored",
+  "project.hard_deleted",
 ] as const;
 
 // ── Chat ─────────────────────────────────────────────────────────────────────

@@ -1,5 +1,4 @@
 import {
-  ArrowLeft,
   BookOpen,
   NotebookPen,
   CalendarDays,
@@ -35,6 +34,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { PageTransition } from "@/components/ui/page-transition";
 import { ProjectChatWidget } from "@/components/chat/project-chat-widget";
 import { DiaryQuickWidget } from "@/components/learning/diary-quick-widget";
+import { ProjectMobileNav } from "@/components/project-mobile-nav";
 
 export type ProjectTab =
   | "overview"
@@ -191,11 +191,6 @@ export function ProjectShell({
     },
   ];
 
-  const dissertationOnly = new Set<ProjectTab>(["phd-plan", "portfolio"]);
-  const visibleItems = allItems.filter(
-    (i) => !dissertationOnly.has(i.id) || isDissertation,
-  );
-
   const groups: NavGroup[] = [
     {
       label: isUk ? "Дослідження" : "Research",
@@ -275,38 +270,18 @@ export function ProjectShell({
         </div>
       </header>
 
-      {/* ── Mobile tab bar ───────────────────────────────────────────────── */}
-      <div className="border-b border-slate-200 bg-white/90 px-3 py-2 backdrop-blur lg:hidden">
-        <div className="mb-1.5">
-          <Link
-            href={`/${locale}/app`}
-            className="inline-flex items-center gap-1 text-[11px] text-slate-400 transition hover:text-blue-600"
-          >
-            <ArrowLeft className="h-3 w-3" />
-            {isUk ? "Всі проєкти" : "All projects"}
-          </Link>
-        </div>
-        <nav className="shell-scrollbar flex gap-1 overflow-x-auto pb-0.5">
-          {visibleItems.map((item) => {
-            const isActive = activeTab === item.id;
-            return (
-              <Link
-                key={item.id}
-                href={item.href}
-                aria-current={isActive ? "page" : undefined}
-                className={`relative flex shrink-0 items-center gap-1.5 rounded px-2.5 py-1.5 text-[11px] font-medium transition ${
-                  isActive
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                }`}
-              >
-                <item.icon className="h-3.5 w-3.5 shrink-0" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
+      {/* ── Mobile nav drawer ────────────────────────────────────────────── */}
+      <ProjectMobileNav
+        groups={groups.map((g) => ({
+          label: g.label,
+          items: g.items.map((i) => ({ id: i.id, label: i.label, href: i.href })),
+        }))}
+        activeTab={activeTab}
+        backHref={`/${locale}/app`}
+        backLabel={isUk ? "Всі проєкти" : "All projects"}
+        projectTitle={project.title}
+        projectAcronym={project.acronym}
+      />
 
       {/* ── Desktop layout: grid sidebar + main ─────────────────────────── */}
       <div className="grid private-shell-layout flex-1">
@@ -339,7 +314,7 @@ export function ProjectShell({
                     <Link
                       key={item.id}
                       href={item.href}
-                      title={item.label}
+                      data-tooltip={item.label}
                       aria-current={isActive ? "page" : undefined}
                       className="sidebar-nav-link"
                     >
