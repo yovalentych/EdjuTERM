@@ -1,3 +1,4 @@
+import { ClipboardList } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { ProjectShell } from "@/components/project-shell";
 import { ProjectGanttChart } from "@/components/research-plan/project-gantt-chart";
@@ -6,7 +7,12 @@ import { SetupChecklist } from "@/components/research-plan/setup-checklist";
 import { PublicationsTab } from "@/components/research-plan/publications-tab";
 import { DeliverablesTab } from "@/components/research-plan/deliverables-tab";
 import { MilestonesTab } from "@/components/research-plan/milestones-tab";
-import { Breadcrumb, PageHeader, Tabs, type TabItem } from "@/components/ui";
+import { Tabs, type TabItem } from "@/components/ui";
+import {
+  ProjectResearchHeader,
+  ResearchChip,
+  ResearchWorkspaceFrame,
+} from "@/components/research-os";
 import { listResearchStages } from "@/lib/research-plan";
 import { listPublications, listDeliverables } from "@/lib/research-publications";
 import { listMilestones, listTasks } from "@/lib/planning";
@@ -91,54 +97,37 @@ export default async function ResearchPlanPage({
       project={project}
       activeTab="research-plan"
     >
-      <PageHeader
-        eyebrow={project.acronym}
+      <ResearchWorkspaceFrame>
+      <ProjectResearchHeader
+        dictionary={dictionary}
+        icon={ClipboardList}
+        locale={localeParam}
+        project={project}
+        tone="blue"
         title={d.title}
-        breadcrumb={
-          <Breadcrumb
-            items={[
-              { label: project.acronym, href: `/${localeParam}/app/project?projectId=${project._id}` },
-              { label: d.title },
-            ]}
-            homeHref={`/${localeParam}/app`}
-          />
-        }
         description={d.subtitle}
-        stats={
-          <div className="flex flex-wrap gap-3">
-            <div className="rounded border border-slate-200 bg-white px-4 py-2.5 text-center shadow-sm">
-              <p className="text-2xl font-bold text-stone-900">{stages.length}</p>
-              <p className="text-xs text-stone-500">{d.totalStages}</p>
-            </div>
-            <div className="rounded border border-blue-200 bg-blue-50 px-4 py-2.5 text-center">
-              <p className="text-2xl font-bold text-blue-700">{activeCount}</p>
-              <p className="text-xs text-blue-600">Active</p>
-            </div>
-            <div className="rounded border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-center shadow-sm">
-              <p className="text-2xl font-bold text-emerald-700">{completedCount}</p>
-              <p className="text-xs text-emerald-600">{d.completedStages}</p>
-            </div>
+        metrics={
+          <>
+            <ResearchChip>{stages.length} {d.totalStages}</ResearchChip>
+            <ResearchChip tone="blue">{activeCount} Active</ResearchChip>
+            <ResearchChip tone="emerald">
+              {completedCount} {d.completedStages}
+            </ResearchChip>
             {totalBudget > 0 && (
-              <div className="rounded border border-amber-200 bg-amber-50 px-4 py-2.5 text-center">
-                <p className="font-mono text-xl font-bold text-amber-700">
-                  {totalBudget.toLocaleString()}
-                </p>
-                <p className="text-xs text-amber-600">{d.totalBudget}</p>
-              </div>
+              <ResearchChip tone="amber">
+                {totalBudget.toLocaleString()} {d.totalBudget}
+              </ResearchChip>
             )}
-            <div className="rounded border border-blue-200 bg-blue-50 px-4 py-2.5 text-center shadow-sm">
-              <p className="text-2xl font-bold text-blue-700">{publications.length}</p>
-              <p className="text-xs text-blue-600">{dExt.tabPublications ?? "Публікації"}</p>
-            </div>
-            <div className="rounded border border-violet-200 bg-violet-50 px-4 py-2.5 text-center shadow-sm">
-              <p className="text-2xl font-bold text-violet-700">{completedDeliverables}</p>
-              <p className="text-xs text-violet-600">{dExt.tabDeliverables ?? "Результати"}</p>
-            </div>
-            <div className="rounded border border-slate-200 bg-white px-4 py-2.5 text-center shadow-sm">
-              <p className="font-mono text-xl font-bold text-stone-700">{overallProgress}%</p>
-              <p className="text-xs text-stone-500">{dExt.overallProgress ?? "Прогрес"}</p>
-            </div>
-          </div>
+            <ResearchChip tone="blue">
+              {publications.length} {dExt.tabPublications ?? "Публікації"}
+            </ResearchChip>
+            <ResearchChip tone="violet">
+              {completedDeliverables} {dExt.tabDeliverables ?? "Результати"}
+            </ResearchChip>
+            <ResearchChip>
+              {overallProgress}% {dExt.overallProgress ?? "Прогрес"}
+            </ResearchChip>
+          </>
         }
       />
 
@@ -585,6 +574,7 @@ export default async function ResearchPlanPage({
           canManage={isManager}
         />
       )}
+      </ResearchWorkspaceFrame>
     </ProjectShell>
   );
 }

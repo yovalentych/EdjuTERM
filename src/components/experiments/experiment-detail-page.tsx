@@ -6,7 +6,9 @@ import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
+  Copy,
   Database,
+  Download,
   Edit2,
   ExternalLink,
   FlaskConical,
@@ -20,7 +22,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   addExperimentJournalEntry,
   createRecordFromExperiment,
@@ -31,6 +33,8 @@ import {
 } from "@/app/actions";
 import { PCRPrimerTool } from "@/components/experiments/lab-tools/pcr-primer-tool";
 import { ConcentrationTool } from "@/components/experiments/lab-tools/concentration-tool";
+import { MediaRecipeTool } from "@/components/experiments/lab-tools/media-recipe-tool";
+import { SpectrophotometryTool } from "@/components/experiments/lab-tools/spectrophotometry-tool";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import type { Dictionary } from "@/lib/i18n";
 import type {
@@ -107,7 +111,22 @@ function getProgress(exp: Experiment): number {
 
 // ── Journal parsing ───────────────────────────────────────────────────────────
 
-type JournalEntry = { date: string; text: string; fromTool?: boolean };
+type JournalType = "note" | "observation" | "result" | "deviation" | "qc" | "decision" | "tool";
+type JournalEntry = { date: string; text: string; type: JournalType; typeLabel: string; fromTool?: boolean };
+
+const JOURNAL_TYPES: Array<{ id: JournalType; uk: string; en: string; icon: string; className: string }> = [
+  { id: "note",        uk: "Нотатка",      en: "Note",        icon: "📝", className: "border-slate-200 bg-slate-50 text-slate-700" },
+  { id: "observation", uk: "Спостереження", en: "Observation", icon: "👁️", className: "border-cyan-200 bg-cyan-50 text-cyan-700" },
+  { id: "result",      uk: "Результат",    en: "Result",      icon: "📊", className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+  { id: "deviation",   uk: "Відхилення",   en: "Deviation",   icon: "⚠️", className: "border-amber-200 bg-amber-50 text-amber-700" },
+  { id: "qc",          uk: "QC",           en: "QC",          icon: "✅", className: "border-blue-200 bg-blue-50 text-blue-700" },
+  { id: "decision",    uk: "Рішення",      en: "Decision",    icon: "⚖️", className: "border-purple-200 bg-purple-50 text-purple-700" },
+  { id: "tool",        uk: "Інструмент",   en: "Tool",        icon: "🔬", className: "border-violet-200 bg-violet-50 text-violet-700" },
+];
+
+function getJournalType(type: string | undefined): (typeof JOURNAL_TYPES)[number] {
+  return JOURNAL_TYPES.find((item) => item.id === type) ?? JOURNAL_TYPES[0];
+}
 
 function parseJournal(notes: string): JournalEntry[] {
   if (!notes.trim()) return [];
@@ -115,15 +134,101 @@ function parseJournal(notes: string): JournalEntry[] {
     const lines = chunk.trim().split("\n");
     const first = lines[0] ?? "";
     const isDateLine = /^\d{2}\.\d{2}\.\d{4},\s\d{2}:\d{2}/.test(first);
+    const typeMatch = first.match(/\[([a-z_]+)\]/i);
+    const inferredType = typeMatch?.[1];
+    const hasToolIcon = first.includes("🧬") || first.includes("⚗️") || first.includes("🧫") || first.includes("🌈");
+    const type: JournalType = hasToolIcon
+      ? "tool"
+      : (JOURNAL_TYPES.some((item) => item.id === inferredType) ? inferredType as JournalType : "note");
+    const typeMeta = getJournalType(type);
     if (isDateLine) {
       return {
-        date: first,
+        date: first.replace(/\s·\s\[[^\]]+\]/, ""),
         text: lines.slice(1).join("\n").trim(),
-        fromTool: first.includes("🧬") || first.includes("⚗️"),
+        type,
+        typeLabel: typeMeta.uk,
+        fromTool: type === "tool",
       };
     }
-    return { date: "", text: chunk.trim() };
+    return { date: "", text: chunk.trim(), type: "note" as JournalType, typeLabel: getJournalType("note").uk };
   }).filter((e) => e.text);
+}
+
+function buildJournalExport({
+  experiment,
+  entries,
+  locale,
+}: {
+  experiment: Experiment;
+  entries: JournalEntry[];
+  locale: string;
+}) {
+  const isUk = locale === "uk";
+  return [
+    `${isUk ? "Журнал експерименту" : "Experiment journal"}: ${experiment.title}`,
+    `${isUk ? "Статус" : "Status"}: ${experiment.status}`,
+    `${isUk ? "Тип" : "Type"}: ${experiment.type}`,
+    `${isUk ? "Експортовано" : "Exported"}: ${new Date().toLocaleString(locale === "uk" ? "uk-UA" : "en-US")}`,
+    "",
+    ...entries.flatMap((entry, idx) => [
+      `#${entries.length - idx} ${entry.date || ""} [${entry.type}]`,
+      entry.text,
+      "",
+      "---",
+      "",
+    ]),
+  ].join("\n");
+}
+
+type ResultRow = { metric: string; value: string; unit: string; interpretation: string };
+
+function parseResultRows(results: string): ResultRow[] {
+  return results
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.includes("|"))
+    .map((line) => {
+      const [metric = "", value = "", unit = "", interpretation = ""] = line.split("|").map((part) => part.trim());
+      return { metric, value, unit, interpretation };
+    })
+    .filter((row) => row.metric && row.value);
+}
+
+function buildResultsExport({
+  experiment,
+  resultRows,
+  evidenceEntries,
+  outputRecords,
+  locale,
+}: {
+  experiment: Experiment;
+  resultRows: ResultRow[];
+  evidenceEntries: JournalEntry[];
+  outputRecords: ProjectRecord[];
+  locale: string;
+}) {
+  const isUk = locale === "uk";
+  return [
+    `${isUk ? "Результати експерименту" : "Experiment results"}: ${experiment.title}`,
+    `${isUk ? "Статус" : "Status"}: ${experiment.status}`,
+    `${isUk ? "Тип" : "Type"}: ${experiment.type}`,
+    `${isUk ? "Експортовано" : "Exported"}: ${new Date().toLocaleString(locale === "uk" ? "uk-UA" : "en-US")}`,
+    "",
+    `## ${isUk ? "Основні результати" : "Main results"}`,
+    experiment.results || (isUk ? "Не заповнено" : "Not filled"),
+    "",
+    resultRows.length ? `## ${isUk ? "Табличні метрики" : "Structured metrics"}` : "",
+    ...resultRows.flatMap((row) => [`- ${row.metric}: ${row.value}${row.unit ? ` ${row.unit}` : ""}${row.interpretation ? `; ${row.interpretation}` : ""}`]),
+    resultRows.length ? "" : "",
+    `## ${isUk ? "Висновок" : "Conclusion"}`,
+    experiment.conclusion || (isUk ? "Не заповнено" : "Not filled"),
+    "",
+    outputRecords.length ? `## ${isUk ? "Вихідні записи" : "Output records"}` : "",
+    ...outputRecords.map((record) => `- ${record.localId}: ${record.title} [${record.kind}]`),
+    outputRecords.length ? "" : "",
+    evidenceEntries.length ? `## ${isUk ? "Докази з журналу" : "Journal evidence"}` : "",
+    ...evidenceEntries.flatMap((entry) => [`- ${entry.date || ""} [${entry.type}]`, entry.text, ""]),
+  ].filter((line, idx, arr) => line !== "" || arr[idx - 1] !== "").join("\n");
 }
 
 function fmtDate(d: string | undefined): string {
@@ -267,7 +372,7 @@ function GenerateRecordModal({
 // ── Main component ────────────────────────────────────────────────────────────
 
 type Tab = "journal" | "protocol" | "results" | "tools";
-type ToolId = "pcr" | "concentration";
+type ToolId = "pcr" | "concentration" | "media" | "spectrophotometry";
 
 export function ExperimentDetailPage({
   experiment,
@@ -297,6 +402,13 @@ export function ExperimentDetailPage({
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [activeTool, setActiveTool] = useState<ToolId | null>(null);
   const [pendingToolNote, setPendingToolNote] = useState("");
+  const [journalQuery, setJournalQuery] = useState("");
+  const [journalTypeFilter, setJournalTypeFilter] = useState<JournalType | "all">("all");
+  const [journalTemplate, setJournalTemplate] = useState("");
+  const [journalCopied, setJournalCopied] = useState(false);
+  const [resultDraft, setResultDraft] = useState(experiment.results ?? "");
+  const [conclusionDraft, setConclusionDraft] = useState(experiment.conclusion ?? "");
+  const [resultCopied, setResultCopied] = useState(false);
   const deleteFormRef = useRef<HTMLFormElement>(null);
 
   const returnPath = `/${locale}/app/experiments/${experiment._id}?projectId=${experiment.projectId}`;
@@ -304,6 +416,20 @@ export function ExperimentDetailPage({
 
   const progress = getProgress(experiment);
   const journalEntries = parseJournal(experiment.notes ?? "");
+  const filteredJournalEntries = useMemo(() => {
+    const q = journalQuery.trim().toLowerCase();
+    return journalEntries.filter((entry) => {
+      const typeOk = journalTypeFilter === "all" || entry.type === journalTypeFilter;
+      const queryOk = !q || entry.text.toLowerCase().includes(q) || entry.date.toLowerCase().includes(q);
+      return typeOk && queryOk;
+    });
+  }, [journalEntries, journalQuery, journalTypeFilter]);
+  const journalCounts = useMemo(() => {
+    return JOURNAL_TYPES.reduce<Record<JournalType, number>>((acc, type) => {
+      acc[type.id] = journalEntries.filter((entry) => entry.type === type.id).length;
+      return acc;
+    }, { note: 0, observation: 0, result: 0, deviation: 0, qc: 0, decision: 0, tool: 0 });
+  }, [journalEntries]);
   const linkedStage = stages.find((s) => s._id === experiment.stageId);
   const linkedMethodology = experiment.linkedMethodologyId
     ? allRecords.find((r) => r._id === experiment.linkedMethodologyId)
@@ -312,12 +438,64 @@ export function ExperimentDetailPage({
   const inputRecords = allRecords.filter((r) => (experiment.linkedRecordIds ?? []).includes(r._id ?? ""));
   const outputRecords = allRecords.filter((r) => (experiment.outputRecordIds ?? []).includes(r._id ?? ""));
   const canGenerate = canManage && (experiment.status === "completed" || experiment.status === "running" || !!experiment.results);
+  const resultRows = useMemo(() => parseResultRows(experiment.results ?? ""), [experiment.results]);
+  const resultEvidenceEntries = useMemo(
+    () => journalEntries.filter((entry) => entry.type === "result" || entry.type === "qc" || entry.type === "tool"),
+    [journalEntries],
+  );
 
   function handleSaveToolResult(text: string) {
     setPendingToolNote(text);
     setActiveTool(null);
     setActiveTab("journal");
   }
+
+  function exportJournalTxt() {
+    const text = buildJournalExport({ experiment, entries: journalEntries, locale });
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${experiment.title.replace(/[^\p{L}\p{N}]+/gu, "_").slice(0, 60) || "experiment"}_journal.txt`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function copyJournalTxt() {
+    const text = buildJournalExport({ experiment, entries: journalEntries, locale });
+    await navigator.clipboard?.writeText(text);
+    setJournalCopied(true);
+    window.setTimeout(() => setJournalCopied(false), 1200);
+  }
+
+  function exportResultsTxt() {
+    const text = buildResultsExport({ experiment, resultRows, evidenceEntries: resultEvidenceEntries, outputRecords, locale });
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${experiment.title.replace(/[^\p{L}\p{N}]+/gu, "_").slice(0, 60) || "experiment"}_results.txt`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function copyResultsTxt() {
+    const text = buildResultsExport({ experiment, resultRows, evidenceEntries: resultEvidenceEntries, outputRecords, locale });
+    await navigator.clipboard?.writeText(text);
+    setResultCopied(true);
+    window.setTimeout(() => setResultCopied(false), 1200);
+  }
+
+  const activeToolLabel: Record<ToolId, string> = {
+    pcr: isUk ? "ПЛР Праймери" : "PCR Primers",
+    concentration: isUk ? "Концентрації" : "Concentrations",
+    media: isUk ? "Поживні середовища" : "Culture media",
+    spectrophotometry: isUk ? "Спектрофотометрія" : "Spectrophotometry",
+  };
 
   const tabs: { id: Tab; icon: React.ElementType; label: string }[] = [
     { id: "journal",   icon: NotebookPen,   label: d.journal },
@@ -542,6 +720,84 @@ export function ExperimentDetailPage({
               {/* JOURNAL TAB */}
               {activeTab === "journal" && (
                 <div>
+                  <div className="border-b border-slate-100 bg-slate-50/60 p-5">
+                    <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">
+                          {isUk ? "Журнал експерименту" : "Experiment journal"}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          {isUk
+                            ? "Структуровані записи для спостережень, результатів, QC, відхилень, рішень і розрахунків з інструментів."
+                            : "Structured entries for observations, results, QC, deviations, decisions, and tool calculations."}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={copyJournalTxt}
+                          disabled={journalEntries.length === 0}
+                          className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                          {journalCopied ? (isUk ? "Скопійовано" : "Copied") : (isUk ? "Копіювати TXT" : "Copy TXT")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={exportJournalTxt}
+                          disabled={journalEntries.length === 0}
+                          className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          {isUk ? "Експорт .txt" : "Export .txt"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-4">
+                      <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{isUk ? "Записів" : "Entries"}</p>
+                        <p className="mt-1 font-mono text-lg font-bold text-slate-900">{journalEntries.length}</p>
+                      </div>
+                      <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-600">{isUk ? "Результати" : "Results"}</p>
+                        <p className="mt-1 font-mono text-lg font-bold text-emerald-800">{journalCounts.result}</p>
+                      </div>
+                      <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-blue-600">QC</p>
+                        <p className="mt-1 font-mono text-lg font-bold text-blue-800">{journalCounts.qc}</p>
+                      </div>
+                      <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-amber-600">{isUk ? "Відхилення" : "Deviations"}</p>
+                        <p className="mt-1 font-mono text-lg font-bold text-amber-800">{journalCounts.deviation}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_220px]">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                        <input
+                          value={journalQuery}
+                          onChange={(e) => setJournalQuery(e.target.value)}
+                          className="input-control w-full pl-8 text-sm"
+                          placeholder={isUk ? "Пошук у журналі..." : "Search journal..."}
+                        />
+                      </div>
+                      <select
+                        value={journalTypeFilter}
+                        onChange={(e) => setJournalTypeFilter(e.target.value as JournalType | "all")}
+                        className="input-control w-full text-sm"
+                      >
+                        <option value="all">{isUk ? "Всі типи" : "All types"}</option>
+                        {JOURNAL_TYPES.map((type) => (
+                          <option key={type.id} value={type.id}>
+                            {type.icon} {isUk ? type.uk : type.en} ({journalCounts[type.id]})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   {/* Pending tool result */}
                   {pendingToolNote && (
                     <div className="border-b border-blue-100 bg-blue-50/50 p-5">
@@ -552,6 +808,7 @@ export function ExperimentDetailPage({
                         <input type="hidden" name="locale" value={locale} />
                         <input type="hidden" name="projectId" value={experiment.projectId} />
                         <input type="hidden" name="experimentId" value={experiment._id ?? ""} />
+                        <input type="hidden" name="entryType" value="tool" />
                         <textarea
                           name="text"
                           defaultValue={pendingToolNote}
@@ -578,13 +835,42 @@ export function ExperimentDetailPage({
                         <input type="hidden" name="locale" value={locale} />
                         <input type="hidden" name="projectId" value={experiment.projectId} />
                         <input type="hidden" name="experimentId" value={experiment._id ?? ""} />
+                        <div className="mb-3 grid gap-2 md:grid-cols-[220px_minmax(0,1fr)]">
+                          <select name="entryType" className="input-control text-sm" defaultValue="note">
+                            {JOURNAL_TYPES.filter((type) => type.id !== "tool").map((type) => (
+                              <option key={type.id} value={type.id}>{type.icon} {isUk ? type.uk : type.en}</option>
+                            ))}
+                          </select>
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              { label: isUk ? "QC шаблон" : "QC template", text: isUk ? "QC:\nМетрика:\nКритерій:\nРезультат:\nСтатус: pass/fail\nДія:" : "QC:\nMetric:\nCriterion:\nResult:\nStatus: pass/fail\nAction:" },
+                              { label: isUk ? "Відхилення" : "Deviation", text: isUk ? "Відхилення від протоколу:\nПричина:\nВплив на дані:\nКоригувальна дія:\nПотрібне повторення: так/ні" : "Protocol deviation:\nCause:\nImpact on data:\nCorrective action:\nRepeat needed: yes/no" },
+                              { label: isUk ? "Результат" : "Result", text: isUk ? "Результат:\nУмови:\nКлючові значення:\nІнтерпретація:\nНаступний крок:" : "Result:\nConditions:\nKey values:\nInterpretation:\nNext step:" },
+                            ].map((template) => (
+                              <button
+                                key={template.label}
+                                type="button"
+                                onClick={() => setJournalTemplate(template.text)}
+                                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-slate-600 transition hover:bg-slate-50"
+                              >
+                                {template.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                         <textarea
                           name="text"
                           rows={3}
+                          value={journalTemplate}
+                          onChange={(e) => setJournalTemplate(e.target.value)}
                           placeholder={d.entryPlaceholder}
                           className="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100"
                         />
-                        <div className="mt-2 flex justify-end">
+                        <div className="mt-2 flex justify-between gap-2">
+                          <button type="button" onClick={() => setJournalTemplate("")}
+                            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-50">
+                            {isUk ? "Очистити" : "Clear"}
+                          </button>
                           <button type="submit" className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700">
                             <Plus className="h-3.5 w-3.5" />
                             {d.addEntry}
@@ -606,20 +892,36 @@ export function ExperimentDetailPage({
                   ) : (
                     <div className="relative px-5 py-4">
                       <div className="absolute left-9 top-4 bottom-4 w-px bg-slate-100" />
+                      <div className="mb-3 flex items-center justify-between text-[11px] text-slate-400">
+                        <span>{isUk ? "Показано" : "Showing"} {filteredJournalEntries.length} / {journalEntries.length}</span>
+                        {(journalQuery || journalTypeFilter !== "all") && (
+                          <button type="button" onClick={() => { setJournalQuery(""); setJournalTypeFilter("all"); }} className="font-semibold text-blue-600 hover:text-blue-700">
+                            {isUk ? "Скинути фільтри" : "Reset filters"}
+                          </button>
+                        )}
+                      </div>
                       <div className="space-y-5">
-                        {journalEntries.map((entry, i) => (
+                        {filteredJournalEntries.map((entry, i) => {
+                          const typeMeta = getJournalType(entry.type);
+                          return (
                           <div key={i} className="relative flex gap-4">
                             <div className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-sm shadow-sm">
-                              {entry.fromTool ? "🔬" : "📝"}
+                              {typeMeta.icon}
                             </div>
                             <div className="min-w-0 flex-1 rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3">
-                              {entry.date && (
-                                <p className="mb-1.5 font-mono text-[10px] font-semibold text-slate-400">{entry.date}</p>
-                              )}
+                              <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                                {entry.date && (
+                                  <p className="font-mono text-[10px] font-semibold text-slate-400">{entry.date}</p>
+                                )}
+                                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${typeMeta.className}`}>
+                                  {typeMeta.icon} {isUk ? typeMeta.uk : typeMeta.en}
+                                </span>
+                              </div>
                               <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{entry.text}</p>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -704,16 +1006,147 @@ export function ExperimentDetailPage({
               {/* RESULTS TAB */}
               {activeTab === "results" && (
                 <div className="divide-y divide-slate-100">
+                  <div className="bg-slate-50/60 p-5">
+                    <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-start">
+                      <div>
+                        <p className="text-sm font-bold text-slate-900">{isUk ? "Панель результатів" : "Results workspace"}</p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          {isUk
+                            ? "Зведіть фінальні результати, висновок, метрики, докази з журналу та вихідні записи експерименту."
+                            : "Curate final results, conclusion, metrics, journal evidence, and generated output records."}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={copyResultsTxt}
+                          disabled={!experiment.results && !experiment.conclusion && resultEvidenceEntries.length === 0 && outputRecords.length === 0}
+                          className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                          {resultCopied ? (isUk ? "Скопійовано" : "Copied") : (isUk ? "Копіювати TXT" : "Copy TXT")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={exportResultsTxt}
+                          disabled={!experiment.results && !experiment.conclusion && resultEvidenceEntries.length === 0 && outputRecords.length === 0}
+                          className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          {isUk ? "Експорт .txt" : "Export .txt"}
+                        </button>
+                        {canGenerate && (
+                          <button type="button" onClick={() => setShowGenModal(true)}
+                            className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">
+                            <Sparkles className="h-3.5 w-3.5" />
+                            {isUk ? "Створити запис" : "Generate record"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-4">
+                      <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{isUk ? "Стан" : "State"}</p>
+                        <p className="mt-1 text-sm font-bold text-slate-900">{d.statuses[experiment.status]}</p>
+                      </div>
+                      <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-blue-600">{isUk ? "Метрики" : "Metrics"}</p>
+                        <p className="mt-1 font-mono text-lg font-bold text-blue-800">{resultRows.length}</p>
+                      </div>
+                      <div className="rounded-lg border border-violet-100 bg-violet-50 px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600">{isUk ? "Докази" : "Evidence"}</p>
+                        <p className="mt-1 font-mono text-lg font-bold text-violet-800">{resultEvidenceEntries.length}</p>
+                      </div>
+                      <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-600">{isUk ? "Записи" : "Records"}</p>
+                        <p className="mt-1 font-mono text-lg font-bold text-emerald-800">{outputRecords.length}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {canManage && (
+                    <div className="p-5">
+                      <form action={updateExperiment} className="rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+                        <input type="hidden" name="locale" value={locale} />
+                        <input type="hidden" name="projectId" value={experiment.projectId} />
+                        <input type="hidden" name="experimentId" value={experiment._id ?? ""} />
+                        <input type="hidden" name="returnPath" value={returnPath} />
+                        <input type="hidden" name="stageId" value={experiment.stageId} />
+                        <input type="hidden" name="title" value={experiment.title} />
+                        <input type="hidden" name="type" value={experiment.type} />
+                        <input type="hidden" name="status" value={experiment.status} />
+                        <input type="hidden" name="priority" value={experiment.priority} />
+                        <input type="hidden" name="startDate" value={experiment.startDate} />
+                        <input type="hidden" name="endDate" value={experiment.endDate} />
+                        <input type="hidden" name="objectives" value={experiment.objectives} />
+                        <input type="hidden" name="hypothesis" value={experiment.hypothesis} />
+                        <input type="hidden" name="variables" value={experiment.variables} />
+                        <input type="hidden" name="controls" value={experiment.controls} />
+                        <input type="hidden" name="replicates" value={experiment.replicates} />
+                        <input type="hidden" name="methods" value={experiment.methods} />
+                        <input type="hidden" name="notes" value={experiment.notes ?? ""} />
+                        <input type="hidden" name="linkedMethodologyId" value={experiment.linkedMethodologyId} />
+                        <input type="hidden" name="linkedRecordIds" value={JSON.stringify(experiment.linkedRecordIds ?? [])} />
+                        <input type="hidden" name="outputRecordIds" value={JSON.stringify(experiment.outputRecordIds ?? [])} />
+
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+                            {isUk ? "Оновити підсумкові результати" : "Update final results"}
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              { label: isUk ? "Метрики" : "Metrics", text: isUk ? "Метрика | Значення | Одиниця | Інтерпретація\n" : "Metric | Value | Unit | Interpretation\n" },
+                              { label: isUk ? "Короткий підсумок" : "Short summary", text: isUk ? "Ключовий результат:\nПорівняння з контролем:\nСтатистична оцінка:\nОбмеження:\n" : "Key result:\nControl comparison:\nStatistical assessment:\nLimitations:\n" },
+                              { label: "QC", text: isUk ? "QC статус:\nПрийняті критерії:\nПроблемні зразки:\nВплив на інтерпретацію:\n" : "QC status:\nAcceptance criteria:\nProblem samples:\nImpact on interpretation:\n" },
+                            ].map((template) => (
+                              <button
+                                key={template.label}
+                                type="button"
+                                onClick={() => setResultDraft((current) => current ? `${current.trim()}\n\n${template.text}` : template.text)}
+                                className="rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[11px] font-medium text-blue-700 transition hover:bg-blue-50"
+                              >
+                                {template.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="grid gap-3 lg:grid-cols-2">
+                          <label className="block">
+                            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">{d.results}</span>
+                            <textarea
+                              name="results"
+                              rows={8}
+                              value={resultDraft}
+                              onChange={(e) => setResultDraft(e.target.value)}
+                              className="input-control w-full resize-y text-sm leading-6"
+                              placeholder={isUk ? "Опишіть результати або додайте рядки: Метрика | Значення | Одиниця | Інтерпретація" : "Describe results or add rows: Metric | Value | Unit | Interpretation"}
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-slate-500">{d.conclusion}</span>
+                            <textarea
+                              name="conclusion"
+                              rows={8}
+                              value={conclusionDraft}
+                              onChange={(e) => setConclusionDraft(e.target.value)}
+                              className="input-control w-full resize-y text-sm leading-6"
+                              placeholder={isUk ? "Що означають результати, чи підтримана гіпотеза, які наступні кроки?" : "What do the results mean, is the hypothesis supported, what comes next?"}
+                            />
+                          </label>
+                        </div>
+                        <div className="mt-3 flex justify-end">
+                          <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700">
+                            {isUk ? "Зберегти результати" : "Save results"}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+
                   <div className="p-5">
                     <div className="mb-3 flex items-center justify-between">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">📊 {d.results}</p>
-                      {canGenerate && (
-                        <button type="button" onClick={() => setShowGenModal(true)}
-                          className="flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 transition hover:bg-emerald-100">
-                          <Sparkles className="h-3 w-3" />
-                          {isUk ? "Згенерувати запис" : "Generate record"}
-                        </button>
-                      )}
                     </div>
                     {experiment.results ? (
                       <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">{experiment.results}</p>
@@ -730,11 +1163,63 @@ export function ExperimentDetailPage({
                       </div>
                     )}
                   </div>
+                  {resultRows.length > 0 && (
+                    <div className="p-5">
+                      <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        {isUk ? "Структуровані метрики" : "Structured metrics"}
+                      </p>
+                      <div className="overflow-hidden rounded-xl border border-slate-200">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-400">
+                            <tr>
+                              <th className="px-3 py-2">{isUk ? "Метрика" : "Metric"}</th>
+                              <th className="px-3 py-2">{isUk ? "Значення" : "Value"}</th>
+                              <th className="px-3 py-2">{isUk ? "Одиниця" : "Unit"}</th>
+                              <th className="px-3 py-2">{isUk ? "Інтерпретація" : "Interpretation"}</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {resultRows.map((row, idx) => (
+                              <tr key={`${row.metric}-${idx}`}>
+                                <td className="px-3 py-2 font-medium text-slate-800">{row.metric}</td>
+                                <td className="px-3 py-2 font-mono font-semibold text-blue-700">{row.value}</td>
+                                <td className="px-3 py-2 text-slate-600">{row.unit || "-"}</td>
+                                <td className="px-3 py-2 text-slate-600">{row.interpretation || "-"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                   {experiment.conclusion && (
                     <div className="p-5">
                       <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">{d.conclusion}</p>
                       <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
                         <p className="text-sm leading-7 text-slate-700">{experiment.conclusion}</p>
+                      </div>
+                    </div>
+                  )}
+                  {resultEvidenceEntries.length > 0 && (
+                    <div className="p-5">
+                      <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                        {isUk ? "Докази з журналу" : "Evidence from journal"} ({resultEvidenceEntries.length})
+                      </p>
+                      <div className="space-y-2">
+                        {resultEvidenceEntries.slice(0, 5).map((entry, idx) => {
+                          const typeMeta = getJournalType(entry.type);
+                          return (
+                            <div key={`${entry.date}-${idx}`} className="rounded-lg border border-violet-100 bg-violet-50/40 px-3 py-2 text-xs">
+                              <div className="mb-1 flex flex-wrap items-center gap-2">
+                                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${typeMeta.className}`}>
+                                  {typeMeta.icon} {isUk ? typeMeta.uk : typeMeta.en}
+                                </span>
+                                <span className="font-mono text-[10px] text-slate-400">{entry.date}</span>
+                              </div>
+                              <p className="line-clamp-3 whitespace-pre-wrap leading-5 text-slate-700">{entry.text}</p>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -789,10 +1274,23 @@ export function ExperimentDetailPage({
                         labelColor="text-emerald-700"
                         onClick={() => setActiveTool("concentration")}
                       />
+                      <ToolCard
+                        emoji="🧫"
+                        title={isUk ? "Поживні середовища" : "Culture media"}
+                        desc={isUk ? "Масштабування рецептів для бактерій, грибів, дріжджів та еукаріотичних клітин із записів проєкту." : "Scale recipes for bacteria, fungi, yeast, and eukaryotic cells from project records."}
+                        color="bg-sky-50 border-sky-200 hover:border-sky-400 hover:bg-sky-50"
+                        labelColor="text-sky-700"
+                        onClick={() => setActiveTool("media")}
+                      />
+                      <ToolCard
+                        emoji="🌈"
+                        title={isUk ? "Спектрофотометрія" : "Spectrophotometry"}
+                        desc={isUk ? "UV, видиме світло, флуоресценція, OD600, коловий дихроїзм, бланк і калібрування." : "UV, visible, fluorescence, OD600, circular dichroism, blank correction and calibration."}
+                        color="bg-violet-50 border-violet-200 hover:border-violet-400 hover:bg-violet-50"
+                        labelColor="text-violet-700"
+                        onClick={() => setActiveTool("spectrophotometry")}
+                      />
                     </div>
-                    <p className="mt-5 text-[10px] text-slate-400">
-                      {isUk ? "Більше інструментів з'явиться в наступних версіях." : "More tools coming in future versions."}
-                    </p>
                   </div>
                 ) : (
                   <div>
@@ -803,7 +1301,7 @@ export function ExperimentDetailPage({
                       </button>
                       <span className="text-slate-300">/</span>
                       <span className="text-[11px] font-semibold text-slate-700">
-                        {activeTool === "pcr" ? (isUk ? "ПЛР Праймери" : "PCR Primers") : (isUk ? "Концентрації" : "Concentrations")}
+                        {activeToolLabel[activeTool]}
                       </span>
                     </div>
                     {activeTool === "pcr" && (
@@ -811,6 +1309,12 @@ export function ExperimentDetailPage({
                     )}
                     {activeTool === "concentration" && (
                       <ConcentrationTool onSaveToExperiment={handleSaveToolResult} />
+                    )}
+                    {activeTool === "media" && (
+                      <MediaRecipeTool records={allRecords} onSaveToExperiment={handleSaveToolResult} />
+                    )}
+                    {activeTool === "spectrophotometry" && (
+                      <SpectrophotometryTool onSaveToExperiment={handleSaveToolResult} />
                     )}
                   </div>
                 )

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "quill/dist/quill.snow.css";
 
 /* ── Design tokens ──────────────────────────────────────────────────────── */
 
@@ -70,6 +71,48 @@ textarea {
 
 html {
   scroll-behavior: smooth;
+}
+
+@keyframes language-shade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes language-shade-sweep {
+  from { transform: translateX(-120%) skewX(-16deg); opacity: 0; }
+  18% { opacity: 0.9; }
+  to { transform: translateX(120%) skewX(-16deg); opacity: 0; }
+}
+
+html[data-language-transition="true"] body::before,
+html[data-language-transition="true"] body::after {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  content: "";
+}
+
+html[data-language-transition="true"] body::before {
+  background:
+    radial-gradient(circle at 18% 22%, rgba(101, 228, 163, 0.16), transparent 18rem),
+    linear-gradient(90deg, rgba(10, 38, 64, 0.18), rgba(10, 38, 64, 0.34));
+  backdrop-filter: blur(5px) saturate(120%);
+  -webkit-backdrop-filter: blur(5px) saturate(120%);
+  animation: language-shade-in 140ms ease both;
+}
+
+html[data-language-transition="true"] body::after {
+  width: 46%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.34) 44%,
+    rgba(101, 228, 163, 0.38) 52%,
+    transparent 100%
+  );
+  filter: blur(1px);
+  animation: language-shade-sweep 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 a:focus-visible,
@@ -352,6 +395,434 @@ html[data-private-theme="soft"] .shell-scrollbar::-webkit-scrollbar-thumb {
   background: var(--muted-surface);
 }
 
+/* ── App responsive layout primitives ───────────────────────────────────── */
+
+.app-workspace {
+  width: min(100%, var(--app-workspace-max, 1320px));
+  margin-inline: auto;
+  padding: 1rem;
+}
+
+.app-workspace > * + * {
+  margin-top: 1rem;
+}
+
+.app-workspace--narrow {
+  --app-workspace-max: 960px;
+}
+
+.app-workspace--standard {
+  --app-workspace-max: 1320px;
+}
+
+.app-workspace--wide {
+  --app-workspace-max: 1600px;
+}
+
+.app-workspace--full {
+  --app-workspace-max: none;
+  width: 100%;
+}
+
+.app-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.app-grid-main-aside,
+.app-grid-dashboard,
+.app-grid-cards {
+  display: grid;
+  gap: 1rem;
+}
+
+.app-scroll-tabs {
+  display: flex;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.app-scroll-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.app-scroll-tabs > * {
+  flex: 0 0 auto;
+}
+
+@media (min-width: 640px) {
+  .app-workspace {
+    padding: 1.25rem;
+  }
+
+  .app-grid-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 900px) {
+  .app-grid-dashboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1180px) {
+  .app-workspace {
+    padding: 1.5rem;
+  }
+
+  .app-grid-main-aside {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  }
+
+  .app-grid-dashboard {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1420px) {
+  .app-grid-main-aside {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  }
+
+  .app-grid-cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1700px) {
+  .app-workspace--wide {
+    --app-workspace-max: 1680px;
+  }
+
+  .app-grid-main-aside {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+  }
+}
+
+/* ── Grant finance module ──────────────────────────────────────────────── */
+
+.grant-finance-workspace {
+  --grant-finance-border: #d9e2ec;
+  --grant-finance-muted: #f6f8fb;
+  --grant-finance-surface: #ffffff;
+  --grant-finance-radius: 0.75rem;
+  container-type: inline-size;
+}
+
+.grant-finance-masthead {
+  position: relative;
+  display: grid;
+  gap: 1.25rem;
+  overflow: hidden;
+  border-radius: 1rem;
+  background:
+    linear-gradient(135deg, rgba(6, 51, 58, 0.98) 0%, rgba(13, 104, 113, 0.98) 52%, rgba(26, 70, 117, 0.96) 100%);
+  padding: 1.5rem;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.08),
+    0 26px 48px -34px rgba(6, 51, 58, 0.62);
+}
+
+.grant-finance-masthead::before {
+  position: absolute;
+  inset: auto -8rem -10rem auto;
+  width: 26rem;
+  height: 26rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(250, 204, 21, 0.22), transparent 64%);
+  content: "";
+}
+
+.grant-finance-masthead > * {
+  position: relative;
+  z-index: 1;
+}
+
+.grant-finance-ledger-card {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 0.875rem;
+  background: rgba(255, 255, 255, 0.12);
+  padding: 1rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.grant-finance-overview {
+  overflow: hidden;
+  border: 1px solid var(--grant-finance-border);
+  border-radius: var(--grant-finance-radius);
+  background: #f8fafc;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 18px 36px -30px rgba(15, 23, 42, 0.34);
+}
+
+.grant-finance-overview-grid {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.grant-finance-metrics {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.grant-finance-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--grant-finance-border);
+  background:
+    linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  padding: 1.125rem;
+}
+
+.grant-finance-panel,
+.finance-soft-panel,
+.finance-stat-tile {
+  border: 1px solid var(--grant-finance-border, #d9e2ec);
+  border-radius: var(--grant-finance-radius, 0.75rem);
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
+}
+
+.grant-finance-panel {
+  padding: 1rem;
+}
+
+.grant-finance-chart-panel {
+  min-height: clamp(18rem, 28vw, 27rem);
+}
+
+.grant-finance-utilization-panel {
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.grant-finance-metric {
+  min-width: 0;
+  border: 1px solid var(--grant-finance-border);
+  border-radius: 0.625rem;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  padding: 0.875rem;
+  box-shadow:
+    inset 0 3px 0 rgba(20, 184, 166, 0.18),
+    0 1px 1px rgba(15, 23, 42, 0.025);
+}
+
+.grant-finance-tabs,
+.finance-tabs {
+  border-radius: var(--grant-finance-radius, 0.75rem);
+  border: 1px solid var(--grant-finance-border, #d9e2ec);
+  background: #ffffff;
+  padding: 0.25rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
+}
+
+.grant-finance-tabs a,
+.finance-tabs a {
+  border-radius: 0.5rem;
+}
+
+.finance-dashboard,
+.finance-hero,
+.finance-panel {
+  border: 1px solid var(--grant-finance-border, #d9e2ec);
+  border-radius: var(--grant-finance-radius, 0.75rem);
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
+}
+
+.finance-panel {
+  padding: 1rem;
+}
+
+.finance-panel-main {
+  min-height: 26rem;
+}
+
+.finance-tab-card {
+  border-radius: var(--grant-finance-radius, 0.75rem);
+  border-color: var(--grant-finance-border, #d9e2ec);
+  background: #ffffff;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.035),
+    0 16px 32px -28px rgba(15, 23, 42, 0.24);
+}
+
+.finance-tab-body {
+  padding: 1rem;
+}
+
+.finance-table-shell {
+  overflow: hidden;
+  border: 1px solid var(--grant-finance-border, #d9e2ec);
+  border-radius: var(--grant-finance-radius, 0.75rem);
+  background: #ffffff;
+}
+
+.finance-table-shell thead {
+  border-bottom: 1px solid var(--grant-finance-border, #d9e2ec);
+  background: #f8fafc;
+}
+
+.finance-table-shell tbody tr {
+  transition: background-color 150ms ease;
+}
+
+.finance-table-shell tbody tr:hover {
+  background: #f8fafc;
+}
+
+.finance-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 0.375rem;
+  border-width: 1px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+@media (max-width: 768px) {
+  .grant-finance-masthead {
+    border-radius: 0.875rem;
+    padding: 1.125rem;
+  }
+
+  .grant-finance-ledger-card {
+    padding: 0.875rem;
+  }
+
+  .grant-finance-header {
+    flex-direction: column;
+  }
+
+  .grant-finance-overview-grid {
+    padding: 0.75rem;
+  }
+
+  .grant-finance-tabs {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .grant-finance-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .grant-finance-tabs .tabler-tab {
+    flex: 0 0 auto;
+  }
+}
+
+@media (min-width: 900px) {
+  .grant-finance-masthead {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    align-items: end;
+  }
+}
+
+@media (min-width: 640px) {
+  .grant-finance-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1180px) {
+  .grant-finance-overview-grid {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+
+@media (min-width: 1420px) {
+  .grant-finance-masthead {
+    grid-template-columns: minmax(0, 1fr) 24rem;
+    padding: 2rem;
+  }
+
+  .grant-finance-overview-grid {
+    grid-template-columns: minmax(0, 1fr) 380px;
+  }
+
+  .grant-finance-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1700px) {
+  .grant-finance-masthead {
+    grid-template-columns: minmax(0, 1fr) 26rem;
+  }
+
+  .grant-finance-overview-grid {
+    grid-template-columns: minmax(0, 1fr) 420px;
+  }
+}
+
+/* ── Research OS primitives ────────────────────────────────────────────── */
+
+.research-workspace {
+  --research-radius: 8px;
+}
+
+.research-compact-header,
+.research-panel {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--research-radius);
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px rgba(24, 36, 51, 0.04),
+    0 10px 24px -18px rgba(24, 36, 51, 0.2);
+}
+
+.research-icon-tile {
+  display: flex;
+  height: 2.5rem;
+  width: 2.5rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-width: 1px;
+  border-radius: var(--research-radius);
+}
+
+.research-chip {
+  display: inline-flex;
+  min-height: 1.75rem;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.35rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-width: 1px;
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.research-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 1rem;
+}
+
 /* ── Page hero ──────────────────────────────────────────────────────────── */
 
 .page-hero {
@@ -487,6 +958,52 @@ html[data-private-theme="soft"] .shell-scrollbar::-webkit-scrollbar-thumb {
   border-color: #e2e8f0;
   background: #f1f5f9;
   color: #94a3b8;
+}
+
+/* ── Rich text editor ──────────────────────────────────────────────────── */
+
+.rich-text-editor {
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+  background: #ffffff;
+  box-shadow:
+    inset 0 1px 2px rgba(24, 23, 21, 0.03),
+    0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.rich-text-editor .ql-toolbar.ql-snow {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: #f8fafc;
+  padding: 0.45rem 0.55rem;
+}
+
+.rich-text-editor .ql-container.ql-snow {
+  border: 0;
+  color: var(--foreground);
+  font-family:
+    "Geist", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  font-size: 0.92rem;
+}
+
+.rich-text-editor .ql-editor {
+  min-height: var(--rich-text-min-height, 220px);
+  line-height: 1.7;
+  padding: 0.95rem 1rem;
+}
+
+.rich-text-editor .ql-editor.ql-blank::before {
+  color: #8a97a5;
+  font-style: normal;
+}
+
+.rich-text-editor:focus-within {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 3px rgba(32, 107, 196, 0.16),
+    inset 0 1px 2px rgba(24, 23, 21, 0.02);
 }
 
 /* ── Knowledge base ───────────────────────────────────────────────────── */
@@ -799,7 +1316,9 @@ html[data-private-theme="soft"] .private-shell {
 html[data-private-theme="soft"] .private-shell-header,
 html[data-private-theme="soft"] .surface,
 html[data-private-theme="soft"] .metric-card,
-html[data-private-theme="soft"] .page-hero {
+html[data-private-theme="soft"] .page-hero,
+html[data-private-theme="soft"] .research-compact-header,
+html[data-private-theme="soft"] .research-panel {
   border-color: #405066;
   background: rgba(31, 42, 58, 0.94);
   color: #d8e2ef;
@@ -873,6 +1392,10 @@ html[data-private-theme="soft"] .private-shell .bg-stone-50,
 html[data-private-theme="soft"] .private-shell .bg-white {
   border-color: #405066;
   background-color: rgba(24, 34, 51, 0.9);
+}
+
+html[data-private-theme="soft"] .research-panel-header {
+  border-bottom-color: #405066;
 }
 
 html[data-private-theme="soft"] .private-shell .text-stone-950,

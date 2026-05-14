@@ -85,6 +85,7 @@ export function ProjectShell({
   const d = dictionary;
   const isUk = locale === "uk";
   const isDissertation = project.projectType === "dissertation";
+  const workspaceClass = activeTab === "budget" ? "app-workspace--wide" : "app-workspace--standard";
 
   const allItems: NavItem[] = [
     {
@@ -193,36 +194,48 @@ export function ProjectShell({
 
   const groups: NavGroup[] = [
     {
-      label: isUk ? "Дослідження" : "Research",
+      label: isUk ? "Огляд" : "Overview",
       items: allItems.filter((i) =>
-        ["overview", "records", "experiments"].includes(i.id),
+        ["overview"].includes(i.id),
       ),
     },
     {
-      label: isUk ? "Планування" : "Planning",
+      label: isUk ? "Доказова база" : "Evidence",
       items: allItems.filter((i) =>
-        ["almanac", "research-plan", "planning", "budget"].includes(i.id),
+        ["records", "experiments", "almanac"].includes(i.id),
       ),
     },
     {
-      label: isUk ? "Виходи" : "Output",
+      label: isUk ? "Виконання" : "Execution",
       items: allItems.filter((i) =>
-        ["openscience", "events", "manuscripts", "reports"].includes(i.id),
+        ["research-plan", "planning", "budget", "events"].includes(i.id),
+      ),
+    },
+    {
+      label: isUk ? "Результати" : "Outputs",
+      items: allItems.filter((i) =>
+        ["openscience", "manuscripts", "reports", "portfolio"].includes(i.id),
+      ),
+    },
+    {
+      label: isUk ? "Команда" : "Team",
+      items: allItems.filter((i) =>
+        ["team"].includes(i.id),
       ),
     },
     {
       label: isUk ? "Навчання" : "Education",
       items: allItems.filter((i) =>
         isDissertation
-          ? ["learning", "diary", "phd-plan", "portfolio"].includes(i.id)
+          ? ["learning", "diary", "phd-plan"].includes(i.id)
           : ["learning", "diary"].includes(i.id),
       ),
     },
     {
-      label: isUk ? "Управління" : "Manage",
-      items: allItems.filter((i) => ["team", "settings"].includes(i.id)),
+      label: isUk ? "Налаштування" : "Settings",
+      items: allItems.filter((i) => ["settings"].includes(i.id)),
     },
-  ];
+  ].filter((group) => group.items.length > 0);
 
   return (
     <div className="private-shell flex min-h-screen flex-col text-stone-950">
@@ -279,6 +292,8 @@ export function ProjectShell({
         activeTab={activeTab}
         backHref={`/${locale}/app`}
         backLabel={isUk ? "Всі проєкти" : "All projects"}
+        menuLabel={isUk ? "Відкрити навігацію проєкту" : "Open project navigation"}
+        closeLabel={isUk ? "Закрити навігацію" : "Close navigation"}
         projectTitle={project.title}
         projectAcronym={project.acronym}
       />
@@ -307,7 +322,12 @@ export function ProjectShell({
           <nav className="flex-1 py-2">
             {groups.map((group) => (
               <div key={group.label}>
-                <p className="sidebar-section-label">{group.label}</p>
+                <p className="sidebar-section-label flex items-center justify-between gap-2">
+                  <span className="truncate">{group.label}</span>
+                  <span className="rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[9px] tracking-normal text-slate-400">
+                    {group.items.length}
+                  </span>
+                </p>
                 {group.items.map((item) => {
                   const isActive = activeTab === item.id;
                   return (
@@ -344,9 +364,9 @@ export function ProjectShell({
         </aside>
 
         {/* Main content */}
-        <main className="min-w-0">
+        <main className="flex min-w-0 flex-col">
           <PageTransition>
-            <div className="private-shell-main mx-auto w-full max-w-[1100px] space-y-4 p-4 md:p-5 lg:p-6">
+            <div className={`private-shell-main app-workspace ${workspaceClass}`}>
               {children}
             </div>
           </PageTransition>

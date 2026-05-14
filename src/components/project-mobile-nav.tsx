@@ -27,7 +27,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { ProjectTab } from "@/components/project-shell";
 
@@ -61,6 +60,8 @@ export function ProjectMobileNav({
   activeTab,
   backHref,
   backLabel,
+  menuLabel,
+  closeLabel,
   projectTitle,
   projectAcronym,
 }: {
@@ -68,15 +69,12 @@ export function ProjectMobileNav({
   activeTab: ProjectTab;
   backHref: string;
   backLabel: string;
+  menuLabel: string;
+  closeLabel: string;
   projectTitle: string;
   projectAcronym: string;
 }) {
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
-
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
 
   useEffect(() => {
     if (open) {
@@ -117,7 +115,7 @@ export function ProjectMobileNav({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          aria-label="Відкрити навігацію"
+          aria-label={menuLabel}
           className="flex shrink-0 items-center gap-1.5 rounded border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
         >
           <Menu className="h-4 w-4" />
@@ -153,7 +151,7 @@ export function ProjectMobileNav({
                 type="button"
                 onClick={() => setOpen(false)}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                aria-label="Закрити"
+                aria-label={closeLabel}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -163,6 +161,7 @@ export function ProjectMobileNav({
             <div className="border-b border-slate-100 p-2">
               <Link
                 href={backHref}
+                onClick={() => setOpen(false)}
                 className="flex items-center gap-2 rounded px-3 py-2 text-sm text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
               >
                 <LayoutDashboard className="h-4 w-4 shrink-0 text-slate-400" />
@@ -174,8 +173,11 @@ export function ProjectMobileNav({
             <nav className="shell-scrollbar flex-1 overflow-y-auto p-2 pb-6">
               {groups.map((group) => (
                 <div key={group.label}>
-                  <p className="px-3 pb-1 pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                    {group.label}
+                  <p className="flex items-center justify-between gap-2 px-3 pb-1 pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    <span className="truncate">{group.label}</span>
+                    <span className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[9px] tracking-normal text-slate-400">
+                      {group.items.length}
+                    </span>
                   </p>
                   {group.items.map((item) => {
                     const Icon = tabIcons[item.id];
@@ -184,6 +186,7 @@ export function ProjectMobileNav({
                       <Link
                         key={item.id}
                         href={item.href}
+                        onClick={() => setOpen(false)}
                         aria-current={isActive ? "page" : undefined}
                         className={`flex items-center gap-2.5 rounded px-3 py-2 text-sm transition ${
                           isActive

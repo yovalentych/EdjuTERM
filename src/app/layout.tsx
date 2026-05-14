@@ -6,8 +6,8 @@ import { isLocale } from "@/lib/i18n";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Grant Project Manager",
-  description: "Project management and open science workspace for a research grant",
+  title: "Research Navigator",
+  description: "Research management and open science workspace for natural science projects, grants, students, and PhD researchers",
 };
 
 const ibmPlexSerif = IBM_Plex_Serif({

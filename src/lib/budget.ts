@@ -1,4 +1,5 @@
 import { ObjectId } from "mongodb";
+import { storeRecordFiles } from "@/lib/file-storage";
 import { getMongoDb, hasMongoConfig } from "@/lib/mongodb";
 import {
   type BudgetLineItem,
@@ -144,6 +145,7 @@ export async function createPurchaseRequest(
     status,
     reviewNote: "",
     purchasedAt: null,
+    documents: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -260,18 +262,73 @@ export async function markRequestPurchased(
     .updateOne({ _id: new ObjectId(requestId) }, { $set: update });
 }
 
+export async function addPurchaseRequestDocuments(
+  requestId: string,
+  files: File[],
+): Promise<PurchaseRequest | null> {
+  const request = await getPurchaseRequestById(requestId);
+  if (!request) return null;
+
+  const now = new Date();
+  const documents = await storeRecordFiles(
+    `budget/${request.projectId}/${requestId}`,
+    files,
+    now,
+  );
+
+  if (documents.length === 0) {
+    return request;
+  }
+
+  if (!hasMongoConfig()) {
+    const local = localRequests.find((r) => r._id === requestId);
+    if (!local) return null;
+    local.documents = [...(local.documents ?? []), ...documents];
+    local.updatedAt = now;
+    return purchaseRequestSchema.parse(local);
+  }
+
+  if (!ObjectId.isValid(requestId)) {
+    throw new Error("INVALID_ID");
+  }
+
+  const db = await getMongoDb();
+  const nextDocuments = [...request.documents, ...documents];
+  const result = await db.collection("purchase_requests").findOneAndUpdate(
+    { _id: new ObjectId(requestId) },
+    {
+      $set: { documents: nextDocuments, updatedAt: now },
+    },
+    { returnDocument: "after" },
+  );
+
+  return result
+    ? purchaseRequestSchema.parse({ ...result, _id: result._id.toString() })
+    : null;
+}
+
 // ── Budget Summary ────────────────────────────────────────────────────────────
 
 export type BudgetSummary = {
   totalPlanned: number;
   totalCommitted: number;
   totalSpent: number;
+  totalRemaining: number;
   currency: string;
+  pendingRequests: number;
+  approvedRequests: number;
+  paidRequests: number;
+  unlinkedRequests: number;
   byCategory: {
     category: string;
+    committed: number;
     planned: number;
+    remaining: number;
     spent: number;
+    utilizationPct: number;
+    isOverBudget: boolean;
   }[];
+  overBudgetCategories: string[];
 };
 
 export async function getBudgetSummary(
@@ -292,27 +349,63 @@ export async function getBudgetSummary(
     .filter((r) => r.status === "purchased" || r.status === "delivered")
     .reduce((sum, r) => sum + (r.actualAmount ?? r.estimatedAmount), 0);
 
-  const categoryMap = new Map<string, { planned: number; spent: number }>();
+  const totalRemaining = totalPlanned - totalCommitted - totalSpent;
+  const pendingRequests = requests.filter((r) => r.status === "submitted").length;
+  const approvedRequests = requests.filter((r) => r.status === "approved").length;
+  const paidRequests = requests.filter((r) => r.status === "purchased" || r.status === "delivered").length;
+  const unlinkedRequests = requests.filter((r) => !r.linkedLineItemId).length;
+
+  const categoryMap = new Map<string, { planned: number; committed: number; spent: number }>();
 
   for (const item of lineItems) {
-    const entry = categoryMap.get(item.category) ?? { planned: 0, spent: 0 };
+    const entry = categoryMap.get(item.category) ?? { planned: 0, committed: 0, spent: 0 };
     entry.planned += item.plannedAmount;
     categoryMap.set(item.category, entry);
   }
 
   for (const req of requests) {
+    const entry = categoryMap.get(req.category) ?? { planned: 0, committed: 0, spent: 0 };
     if (req.status === "purchased" || req.status === "delivered") {
-      const entry = categoryMap.get(req.category) ?? { planned: 0, spent: 0 };
       entry.spent += req.actualAmount ?? req.estimatedAmount;
-      categoryMap.set(req.category, entry);
+    } else if (req.status === "submitted" || req.status === "approved") {
+      entry.committed += req.estimatedAmount;
     }
+    categoryMap.set(req.category, entry);
   }
 
   const byCategory = Array.from(categoryMap.entries()).map(
-    ([category, vals]) => ({ category, ...vals }),
+    ([category, vals]) => {
+      const used = vals.committed + vals.spent;
+      const remaining = vals.planned - used;
+      const utilizationPct = vals.planned > 0
+        ? Math.round((used / vals.planned) * 100)
+        : used > 0 ? 100 : 0;
+      return {
+        category,
+        ...vals,
+        remaining,
+        utilizationPct,
+        isOverBudget: vals.planned > 0 && used > vals.planned,
+      };
+    },
   );
+  const overBudgetCategories = byCategory
+    .filter((c) => c.isOverBudget)
+    .map((c) => c.category);
 
-  return { totalPlanned, totalCommitted, totalSpent, currency: "UAH", byCategory };
+  return {
+    totalPlanned,
+    totalCommitted,
+    totalSpent,
+    totalRemaining,
+    currency: "UAH",
+    pendingRequests,
+    approvedRequests,
+    paidRequests,
+    unlinkedRequests,
+    byCategory,
+    overBudgetCategories,
+  };
 }
 
 // ── Internal ──────────────────────────────────────────────────────────────────

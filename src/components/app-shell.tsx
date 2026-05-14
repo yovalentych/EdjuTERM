@@ -154,9 +154,9 @@ export async function AppShell({
         </aside>
 
         {/* Main content */}
-        <main className="min-w-0">
+        <main className="flex min-w-0 flex-col">
           <PageTransition>
-            <div className="private-shell-main mx-auto w-full max-w-[1320px] space-y-4 p-4 md:p-5 lg:p-6">
+            <div className="private-shell-main app-workspace app-workspace--standard">
               {children}
             </div>
           </PageTransition>

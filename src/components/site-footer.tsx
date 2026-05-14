@@ -34,7 +34,7 @@ export function SiteFooter({ dictionary }: { dictionary: Dictionary }) {
   const d = dictionary.footer;
 
   return (
-    <footer className="site-footer border-t border-slate-200 bg-white text-slate-600">
+    <footer className="site-footer mt-auto border-t border-slate-200 bg-white text-slate-600">
       {/* Main grid */}
       <div className="relative mx-auto max-w-6xl px-5 py-10">
         <div className="grid gap-8 lg:grid-cols-[1.1fr_1fr_1fr]">

@@ -174,7 +174,7 @@ export function buildTxt(data: ReportExportData): string {
 
   lines.push(line());
   lines.push(line("—".repeat(60)));
-  lines.push(line(`Grant Project Manager · ${fmtDate(data.generatedAt)}`));
+  lines.push(line(`Research Navigator · ${fmtDate(data.generatedAt)}`));
 
   return lines.join("");
 }

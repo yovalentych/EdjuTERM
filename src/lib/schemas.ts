@@ -4,11 +4,11 @@ export const recordKinds = [
   // Group 1: Planning & Strategy
   "research_question", "literature_review", "theoretical_framework", "hypothesis", "project_charter",
   // Group 2: Methodology & Protocols
-  "methodology", "sop", "protocol", "data_collection_protocol", "analysis_protocol", "safety_protocol", "measurement_method",
+  "methodology", "sop", "protocol", "data_collection_protocol", "analysis_protocol", "safety_protocol", "measurement_method", "spectrophotometry_method",
   // Group 3: Data & Measurements
   "dataset", "data_dictionary", "data_collection_form", "measurement_log", "calibration_record", "experiment_log",
   // Group 4: Samples & Materials
-  "sample", "reagent", "equipment", "consumable",
+  "sample", "reagent", "equipment", "consumable", "culture_medium_recipe",
   // Group 5: Team & Communication
   "task", "task_set", "meeting_minutes", "decision_log", "raci", "training_record", "supervision_log",
   // Group 6: Risk, Safety & Ethics
@@ -508,6 +508,15 @@ export const purchaseRequestInputSchema = z.object({
   linkedLineItemId: z.string().max(120).default(""),
 });
 
+export const budgetDocumentSchema = z.object({
+  name: z.string(),
+  storageUri: z.string(),
+  checksum: z.string().optional(),
+  mimeType: z.string().optional(),
+  bytes: z.number().optional(),
+  uploadedAt: z.coerce.date(),
+});
+
 export const purchaseRequestSchema = purchaseRequestInputSchema.extend({
   _id: z.string().optional(),
   requesterId: z.string(),
@@ -516,6 +525,7 @@ export const purchaseRequestSchema = purchaseRequestInputSchema.extend({
   reviewNote: z.string().max(600).default(""),
   actualAmount: z.coerce.number().min(0).optional(),
   purchasedAt: z.coerce.date().nullable().default(null),
+  documents: z.array(budgetDocumentSchema).default([]),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -717,6 +727,7 @@ export const auditActions = [
   "budget.request.approved",
   "budget.request.rejected",
   "budget.request.purchased",
+  "budget.request.documents_uploaded",
   "planning.task.created",
   "planning.task.status_changed",
   "planning.milestone.created",

@@ -16,7 +16,7 @@ import { addBudgetLineItem } from "@/app/actions";
 import { DataTable, DataTableBody, DataTableHead, EmptyState } from "@/components/ui";
 import type { Dictionary } from "@/lib/i18n";
 import { budgetCategories, currencyOptions } from "@/lib/schemas";
-import type { BudgetLineItem, BudgetCategory, BudgetPeriod } from "@/lib/schemas";
+import type { BudgetLineItem, BudgetCategory, BudgetPeriod, PurchaseRequest } from "@/lib/schemas";
 
 // ── category config ───────────────────────────────────────────────────────────
 
@@ -39,16 +39,16 @@ const categoryColor: Record<
   { header: string; dot: string; icon: string; text: string }
 > = {
   personnel:     { header: "bg-blue-50 border-blue-200",       dot: "bg-blue-500",    icon: "text-blue-600",    text: "text-blue-800" },
-  equipment:     { header: "bg-blue-50 border-blue-200",       dot: "bg-blue-500",    icon: "text-blue-600",    text: "text-blue-800" },
-  reagents:      { header: "bg-purple-50 border-purple-200",   dot: "bg-purple-500",  icon: "text-purple-600",  text: "text-purple-800" },
+  equipment:     { header: "bg-slate-50 border-slate-200",     dot: "bg-slate-500",   icon: "text-slate-600",   text: "text-slate-800" },
+  reagents:      { header: "bg-teal-50 border-teal-200",       dot: "bg-teal-500",    icon: "text-teal-600",    text: "text-teal-800" },
   consumables:   { header: "bg-amber-50 border-amber-200",     dot: "bg-amber-500",   icon: "text-amber-600",   text: "text-amber-800" },
   travel:        { header: "bg-cyan-50 border-cyan-200",       dot: "bg-cyan-500",    icon: "text-cyan-600",    text: "text-cyan-800" },
-  services:      { header: "bg-orange-50 border-orange-200",   dot: "bg-orange-500",  icon: "text-orange-600",  text: "text-orange-800" },
+  services:      { header: "bg-emerald-50 border-emerald-200", dot: "bg-emerald-500", icon: "text-emerald-600", text: "text-emerald-800" },
   subcontracting:{ header: "bg-indigo-50 border-indigo-200",   dot: "bg-indigo-500",  icon: "text-indigo-600",  text: "text-indigo-800" },
   overhead:      { header: "bg-slate-50 border-slate-200",     dot: "bg-slate-400",   icon: "text-slate-600",   text: "text-slate-700" },
-  software:      { header: "bg-violet-50 border-violet-200",   dot: "bg-violet-500",  icon: "text-violet-600",  text: "text-violet-800" },
+  software:      { header: "bg-blue-50 border-blue-200",       dot: "bg-blue-500",    icon: "text-blue-600",    text: "text-blue-800" },
   publications:  { header: "bg-teal-50 border-teal-200",       dot: "bg-teal-500",    icon: "text-teal-600",    text: "text-teal-800" },
-  other:         { header: "bg-stone-50 border-stone-200",     dot: "bg-stone-400",   icon: "text-stone-500",   text: "text-stone-700" },
+  other:         { header: "bg-slate-50 border-slate-200",     dot: "bg-slate-400",   icon: "text-slate-500",   text: "text-slate-700" },
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -66,6 +66,7 @@ function fmt(amount: number, currency = "UAH") {
 export function BudgetItemRegistry({
   lineItems,
   periods,
+  requests,
   dictionary,
   locale,
   projectId,
@@ -73,6 +74,7 @@ export function BudgetItemRegistry({
 }: {
   lineItems: BudgetLineItem[];
   periods: BudgetPeriod[];
+  requests: PurchaseRequest[];
   dictionary: Dictionary;
   locale: string;
   projectId: string;
@@ -82,12 +84,40 @@ export function BudgetItemRegistry({
   const grandTotal = lineItems.reduce((s, i) => s + i.plannedAmount, 0);
   const currency = lineItems[0]?.currency ?? "UAH";
   const periodsById = new Map(periods.map((p) => [p._id ?? "", p]));
+  const requestsByLineItem = new Map<string, PurchaseRequest[]>();
+  for (const request of requests) {
+    if (!request.linkedLineItemId) continue;
+    requestsByLineItem.set(request.linkedLineItemId, [
+      ...(requestsByLineItem.get(request.linkedLineItemId) ?? []),
+      request,
+    ]);
+  }
+  const getUsage = (item: BudgetLineItem) => {
+    const linked = item._id ? requestsByLineItem.get(item._id) ?? [] : [];
+    const committed = linked
+      .filter((request) => request.status === "submitted" || request.status === "approved")
+      .reduce((sum, request) => sum + request.estimatedAmount, 0);
+    const spent = linked
+      .filter((request) => request.status === "purchased" || request.status === "delivered")
+      .reduce((sum, request) => sum + (request.actualAmount ?? request.estimatedAmount), 0);
+    const remaining = item.plannedAmount - committed - spent;
+    const utilizationPct = item.plannedAmount > 0
+      ? Math.round(((committed + spent) / item.plannedAmount) * 100)
+      : committed + spent > 0 ? 100 : 0;
+    return {
+      committed,
+      linkedCount: linked.length,
+      remaining,
+      spent,
+      utilizationPct,
+    };
+  };
 
   return (
     <div className="space-y-4">
       {/* Grand total bar */}
       {lineItems.length > 0 && (
-        <div className="surface flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+        <div className="finance-soft-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
           <div className="flex flex-wrap gap-4">
             {budgetCategories.map((cat) => {
               const catItems = lineItems.filter((i) => i.category === cat);
@@ -96,7 +126,7 @@ export function BudgetItemRegistry({
               const pct = grandTotal > 0 ? Math.round((catTotal / grandTotal) * 100) : 0;
               const colors = categoryColor[cat];
               return (
-                <div key={cat} className="flex items-center gap-1.5 rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600">
+                <div key={cat} className="finance-chip border-slate-200 bg-white text-slate-600">
                   <span className={`h-2 w-2 rounded-full ${colors.dot}`} />
                   {d.categories[cat]}
                   <span className="font-mono font-semibold text-stone-800">{pct}%</span>
@@ -113,10 +143,10 @@ export function BudgetItemRegistry({
 
       {/* Add item form */}
       {canManage && (
-        <div className="surface overflow-hidden">
+        <div className="finance-soft-panel overflow-hidden">
           <details>
-            <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-4 text-sm font-semibold text-slate-800 transition select-none hover:bg-blue-50 hover:text-blue-800">
-              <span className="flex h-6 w-6 items-center justify-center rounded bg-blue-100 text-base font-bold text-blue-700">+</span>
+            <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-4 text-sm font-semibold text-slate-800 transition select-none hover:bg-slate-50 hover:text-slate-950">
+              <span className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-base font-bold text-slate-700">+</span>
               {d.addItem}
             </summary>
             <div className="border-t border-slate-200 bg-slate-50/50 px-5 pb-6 pt-5">
@@ -285,14 +315,27 @@ export function BudgetItemRegistry({
       {budgetCategories.map((category) => {
         const items = lineItems.filter((i) => i.category === category);
         const categoryTotal = items.reduce((s, i) => s + i.plannedAmount, 0);
+        const categoryUsage = items.reduce(
+          (acc, item) => {
+            const usage = getUsage(item);
+            acc.committed += usage.committed;
+            acc.spent += usage.spent;
+            acc.remaining += usage.remaining;
+            return acc;
+          },
+          { committed: 0, remaining: 0, spent: 0 },
+        );
         const Icon = categoryIcon[category];
         const colors = categoryColor[category];
         const catCurrency = items[0]?.currency ?? currency;
+        const categoryUtilizationPct = categoryTotal > 0
+          ? Math.round(((categoryUsage.committed + categoryUsage.spent) / categoryTotal) * 100)
+          : 0;
 
         return (
-          <div key={category} className="surface overflow-hidden">
+          <div key={category} className="finance-soft-panel overflow-hidden">
             {/* Category header */}
-            <div className={`flex items-center justify-between border-b px-5 py-3.5 ${colors.header}`}>
+            <div className={`flex flex-col gap-3 border-b px-5 py-3.5 md:flex-row md:items-center md:justify-between ${colors.header}`}>
               <div className="flex items-center gap-3">
                 <Icon className={`h-4 w-4 ${colors.icon}`} />
                 <div>
@@ -306,28 +349,66 @@ export function BudgetItemRegistry({
                   </p>
                 </div>
               </div>
-              <p className={`font-mono text-base font-bold ${items.length > 0 ? "text-stone-950" : "text-stone-300"}`}>
-                {items.length > 0 ? fmt(categoryTotal, catCurrency) : "—"}
-              </p>
+              <div className="min-w-0 md:min-w-72">
+                <div className="flex items-center justify-between gap-3">
+                  <p className={`font-mono text-base font-bold ${items.length > 0 ? "text-stone-950" : "text-stone-300"}`}>
+                    {items.length > 0 ? fmt(categoryTotal, catCurrency) : "—"}
+                  </p>
+                  {items.length > 0 && (
+                    <span className={`font-mono text-xs font-bold ${
+                      categoryUsage.remaining < 0
+                        ? "text-rose-700"
+                        : categoryUtilizationPct > 80
+                          ? "text-amber-700"
+                          : "text-emerald-700"
+                    }`}>
+                      {categoryUtilizationPct}%
+                    </span>
+                  )}
+                </div>
+                {items.length > 0 && (
+                  <>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/70">
+                      <div
+                        className={`h-2 rounded-full ${
+                          categoryUsage.remaining < 0
+                            ? "bg-rose-500"
+                            : categoryUtilizationPct > 80
+                              ? "bg-amber-500"
+                              : "bg-emerald-500"
+                        }`}
+                        style={{ width: `${Math.min(100, categoryUtilizationPct)}%` }}
+                      />
+                    </div>
+                  <p className="mt-1 text-right text-[11px] text-stone-500">
+                    {fmt(categoryUsage.committed, catCurrency)} reserved · {fmt(categoryUsage.spent, catCurrency)} actual · {fmt(categoryUsage.remaining, catCurrency)} left
+                  </p>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Items table */}
             {items.length > 0 && (
-              <div>
+              <div className="finance-table-shell rounded-none border-0">
                 <DataTable>
                   <DataTableHead>
                     <tr>
                       <th className="px-4 py-2.5 text-left font-medium">{d.itemName}</th>
                       <th className="hidden px-3 py-2.5 text-right font-medium md:table-cell">{d.quantity}</th>
                       <th className="hidden px-3 py-2.5 text-left font-medium md:table-cell">{d.unit}</th>
-                      <th className="hidden px-3 py-2.5 text-right font-medium lg:table-cell">{d.unitPrice}</th>
                       <th className="px-3 py-2.5 text-right font-medium">{d.plannedAmount}</th>
+                      <th className="hidden px-3 py-2.5 text-right font-medium lg:table-cell">{d.totalCommitted}</th>
+                      <th className="hidden px-3 py-2.5 text-right font-medium lg:table-cell">{d.totalSpent}</th>
+                      <th className="px-3 py-2.5 text-right font-medium">{d.totalAvailable}</th>
                       <th className="hidden px-3 py-2.5 text-left font-medium xl:table-cell">{d.vendor}</th>
                     </tr>
                   </DataTableHead>
                   <DataTableBody>
                     {items.map((item) => {
                       const period = item.periodId ? periodsById.get(item.periodId) : undefined;
+                      const usage = getUsage(item);
+                      const isOver = usage.remaining < 0;
                       return (
                         <tr key={item._id} className="transition hover:bg-blue-50/50">
                           <td className="px-4 py-3">
@@ -364,9 +445,6 @@ export function BudgetItemRegistry({
                           <td className="hidden px-3 py-3 text-stone-500 md:table-cell">
                             {item.unit || "—"}
                           </td>
-                          <td className="hidden px-3 py-3 text-right font-mono text-stone-600 lg:table-cell">
-                            {item.unitPrice > 0 ? fmt(item.unitPrice, item.currency) : "—"}
-                          </td>
                           <td className="px-3 py-3 text-right">
                             <p className="font-mono font-semibold text-stone-950">
                               {fmt(item.plannedAmount, item.currency)}
@@ -377,6 +455,26 @@ export function BudgetItemRegistry({
                               </p>
                             )}
                           </td>
+                          <td className="hidden px-3 py-3 text-right lg:table-cell">
+                            <p className="font-mono font-semibold text-amber-700">{fmt(usage.committed, item.currency)}</p>
+                            {usage.linkedCount > 0 && (
+                              <p className="text-xs text-stone-400">{usage.linkedCount} req.</p>
+                            )}
+                          </td>
+                          <td className="hidden px-3 py-3 text-right font-mono font-semibold text-emerald-700 lg:table-cell">
+                            {fmt(usage.spent, item.currency)}
+                          </td>
+                          <td className="px-3 py-3 text-right">
+                            <p className={`font-mono font-semibold ${isOver ? "text-rose-700" : "text-stone-950"}`}>
+                              {fmt(usage.remaining, item.currency)}
+                            </p>
+                            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                              <div
+                                className={`h-1.5 rounded-full ${isOver ? "bg-rose-500" : usage.utilizationPct > 80 ? "bg-amber-500" : "bg-emerald-500"}`}
+                                style={{ width: `${Math.min(100, usage.utilizationPct)}%` }}
+                              />
+                            </div>
+                          </td>
                           <td className="hidden px-3 py-3 text-xs text-stone-500 xl:table-cell">
                             {item.vendor || "—"}
                           </td>
@@ -386,11 +484,20 @@ export function BudgetItemRegistry({
                   </DataTableBody>
                   <tfoot className="border-t-2 border-stone-200">
                     <tr>
-                      <td colSpan={4} className="px-4 py-2.5 text-xs text-stone-500">
+                      <td colSpan={3} className="px-4 py-2.5 text-xs text-stone-500">
                         {items.length} {d.itemsCount}
                       </td>
                       <td className="px-3 py-2.5 text-right font-mono text-sm font-bold text-stone-950">
                         {fmt(categoryTotal, catCurrency)}
+                      </td>
+                      <td className="hidden px-3 py-2.5 text-right font-mono text-sm font-bold text-amber-700 lg:table-cell">
+                        {fmt(categoryUsage.committed, catCurrency)}
+                      </td>
+                      <td className="hidden px-3 py-2.5 text-right font-mono text-sm font-bold text-emerald-700 lg:table-cell">
+                        {fmt(categoryUsage.spent, catCurrency)}
+                      </td>
+                      <td className={`px-3 py-2.5 text-right font-mono text-sm font-bold ${categoryUsage.remaining < 0 ? "text-rose-700" : "text-stone-950"}`}>
+                        {fmt(categoryUsage.remaining, catCurrency)}
                       </td>
                       <td className="hidden xl:table-cell" />
                     </tr>

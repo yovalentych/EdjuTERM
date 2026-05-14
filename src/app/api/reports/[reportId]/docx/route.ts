@@ -274,7 +274,7 @@ export async function GET(
 
   // Footer paragraph
   children.push(new Paragraph({
-    children: [new TextRun({ text: `Grant Project Manager · ${fmtDate(data.generatedAt)}`, size: 16, color: "9CA3AF" })],
+    children: [new TextRun({ text: `Research Navigator · ${fmtDate(data.generatedAt)}`, size: 16, color: "9CA3AF" })],
     alignment: AlignmentType.RIGHT,
     spacing: { before: 600 },
   }));

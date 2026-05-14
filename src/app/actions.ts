@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAuditEvent } from "@/lib/audit";
 import {
+  addPurchaseRequestDocuments,
   createBudgetLineItem,
   createBudgetPeriod,
   createPurchaseRequest,
@@ -1982,6 +1983,58 @@ export async function markPurchaseRequestPurchased(formData: FormData) {
   );
 }
 
+export async function uploadPurchaseRequestDocuments(formData: FormData) {
+  const locale = formLocale(formData);
+  const user = await getCurrentUser();
+  const projectId = formData.get("projectId");
+  const requestId = formData.get("requestId");
+
+  if (!user) redirect(`/${locale}/login`);
+  if (typeof projectId !== "string" || typeof requestId !== "string") {
+    redirect(`/${locale}/app`);
+  }
+
+  const projects = await listProjectsForUser(user);
+  const hasAccess = projects.some((p) => p._id === projectId);
+  if (!hasAccess) {
+    redirect(`/${locale}/app`);
+  }
+
+  const request = await getPurchaseRequestById(requestId);
+  if (!request || request.projectId !== projectId) {
+    redirect(`/${locale}/app/budget?projectId=${projectId}&tab=expenses&error=invalid`);
+  }
+
+  const files = formData
+    .getAll("files")
+    .filter((value): value is File => value instanceof File && value.size > 0);
+
+  if (files.length === 0) {
+    redirect(`/${locale}/app/budget?projectId=${projectId}&tab=expenses&error=invalid`);
+  }
+
+  try {
+    const updated = await addPurchaseRequestDocuments(requestId, files);
+    await createAuditEvent({
+      action: "budget.request.documents_uploaded",
+      actor: user,
+      projectId,
+      metadata: {
+        requestId,
+        fileCount: String(updated?.documents.length ?? request.documents.length),
+      },
+    });
+  } catch (error) {
+    if (error instanceof UploadPolicyError) {
+      redirect(`/${locale}/app/budget?projectId=${projectId}&tab=expenses&error=${error.code.toLowerCase()}`);
+    }
+    throw error;
+  }
+
+  revalidatePath(`/${locale}/app/budget`);
+  redirect(`/${locale}/app/budget?projectId=${projectId}&tab=expenses&saved=documents`);
+}
+
 export async function addTask(formData: FormData) {
   const locale = formLocale(formData);
   const user = await getCurrentUser();
@@ -2641,6 +2694,9 @@ export async function addExperimentJournalEntry(formData: FormData) {
   const projectId = formData.get("projectId") as string;
   const experimentId = formData.get("experimentId") as string;
   const text = ((formData.get("text") as string) ?? "").trim();
+  const entryTypeRaw = ((formData.get("entryType") as string) ?? "note").trim();
+  const allowedEntryTypes = ["note", "observation", "result", "deviation", "qc", "decision", "tool"];
+  const entryType = allowedEntryTypes.includes(entryTypeRaw) ? entryTypeRaw : "note";
   if (!projectId || !experimentId || !text) return;
 
   const project = await getProjectForUser(projectId, user);
@@ -2652,7 +2708,7 @@ export async function addExperimentJournalEntry(formData: FormData) {
   const now = new Date();
   const dateStr = now.toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit", year: "numeric" })
     + ", " + now.toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" });
-  const entry = `${dateStr}\n${text}`;
+  const entry = `${dateStr} · [${entryType}]\n${text}`;
   const newNotes = exp.notes ? `${entry}\n\n---\n\n${exp.notes}` : entry;
 
   await updateExperimentLib(experimentId, { notes: newNotes });

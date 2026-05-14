@@ -286,6 +286,30 @@ export const KIND_CONFIGS: Record<string, KindConfig> = {
     ],
   },
 
+  spectrophotometry_method: {
+    group: 2, groupEn: "Methodology & Protocols", groupUk: "Методологія та протоколи",
+    icon: "🌈", color: "purple", prefix: "SPM",
+    labelEn: "Spectrophotometry Method", labelUk: "Метод спектрофотометрії",
+    supportsFiles: true, supportsZenodo: true,
+    fields: [
+      { key: "spectroscopy_type", en: "Spectroscopy type", uk: "Тип спектроскопії", type: "select", required: true, options: ["uv_absorbance", "visible_absorbance", "fluorescence", "circular_dichroism", "turbidity_od", "luminescence", "other"] },
+      { key: "wavelength_nm", en: "Primary wavelength (nm)", uk: "Основна довжина хвилі (нм)", type: "number", required: true },
+      { key: "secondary_wavelength_nm", en: "Secondary / reference wavelength (nm)", uk: "Додаткова / референсна довжина хвилі (нм)", type: "number" },
+      { key: "emission_wavelength_nm", en: "Emission wavelength (nm)", uk: "Довжина хвилі емісії (нм)", type: "number" },
+      { key: "path_length_cm", en: "Path length (cm)", uk: "Довжина оптичного шляху (см)", type: "number", placeholder: "1" },
+      { key: "cuvette_or_plate", en: "Cuvette / plate format", uk: "Кювета / формат планшета", type: "select", options: ["quartz_cuvette", "plastic_cuvette", "glass_cuvette", "96_well_plate", "384_well_plate", "nanodrop", "capillary", "other"] },
+      { key: "sample_matrix", en: "Sample matrix", uk: "Матриця зразка", type: "text", placeholder: "DNA eluate, protein lysate, bacterial culture, CD buffer…" },
+      { key: "blank_reference", en: "Blank / reference", uk: "Бланк / референс", type: "text", placeholder: "Buffer, medium, solvent…" },
+      { key: "calibration_model", en: "Calibration model", uk: "Модель калібрування", type: "select", options: ["none", "beer_lambert", "linear_standard_curve", "ratio_metric", "baseline_corrected", "instrument_software"] },
+      { key: "extinction_coefficient", en: "Extinction coefficient", uk: "Коефіцієнт екстинкції", type: "number" },
+      { key: "extinction_units", en: "Extinction coefficient units", uk: "Одиниці коефіцієнта", type: "text", placeholder: "M^-1 cm^-1, mL mg^-1 cm^-1…" },
+      { key: "standard_curve", en: "Standard curve points (concentration | signal)", uk: "Точки стандартної кривої (концентрація | сигнал)", type: "textarea", rows: 4, placeholder: "0 | 0.000\n1 | 0.124\n2 | 0.251" },
+      { key: "instrument_settings", en: "Instrument settings", uk: "Налаштування приладу", type: "textarea", rows: 3, placeholder: "Bandwidth, gain, scan speed, integration time…" },
+      { key: "qc_acceptance", en: "QC / acceptance criteria", uk: "QC / критерії прийнятності", type: "repeatable" },
+      { key: "output_units", en: "Output units", uk: "Одиниці результату", type: "text", placeholder: "ng/µL, mg/mL, OD, mdeg, RFU…" },
+    ],
+  },
+
   // ── Group 3: Data & Measurements ─────────────────────────────────────────────
 
   dataset: {
@@ -484,6 +508,27 @@ export const KIND_CONFIGS: Record<string, KindConfig> = {
       { key: "minimum_stock_level", en: "Reorder threshold", uk: "Мінімальний рівень запасу", type: "number" },
       { key: "last_ordered", en: "Last ordered date", uk: "Дата останнього замовлення", type: "date" },
       { key: "location", en: "Storage location", uk: "Місце зберігання", type: "text" },
+    ],
+  },
+
+  culture_medium_recipe: {
+    group: 4, groupEn: "Samples & Materials", groupUk: "Зразки та матеріали",
+    icon: "🧫", color: "sky", prefix: "MED",
+    labelEn: "Culture Medium Recipe", labelUk: "Рецепт поживного середовища",
+    supportsFiles: true, supportsZenodo: false,
+    fields: [
+      { key: "medium_family", en: "Medium family", uk: "Родина середовища", type: "select", required: true, options: ["bacterial", "fungal", "yeast", "mammalian_cell", "plant_cell", "selective", "differential", "buffered", "custom"] },
+      { key: "organism_or_cell_type", en: "Organism / cell type", uk: "Організм / тип клітин", type: "text", placeholder: "E. coli, Saccharomyces, Aspergillus, H9c2…" },
+      { key: "base_volume_ml", en: "Recipe base volume (mL)", uk: "Базовий об'єм рецепта (мл)", type: "number", required: true, placeholder: "1000" },
+      { key: "format", en: "Format", uk: "Формат", type: "select", options: ["liquid", "solid_agar", "semi_solid", "powder_mix", "supplement_stock"] },
+      { key: "components", en: "Components (name | amount | unit | notes — one per line)", uk: "Компоненти (назва | кількість | одиниця | нотатки — по одному рядку)", type: "textarea", required: true, rows: 8, placeholder: "Tryptone | 10 | g | per 1 L\nYeast extract | 5 | g |\nNaCl | 10 | g |\nAgar | 15 | g | solid only" },
+      { key: "supplements", en: "Supplements added after sterilization", uk: "Добавки після стерилізації", type: "textarea", rows: 3, placeholder: "Ampicillin | 100 | µg/mL | add after cooling to 50 °C" },
+      { key: "target_ph", en: "Target pH", uk: "Цільовий pH", type: "number" },
+      { key: "sterilization", en: "Sterilization", uk: "Стерилізація", type: "select", options: ["autoclave", "filter_0_22_um", "filter_0_45_um", "prepare_aseptically", "not_sterile", "other"] },
+      { key: "preparation_steps", en: "Preparation steps", uk: "Кроки приготування", type: "steps" },
+      { key: "storage_conditions", en: "Storage conditions", uk: "Умови зберігання", type: "text", placeholder: "4 °C, dark, up to 1 month…" },
+      { key: "qc_checks", en: "QC checks", uk: "Контроль якості", type: "repeatable" },
+      { key: "safety_notes", en: "Safety / biosafety notes", uk: "Нотатки безпеки / біобезпеки", type: "textarea", rows: 2 },
     ],
   },
 

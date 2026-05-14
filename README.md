@@ -1,6 +1,6 @@
-# Grant Project Manager
+# Research Navigator
 
-Next.js web application for managing a research grant project and its open science evidence: stages, datasets, raw data metadata, protocols, samples, team work, risks, outputs, repositories, and DOI-ready release packages.
+Next.js web application for managing natural science research projects, grants, dissertation work, student research, and open science evidence: stages, datasets, raw data metadata, protocols, samples, team work, risks, outputs, repositories, and DOI-ready release packages.
 
 ## Stack
 

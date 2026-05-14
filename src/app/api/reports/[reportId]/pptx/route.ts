@@ -153,7 +153,7 @@ export async function GET(
   const pptx = new pptxgen();
   pptx.layout = "LAYOUT_WIDE";
   pptx.title = project.title;
-  pptx.author = "Grant Project Manager";
+  pptx.author = "Research Navigator";
 
   addTitleSlide(pptx, project);
 
@@ -298,7 +298,7 @@ export async function GET(
       x: 0.8, y: 4.0, w: 8.4, h: 0.6,
       fontSize: 20, color: COLOR_EMERALD, align: "center",
     });
-    slide.addText(`Grant Project Manager · ${fmtDate(data.generatedAt)}`, {
+    slide.addText(`Research Navigator · ${fmtDate(data.generatedAt)}`, {
       x: 0.8, y: 6.8, w: 8.4, h: 0.4,
       fontSize: 11, color: COLOR_GRAY, align: "center",
     });

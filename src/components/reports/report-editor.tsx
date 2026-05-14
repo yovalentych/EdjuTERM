@@ -11,6 +11,7 @@ import {
 import { ReportDeleteForm } from "@/components/reports/report-delete-form";
 import { ExportPanel } from "@/components/reports/export-panel";
 import { StructuredReportEditor } from "@/components/reports/structured-report-editor";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
 const typeColors: Record<Report["type"], string> = {
   intermediate: "#4f46e5",
@@ -292,12 +293,12 @@ export function ReportEditor({
                 </summary>
                 <div className="border-t border-stone-100 px-5 pb-4 pt-3">
                   <p className="mb-2 text-xs text-stone-400">{section.hint}</p>
-                  <textarea
+                  <RichTextEditor
                     name={section.key}
-                    rows={6}
                     placeholder={section.hint}
                     defaultValue={report[section.key]}
-                    className="input-control w-full"
+                    minHeight={260}
+                    ariaLabel={section.label}
                   />
                 </div>
               </details>
@@ -310,11 +311,11 @@ export function ReportEditor({
           <label className="mb-1 block text-xs font-semibold text-stone-600">
             {d.reportNote}
           </label>
-          <textarea
+          <RichTextEditor
             name="note"
-            rows={3}
             defaultValue={report.note}
-            className="input-control w-full"
+            minHeight={150}
+            ariaLabel={d.reportNote}
           />
         </div>
 

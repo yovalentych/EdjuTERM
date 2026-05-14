@@ -3,7 +3,6 @@
 import {
   AlertCircle,
   ArrowLeft,
-  BookOpen,
   CheckCircle2,
   ChevronDown,
   ClipboardList,
@@ -39,11 +38,13 @@ import type {
   ManuscriptBlock,
   ManuscriptBlockType,
   ManuscriptStatus,
+  ProjectRecord,
   SafeUser,
 } from "@/lib/schemas";
 import type { Dictionary } from "@/lib/i18n";
 import { exportManuscriptToDocx } from "@/lib/exporters/manuscript-docx-exporter";
 import { exportManuscriptToMd } from "@/lib/exporters/manuscript-md-exporter";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { updateManuscriptAction } from "@/app/actions";
 
 // ── Status config ─────────────────────────────────────────────────────────────
@@ -315,11 +316,6 @@ function AuthorsEditor({
     onChange(authors.map((a, i) => (i === idx ? { ...a, role } : a)));
   };
 
-  const roleLabel = (role: ManuscriptAuthor["role"]) =>
-    isUk
-      ? role === "first" ? "перший" : role === "corresponding" ? "відп." : "спів."
-      : role === "first" ? "first" : role === "corresponding" ? "corr." : "co";
-
   return (
     <div className="space-y-2">
       {/* Added authors */}
@@ -401,9 +397,7 @@ export function ManuscriptEditor({
   manuscript,
   onBack,
   onUpdate,
-  dictionary,
   locale,
-  user,
   projectId,
   records = [],
   members = [],
@@ -415,7 +409,7 @@ export function ManuscriptEditor({
   locale: string;
   user: SafeUser;
   projectId: string;
-  records?: any[];
+  records?: ProjectRecord[];
   members?: SafeUser[];
 }) {
   const isUk = locale === "uk";
@@ -543,9 +537,9 @@ export function ManuscriptEditor({
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-4 lg:flex-row-reverse lg:items-start lg:gap-5">
+    <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_280px]">
       {/* ── Sidebar ────────────────────────────────────────────────────────── */}
-      <aside className="print:hidden sticky top-[88px] hidden w-56 shrink-0 lg:block">
+      <aside className="print:hidden sticky top-[88px] hidden 2xl:order-2 2xl:block">
         {/* Tab switcher */}
         <div className="mb-3 flex rounded-lg bg-slate-100 p-1">
           <button
@@ -587,7 +581,7 @@ export function ManuscriptEditor({
         {/* TOC */}
         {sidebarTab === "toc" && (
           <div className="space-y-3">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-[8px] border border-slate-200 bg-white p-4 shadow-sm">
               <nav className="shell-scrollbar max-h-[45vh] overflow-y-auto">
                 {toc.length === 0 ? (
                   <p className="text-xs italic text-slate-400">
@@ -611,7 +605,7 @@ export function ManuscriptEditor({
             </div>
 
             {/* Stats */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-[8px] border border-slate-200 bg-white p-4 shadow-sm">
               <div className="mb-3 flex items-center gap-2 text-xs font-bold text-slate-700">
                 <Hash className="h-3.5 w-3.5" />
                 {isUk ? "Статистика" : "Stats"}
@@ -645,7 +639,7 @@ export function ManuscriptEditor({
         {/* Dissertation compliance checklist */}
         {sidebarTab === "check" && manuscript.type === "dissertation" && (
           <div className="space-y-3">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-[8px] border border-slate-200 bg-white p-4 shadow-sm">
               {/* Progress */}
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -682,7 +676,7 @@ export function ManuscriptEditor({
             </div>
 
             {compliancePassed === complianceChecks.length && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
+              <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-center">
                 <CheckCircle2 className="mx-auto h-6 w-6 text-emerald-500" />
                 <p className="mt-1.5 text-xs font-semibold text-emerald-700">
                   {isUk ? "Всі вимоги виконано!" : "All requirements met!"}
@@ -696,7 +690,7 @@ export function ManuscriptEditor({
         {sidebarTab === "info" && (
           <div className="space-y-3">
             {/* Status */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-[8px] border border-slate-200 bg-white p-4 shadow-sm">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 {isUk ? "Статус" : "Status"}
               </p>
@@ -716,7 +710,7 @@ export function ManuscriptEditor({
             </div>
 
             {/* Abstract */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-[8px] border border-slate-200 bg-white p-4 shadow-sm">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 {isUk ? "Анотація" : "Abstract"}
               </p>
@@ -730,7 +724,7 @@ export function ManuscriptEditor({
             </div>
 
             {/* Keywords */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-[8px] border border-slate-200 bg-white p-4 shadow-sm">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 {isUk ? "Ключові слова" : "Keywords"}
               </p>
@@ -738,7 +732,7 @@ export function ManuscriptEditor({
             </div>
 
             {/* Authors */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-[8px] border border-slate-200 bg-white p-4 shadow-sm">
               <div className="mb-2 flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5 text-slate-400" />
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -754,7 +748,7 @@ export function ManuscriptEditor({
             </div>
 
             {/* Journal */}
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="rounded-[8px] border border-slate-200 bg-white p-4 shadow-sm">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 {isUk ? "Журнал / Конференція" : "Journal / Conference"}
               </p>
@@ -781,23 +775,56 @@ export function ManuscriptEditor({
       </aside>
 
       {/* ── Main content ────────────────────────────────────────────────────── */}
-      <div className="min-w-0 flex-1 space-y-4">
+      <div className="min-w-0 space-y-4 2xl:order-1">
+        <section className="overflow-hidden rounded-[8px] border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 bg-slate-50 px-5 py-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${STATUS_COLOR[status]}`}>
+                    {isUk ? STATUS_LABEL_UK[status] : STATUS_LABEL_EN[status]}
+                  </span>
+                  <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold uppercase text-slate-500">
+                    {manuscript.type}
+                  </span>
+                  {savedAt && (
+                    <span className="text-[11px] font-medium text-slate-400">
+                      {isUk ? "Збережено" : "Saved"} {savedAt.toLocaleTimeString(isUk ? "uk-UA" : "en-US", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  )}
+                </div>
+                <h2 className="line-clamp-2 text-2xl font-bold leading-tight text-slate-950">
+                  {title || (isUk ? "Без назви" : "Untitled manuscript")}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  {isUk ? "Редактор наукового тексту, структури, авторів і джерел" : "Editor for scientific text, structure, authors, and sources"}
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-2 lg:min-w-72">
+                <DocumentMetric label={isUk ? "Слів" : "Words"} value={stats.words.toLocaleString()} />
+                <DocumentMetric label={isUk ? "Блоків" : "Blocks"} value={blocks.length} />
+                <DocumentMetric label={isUk ? "Чит." : "Read"} value={`~${stats.readTime}`} />
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Toolbar */}
-        <div className="print:hidden sticky top-0 z-10 flex items-center gap-2 rounded-xl border border-slate-200 bg-white/90 px-3 py-2 shadow-sm backdrop-blur-md">
+        <div className="print:hidden sticky top-0 z-10 flex items-center gap-2 rounded-[8px] border border-slate-200 bg-white/92 px-3 py-2 shadow-sm backdrop-blur-md">
           <button
             onClick={onBack}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-50"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
 
           <div className="h-5 w-px shrink-0 bg-slate-200" />
 
-          <div className="flex rounded-lg bg-slate-100 p-0.5">
+          <div className="flex rounded-full bg-slate-100 p-0.5">
             <button
               onClick={() => setViewMode("edit")}
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition ${
-                viewMode === "edit" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                viewMode === "edit" ? "bg-[#0A2640] text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
               <Layout className="h-3.5 w-3.5" />
@@ -806,7 +833,7 @@ export function ManuscriptEditor({
             <button
               onClick={() => setViewMode("preview")}
               className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition ${
-                viewMode === "preview" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                viewMode === "preview" ? "bg-[#0A2640] text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
               }`}
             >
               <Eye className="h-3.5 w-3.5" />
@@ -816,16 +843,10 @@ export function ManuscriptEditor({
 
           <div className="flex-1" />
 
-          {savedAt && (
-            <span className="hidden text-[10px] text-slate-400 sm:block">
-              {isUk ? "Збережено" : "Saved"} {savedAt.toLocaleTimeString(isUk ? "uk-UA" : "en-US", { hour: "2-digit", minute: "2-digit" })}
-            </span>
-          )}
-
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-full bg-[#0A2640] px-4 py-1.5 text-xs font-bold text-white transition hover:bg-[#12385c] disabled:opacity-50"
           >
             <Save className={`h-3.5 w-3.5 ${isSaving ? "animate-spin" : ""}`} />
             {isSaving ? (isUk ? "Збережен..." : "Saving...") : (isUk ? "Зберегти" : "Save")}
@@ -834,7 +855,7 @@ export function ManuscriptEditor({
           <div className="relative">
             <button
               onClick={() => setShowExportMenu(!showExportMenu)}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+              className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
             >
               <Download className="h-3.5 w-3.5" />
               {isUk ? "Експорт" : "Export"}
@@ -869,7 +890,7 @@ export function ManuscriptEditor({
         </div>
 
         {/* Editor canvas */}
-        <div className="mx-auto w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm md:p-12">
+        <div className="mx-auto w-full rounded-[8px] border border-slate-200 bg-white p-6 shadow-sm md:p-10 xl:p-12">
           {viewMode === "edit" ? (
             <div className="space-y-1">
               {/* Title */}
@@ -949,13 +970,13 @@ export function ManuscriptEditor({
             </div>
           ) : (
             /* Preview */
-            <PreviewMode manuscript={currentManuscript} locale={locale} records={records.filter((r) => attachedRecordIds.includes(r._id))} />
+            <PreviewMode manuscript={currentManuscript} locale={locale} records={records.filter((r) => attachedRecordIds.includes(r._id ?? ""))} />
           )}
         </div>
 
         {/* Attachments manager (edit mode) */}
         {viewMode === "edit" && records.length > 0 && (
-          <div className="mx-auto w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mx-auto w-full rounded-[8px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <FileSignature className="h-4 w-4 text-blue-600" />
               <h3 className="text-sm font-bold text-slate-900">
@@ -964,15 +985,17 @@ export function ManuscriptEditor({
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
               {records.map((record) => {
-                const isAttached = attachedRecordIds.includes(record._id);
+                const recordId = record._id ?? "";
+                const isAttached = attachedRecordIds.includes(recordId);
                 return (
                   <button
-                    key={record._id}
+                    key={recordId || record.localId}
                     onClick={() => setAttachedRecordIds(
                       isAttached
-                        ? attachedRecordIds.filter((id) => id !== record._id)
-                        : [...attachedRecordIds, record._id],
+                        ? attachedRecordIds.filter((id) => id !== recordId)
+                        : [...attachedRecordIds, recordId],
                     )}
+                    disabled={!recordId}
                     className={`flex flex-col items-start rounded-xl border p-3 text-left transition ${
                       isAttached ? "border-blue-400 bg-blue-50" : "border-slate-200 hover:border-blue-200"
                     }`}
@@ -1013,8 +1036,6 @@ function BlockRow({
   onMove: (index: number, direction: "up" | "down") => void;
   onInsert: (type: ManuscriptBlockType, afterIndex: number) => void;
 }) {
-  const isUk = locale === "uk";
-
   return (
     <div id={`block-${block.id}`} className="group relative">
       {/* Inline controls */}
@@ -1056,6 +1077,15 @@ function BlockRow({
   );
 }
 
+function DocumentMetric({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-center">
+      <p className="font-mono text-base font-bold text-slate-950">{value}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+    </div>
+  );
+}
+
 // ── Block content renderer ────────────────────────────────────────────────────
 
 function BlockContent({
@@ -1090,12 +1120,13 @@ function BlockContent({
   if (block.type === "quote") {
     return (
       <div className="border-l-4 border-blue-200 pl-4">
-        <AutoResizeTextarea
-          value={block.content}
-          onChange={(v) => onUpdate(block.id, v)}
+        <RichTextEditor
+          key={block.id}
+          defaultValue={block.content}
+          onChange={(value) => onUpdate(block.id, value)}
           placeholder={isUk ? "Цитата..." : "Quote..."}
-          minRows={2}
-          className="w-full border-none bg-transparent italic text-slate-600 outline-none placeholder:text-slate-300"
+          minHeight={120}
+          ariaLabel={isUk ? "Блок цитати" : "Quote block"}
         />
       </div>
     );
@@ -1161,12 +1192,13 @@ function BlockContent({
 
   // Paragraph
   return (
-    <AutoResizeTextarea
-      value={block.content}
-      onChange={(v) => onUpdate(block.id, v)}
+    <RichTextEditor
+      key={block.id}
+      defaultValue={block.content}
+      onChange={(value) => onUpdate(block.id, value)}
       placeholder={isUk ? "Напишіть текст... (Markdown підтримується)" : "Start writing... (Markdown supported)"}
-      minRows={2}
-      className="w-full border-none bg-transparent leading-7 text-slate-700 outline-none placeholder:text-slate-200"
+      minHeight={150}
+      ariaLabel={isUk ? "Текстовий блок рукопису" : "Manuscript text block"}
     />
   );
 }
@@ -1180,7 +1212,7 @@ function PreviewMode({
 }: {
   manuscript: Manuscript;
   locale: string;
-  records: any[];
+  records: ProjectRecord[];
 }) {
   const isUk = locale === "uk";
   let figureCount = 0;

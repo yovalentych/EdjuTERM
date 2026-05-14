@@ -1,19 +1,23 @@
 "use client";
 
 import {
+  BarChart3,
   BookMarked,
   BookOpen,
   BookText,
   FileText,
   Layers,
+  LibraryBig,
+  PenLine,
   Plus,
   ScrollText,
   Search,
+  Sparkles,
   Trash2,
   Users,
 } from "lucide-react";
 import { useState } from "react";
-import type { Manuscript, ManuscriptStatus, ManuscriptType, SafeUser } from "@/lib/schemas";
+import type { Manuscript, ManuscriptStatus, ManuscriptType, ProjectRecord, SafeUser } from "@/lib/schemas";
 import type { Dictionary } from "@/lib/i18n";
 import { deleteManuscriptAction } from "@/app/actions";
 import { ManuscriptCreateModal } from "./manuscript-create-modal";
@@ -95,17 +99,19 @@ export function ManuscriptsExplorer({
   members: SafeUser[];
   dictionary: Dictionary;
   locale: string;
-  records: any[];
+  records: ProjectRecord[];
 }) {
   const isUk = locale === "uk";
   const [manuscripts, setManuscripts] = useState(initialManuscripts);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialManuscripts[0]?._id ?? null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState<ManuscriptStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const selected = manuscripts.find((m) => m._id === selectedId) ?? null;
+  const totalWords = manuscripts.reduce((sum, item) => sum + wordCount(item), 0);
+  const activeCount = manuscripts.filter((item) => item.status === "draft" || item.status === "revision").length;
 
   const filtered = manuscripts.filter((m) => {
     if (statusFilter !== "all" && m.status !== statusFilter) return false;
@@ -162,115 +168,101 @@ export function ManuscriptsExplorer({
         />
       )}
 
-      {/* Two-panel layout */}
-      <div className="flex items-start gap-0">
-
-        {/* ── Left panel (list) ────────────────────────────────────────────── */}
-        <aside
-          className={`
-            sticky top-[80px] shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm
-            max-h-[calc(100vh-100px)] w-full lg:w-64 xl:w-72 lg:mr-5
-            ${selected ? "hidden lg:flex" : "flex"}
-          `}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900">
-                {isUk ? "Рукописи" : "Manuscripts"}
+      <div className="space-y-5">
+        <section className="relative overflow-hidden rounded-[8px] border border-slate-200 bg-[#0A2640] p-6 text-white shadow-sm">
+          <div className="absolute right-0 top-0 h-44 w-1/2 rounded-bl-[120px] bg-[#1C3D5B]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_14%_20%,rgba(101,228,163,0.18),transparent_20rem)]" />
+          <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+            <div className="max-w-2xl">
+              <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-[#65E4A3]">
+                <Sparkles className="h-3.5 w-3.5" />
+                {isUk ? "Рукописи і наукові тексти" : "Manuscripts and scientific writing"}
+              </p>
+              <h2 className="text-3xl font-semibold leading-tight">
+                {isUk ? "Робочий простір для дисертацій, статей і тез" : "Workspace for dissertations, articles, and theses"}
               </h2>
-              <p className="text-[10px] text-slate-400">
-                {manuscripts.length} {isUk ? "документів" : "documents"}
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                {isUk
+                  ? "Пишіть текст, ведіть авторів, перевіряйте структуру, прив'язуйте записи та експортуйте документ без переходів між різними інструментами."
+                  : "Write text, manage authors, check structure, attach records, and export documents without jumping between tools."}
               </p>
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex h-7 items-center gap-1 rounded-lg bg-blue-600 px-2.5 text-[11px] font-semibold text-white transition hover:bg-blue-700"
+              className="inline-flex w-fit items-center gap-2 rounded-full bg-[#65E4A3] px-5 py-2.5 text-sm font-bold text-[#0A2640] transition hover:bg-white"
             >
-              <Plus className="h-3 w-3" />
-              {isUk ? "Новий" : "New"}
+              <Plus className="h-4 w-4" />
+              {isUk ? "Новий рукопис" : "New manuscript"}
             </button>
           </div>
-
-          {/* Search */}
-          <div className="border-b border-slate-100 px-3 py-2">
-            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5">
-              <Search className="h-3 w-3 shrink-0 text-slate-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={isUk ? "Пошук рукопису..." : "Search manuscripts..."}
-                className="flex-1 bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400"
-              />
-            </div>
+          <div className="relative mt-6 grid gap-3 sm:grid-cols-4">
+            <WorkspaceMetric icon={LibraryBig} label={isUk ? "Документів" : "Documents"} value={manuscripts.length} />
+            <WorkspaceMetric icon={PenLine} label={isUk ? "Активні" : "Active"} value={activeCount} />
+            <WorkspaceMetric icon={BarChart3} label={isUk ? "Слів" : "Words"} value={totalWords.toLocaleString()} />
+            <WorkspaceMetric icon={FileText} label={isUk ? "Джерел" : "Sources"} value={records.length} />
           </div>
+        </section>
 
-          {/* Status filter pills */}
-          <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-3 py-2">
-            {filterTabs.map(({ key, label }) => {
-              const count = statusCounts[key];
-              if (key !== "all" && count === 0) return null;
-              return (
-                <button
-                  key={key}
-                  onClick={() => setStatusFilter(key)}
-                  className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition ${
-                    statusFilter === key
-                      ? "bg-blue-600 text-white"
-                      : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                  }`}
-                >
-                  {label}
-                  <span className={`rounded-full px-1 text-[9px] ${statusFilter === key ? "bg-blue-500 text-white" : "bg-white text-slate-400"}`}>
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* List */}
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
-                <FileText className="h-10 w-10 text-slate-200" />
-                <p className="mt-3 text-sm font-medium text-slate-400">
-                  {manuscripts.length === 0
-                    ? isUk ? "Ще немає рукописів" : "No manuscripts yet"
-                    : isUk ? "Немає результатів" : "No results"}
-                </p>
-                {manuscripts.length === 0 && (
-                  <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="mt-3 text-xs font-semibold text-blue-600 hover:underline"
-                  >
-                    {isUk ? "Створити перший" : "Create first one"}
-                  </button>
-                )}
+        <section className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+          <aside className={`${selected ? "hidden xl:block" : "block"} overflow-hidden rounded-[8px] border border-slate-200 bg-white shadow-sm`}>
+            <div className="border-b border-slate-200 p-4">
+              <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2">
+                <Search className="h-4 w-4 shrink-0 text-slate-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={isUk ? "Пошук за назвою..." : "Search by title..."}
+                  className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                />
               </div>
-            ) : (
-              <ul className="divide-y divide-slate-100">
-                {filtered.map((ms) => (
-                  <ManuscriptListItem
-                    key={ms._id}
-                    manuscript={ms}
-                    locale={locale}
-                    isSelected={ms._id === selectedId}
-                    isDeleting={deletingId === ms._id}
-                    onClick={() => setSelectedId(ms._id ?? null)}
-                    onDelete={(e) => handleDelete(ms._id!, e)}
-                  />
-                ))}
-              </ul>
-            )}
-          </div>
-        </aside>
 
-        {/* ── Right panel (editor / empty state) ───────────────────────── */}
-        <div
-          className={`min-w-0 flex-1 ${selected ? "block" : "hidden lg:block"}`}
-        >
+              <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1">
+                {filterTabs.map(({ key, label }) => {
+                  const count = statusCounts[key];
+                  if (key !== "all" && count === 0) return null;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setStatusFilter(key)}
+                      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold transition ${
+                        statusFilter === key ? "bg-[#0A2640] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {label}
+                      <span className={statusFilter === key ? "text-[#65E4A3]" : "text-slate-400"}>{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="max-h-[calc(100vh-360px)] min-h-[360px] overflow-y-auto">
+              {filtered.length === 0 ? (
+                <EmptyManuscriptState
+                  isUk={isUk}
+                  hasAny={manuscripts.length > 0}
+                  onCreate={() => setShowCreateModal(true)}
+                />
+              ) : (
+                <div className="grid gap-3 p-3">
+                  {filtered.map((ms) => (
+                    <ManuscriptListItem
+                      key={ms._id}
+                      manuscript={ms}
+                      locale={locale}
+                      isSelected={ms._id === selectedId}
+                      isDeleting={deletingId === ms._id}
+                      onClick={() => setSelectedId(ms._id ?? null)}
+                      onDelete={(e) => handleDelete(ms._id!, e)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+
+          <div className={`min-w-0 ${selected ? "block" : "hidden xl:block"}`}>
           {selected ? (
             <ManuscriptEditor
               manuscript={selected}
@@ -288,31 +280,29 @@ export function ManuscriptsExplorer({
               user={user}
             />
           ) : (
-            /* Empty state */
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-12 py-20 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50">
-                <FileText className="h-8 w-8 text-blue-300" />
+            <div className="flex min-h-[520px] flex-col items-center justify-center rounded-[8px] border border-dashed border-slate-300 bg-white px-8 py-16 text-center shadow-sm">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#0A2640] text-[#65E4A3]">
+                <FileText className="h-8 w-8" />
               </div>
-              <h3 className="mt-5 text-base font-bold text-slate-700">
-                {isUk ? "Оберіть рукопис" : "Select a manuscript"}
+              <h3 className="mt-5 text-xl font-bold text-slate-900">
+                {isUk ? "Оберіть рукопис для редагування" : "Select a manuscript to edit"}
               </h3>
-              <p className="mt-1.5 max-w-xs text-sm text-slate-400">
+              <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
                 {isUk
-                  ? "Оберіть документ зі списку зліва або створіть новий"
-                  : "Select a document from the list or create a new one"}
+                  ? "Ліворуч показані всі рукописи проєкту. Створіть новий документ або відкрийте наявний."
+                  : "All project manuscripts are listed on the left. Create a new document or open an existing one."}
               </p>
-              {manuscripts.length === 0 && (
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="mt-5 flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-                >
-                  <Plus className="h-4 w-4" />
-                  {isUk ? "Перший рукопис" : "Create first manuscript"}
-                </button>
-              )}
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#0A2640] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#12385c]"
+              >
+                <Plus className="h-4 w-4" />
+                {isUk ? "Створити рукопис" : "Create manuscript"}
+              </button>
             </div>
           )}
-        </div>
+          </div>
+        </section>
       </div>
     </>
   );
@@ -336,11 +326,7 @@ function ManuscriptListItem({
   onDelete: (e: React.MouseEvent) => void;
 }) {
   const isUk = locale === "uk";
-  const wordCount = ms.blocks
-    .map((b) => b.content)
-    .join(" ")
-    .split(/\s+/)
-    .filter((w) => w.length > 0).length;
+  const words = wordCount(ms);
   const updatedAt = new Date(ms.updatedAt);
   const dateLabel = updatedAt.toLocaleDateString(isUk ? "uk-UA" : "en-US", {
     month: "short",
@@ -348,22 +334,16 @@ function ManuscriptListItem({
   });
 
   return (
-    <li
+    <article
       onClick={onClick}
-      className={`group relative cursor-pointer px-4 py-3 transition ${
-        isSelected ? "bg-blue-50" : "hover:bg-slate-50"
+      className={`group relative cursor-pointer rounded-[8px] border p-4 transition ${
+        isSelected ? "border-[#0A2640] bg-[#0A2640] text-white shadow-md" : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
       }`}
     >
-      {/* Selected indicator stripe */}
-      {isSelected && (
-        <div className="absolute inset-y-0 left-0 w-[3px] rounded-r bg-blue-600" />
-      )}
-
-      {/* Type + status row */}
       <div className="flex items-center justify-between gap-2">
         <div
           className={`flex items-center gap-1.5 ${
-            isSelected ? "text-blue-600" : "text-slate-400"
+            isSelected ? "text-[#65E4A3]" : "text-slate-400"
           }`}
         >
           {TYPE_ICON[ms.type]}
@@ -374,27 +354,25 @@ function ManuscriptListItem({
         <div className="flex items-center gap-1">
           <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[ms.status]}`} />
           <span
-            className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${STATUS_BADGE[ms.status]}`}
+            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${isSelected ? "bg-white/10 text-white" : STATUS_BADGE[ms.status]}`}
           >
             {isUk ? STATUS_LABEL_UK[ms.status] : STATUS_LABEL_EN[ms.status]}
           </span>
         </div>
       </div>
 
-      {/* Title */}
       <p
-        className={`mt-1.5 line-clamp-2 text-sm font-semibold leading-snug ${
-          isSelected ? "text-blue-800" : "text-slate-800"
+        className={`mt-3 line-clamp-2 text-base font-bold leading-snug ${
+          isSelected ? "text-white" : "text-slate-900"
         }`}
       >
         {ms.title}
       </p>
 
-      {/* Meta row */}
-      <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
+      <div className={`mt-4 flex items-center justify-between text-[11px] ${isSelected ? "text-slate-300" : "text-slate-400"}`}>
         <div className="flex items-center gap-2">
           <span className="font-mono">
-            {wordCount.toLocaleString()} {isUk ? "сл." : "w."}
+            {words.toLocaleString()} {isUk ? "сл." : "w."}
           </span>
           {ms.authors.length > 0 && (
             <span className="flex items-center gap-0.5">
@@ -411,10 +389,73 @@ function ManuscriptListItem({
       <button
         onClick={onDelete}
         disabled={isDeleting}
-        className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded text-slate-300 opacity-0 transition hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100 disabled:opacity-50"
+        className={`absolute right-3 top-12 flex h-7 w-7 items-center justify-center rounded-full opacity-0 transition group-hover:opacity-100 disabled:opacity-50 ${
+          isSelected ? "text-white/45 hover:bg-white/10 hover:text-white" : "text-slate-300 hover:bg-rose-50 hover:text-rose-500"
+        }`}
       >
         <Trash2 className="h-3 w-3" />
       </button>
-    </li>
+    </article>
   );
+}
+
+function WorkspaceMetric({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number | string;
+}) {
+  return (
+    <div className="rounded-[8px] border border-white/10 bg-white/8 p-4 backdrop-blur">
+      <Icon className="h-4 w-4 text-[#65E4A3]" />
+      <p className="mt-3 font-mono text-2xl font-bold text-white">{value}</p>
+      <p className="text-xs font-semibold text-slate-300">{label}</p>
+    </div>
+  );
+}
+
+function EmptyManuscriptState({
+  isUk,
+  hasAny,
+  onCreate,
+}: {
+  isUk: boolean;
+  hasAny: boolean;
+  onCreate: () => void;
+}) {
+  return (
+    <div className="flex min-h-[360px] flex-col items-center justify-center px-6 py-12 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+        <FileText className="h-7 w-7" />
+      </div>
+      <p className="mt-4 text-sm font-bold text-slate-700">
+        {hasAny ? (isUk ? "Нічого не знайдено" : "No matches") : (isUk ? "Ще немає рукописів" : "No manuscripts yet")}
+      </p>
+      <p className="mt-1 text-xs leading-5 text-slate-400">
+        {hasAny
+          ? isUk ? "Спробуйте інший пошук або фільтр." : "Try another search or filter."
+          : isUk ? "Створіть перший документ для статті, тез чи дисертації." : "Create the first document for an article, thesis, or dissertation."}
+      </p>
+      {!hasAny && (
+        <button
+          onClick={onCreate}
+          className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#0A2640] px-4 py-2 text-xs font-bold text-white"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {isUk ? "Створити" : "Create"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function wordCount(manuscript: Manuscript) {
+  return manuscript.blocks
+    .map((block) => block.content)
+    .join(" ")
+    .split(/\s+/)
+    .filter((word) => word.length > 0).length;
 }

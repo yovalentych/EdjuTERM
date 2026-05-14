@@ -229,6 +229,75 @@ function ActionRow({
   );
 }
 
+function CommandMetric({
+  label,
+  value,
+  detail,
+  icon,
+  tone = "slate",
+}: {
+  label: string;
+  value: ReactNode;
+  detail: string;
+  icon: ReactNode;
+  tone?: "rose" | "amber" | "blue" | "emerald" | "slate";
+}) {
+  const toneClasses = {
+    rose: "border-rose-200 bg-rose-50 text-rose-700",
+    amber: "border-amber-200 bg-amber-50 text-amber-700",
+    blue: "border-blue-200 bg-blue-50 text-blue-700",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    slate: "border-slate-200 bg-white text-slate-700",
+  };
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+          <p className="mt-1 truncate text-2xl font-bold text-slate-900">{value}</p>
+        </div>
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border ${toneClasses[tone]}`}>
+          {icon}
+        </span>
+      </div>
+      <p className="mt-3 line-clamp-2 text-xs leading-5 text-slate-500">{detail}</p>
+    </div>
+  );
+}
+
+function NextActionLink({
+  href,
+  title,
+  meta,
+  tone = "slate",
+}: {
+  href: string;
+  title: string;
+  meta: string;
+  tone?: "rose" | "amber" | "blue" | "emerald" | "slate";
+}) {
+  const dot = {
+    rose: "bg-rose-500",
+    amber: "bg-amber-400",
+    blue: "bg-blue-500",
+    emerald: "bg-emerald-500",
+    slate: "bg-slate-300",
+  };
+
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm transition hover:border-blue-200 hover:bg-blue-50/60"
+    >
+      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot[tone]}`} />
+      <span className="min-w-0 flex-1 truncate font-semibold text-slate-800">{title}</span>
+      <span className="shrink-0 font-mono text-[10px] text-slate-500">{meta}</span>
+      <ArrowRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+    </Link>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export async function ProjectOverviewDashboard({
@@ -369,40 +438,138 @@ export async function ProjectOverviewDashboard({
   const hasWarning = hasRisk || urgentList.length > 0;
   const healthTone = hasRisk ? "rose" : hasWarning ? "amber" : "emerald";
   const healthLabel = hasRisk ? "Потрібна увага" : hasWarning ? "Є найближчі ризики" : "Стабільно";
+  const nextActions = [
+    ...(overdueList.length > 0
+      ? [{
+          href: planHref,
+          title: `Закрити прострочені задачі (${overdueList.length})`,
+          meta: "Planning",
+          tone: "rose" as const,
+        }]
+      : []),
+    ...(urgentList.length > 0
+      ? [{
+          href: planHref,
+          title: `Перевірити найближчі дедлайни (${urgentList.length})`,
+          meta: "7 днів",
+          tone: "amber" as const,
+        }]
+      : []),
+    ...(budgetAhead
+      ? [{
+          href: budgetHref,
+          title: "Звірити бюджет із фактичним прогресом",
+          meta: `${budgetPct}%`,
+          tone: "amber" as const,
+        }]
+      : []),
+    ...(delayedDeliverables > 0
+      ? [{
+          href: researchHref,
+          title: `Оновити затримані deliverables (${delayedDeliverables})`,
+          meta: "Outputs",
+          tone: "rose" as const,
+        }]
+      : []),
+    ...(records.length === 0
+      ? [{
+          href: `${base}&tab=records`,
+          title: "Додати перші записи доказової бази",
+          meta: "Evidence",
+          tone: "blue" as const,
+        }]
+      : []),
+    ...(nextMilestone
+      ? [{
+          href: researchHref,
+          title: `Підготувати milestone: ${nextMilestone.title}`,
+          meta: formatDate(nextMilestone.dueDate),
+          tone: "blue" as const,
+        }]
+      : []),
+  ].slice(0, 5);
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
 
-        {/* ── Health strip ──────────────────────────────────────────────────── */}
-        <DashboardSection className={`flex flex-wrap items-center gap-x-8 gap-y-3 rounded-2xl border px-6 py-4 shadow-sm backdrop-blur-md ${
-          healthTone === "rose"
-            ? "border-rose-200 bg-rose-50/80"
-            : healthTone === "amber"
-              ? "border-amber-200 bg-amber-50/80"
-              : "border-emerald-200 bg-emerald-50/80"
-        }`}>
-          <div className="flex items-center gap-2.5 font-bold">
-            {healthTone === "emerald"
-              ? <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              : <AlertTriangle className="h-5 w-5 text-amber-500" />}
-            <span className={healthTone === "rose" ? "text-rose-700" : healthTone === "amber" ? "text-amber-700" : "text-emerald-700"}>
-              {healthLabel}
-            </span>
+        {/* ── Command center ───────────────────────────────────────────────── */}
+        <DashboardSection className="surface overflow-hidden rounded-lg bg-white">
+          <div className="border-b border-slate-100 px-5 py-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600">Project command center</p>
+                <h2 className="mt-1 text-xl font-bold text-slate-900">Стан проєкту і найближчі дії</h2>
+              </div>
+              <span className={`inline-flex w-fit items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-bold ${
+                healthTone === "rose"
+                  ? "border-rose-200 bg-rose-50 text-rose-700"
+                  : healthTone === "amber"
+                    ? "border-amber-200 bg-amber-50 text-amber-700"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
+              }`}>
+                {healthTone === "emerald"
+                  ? <CheckCircle2 className="h-4 w-4" />
+                  : <AlertTriangle className="h-4 w-4" />}
+                {healthLabel}
+              </span>
+            </div>
           </div>
-          <HealthItem icon={<Milestone className="h-4 w-4" />}
-            label="Наступна точка"
-            value={nextMilestone ? formatDate(nextMilestone.dueDate) : "—"} />
-          <HealthItem icon={<Wallet className="h-4 w-4" />}
-            label="Бюджет"
-            value={budgetTotal > 0 ? `${budgetPct}%` : "—"} />
-          <HealthItem icon={<ListChecks className="h-4 w-4" />}
-            label="Прострочено"
-            value={String(overdueList.length)}
-            alert={overdueList.length > 0} />
-          <HealthItem icon={<TrendingUp className="h-4 w-4" />}
-            label="Прогрес"
-            value={`${avgStageProgress}%`} />
+
+          <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-4">
+            <CommandMetric
+              label="Наступна точка"
+              value={nextMilestone ? formatDate(nextMilestone.dueDate) : "—"}
+              detail={nextMilestone ? nextMilestone.title : "Milestone ще не заплановано."}
+              icon={<Milestone className="h-4 w-4" />}
+              tone={nextMilestone ? "blue" : "slate"}
+            />
+            <CommandMetric
+              label="Evidence"
+              value={records.length}
+              detail={`${totalFiles} файлів · ${openReadyRecords} записів готові до open science`}
+              icon={<Database className="h-4 w-4" />}
+              tone={records.length > 0 ? "emerald" : "slate"}
+            />
+            <CommandMetric
+              label="Execution"
+              value={`${avgStageProgress}%`}
+              detail={`${tasks.length} задач · ${overdueList.length} прострочено · ${milestonesUpcoming} milestone в плані`}
+              icon={<ListChecks className="h-4 w-4" />}
+              tone={overdueList.length > 0 ? "rose" : urgentList.length > 0 ? "amber" : "blue"}
+            />
+            <CommandMetric
+              label="Budget"
+              value={budgetTotal > 0 ? `${budgetPct}%` : "—"}
+              detail={budgetTotal > 0 ? `${formatMoney(budgetSpent)} витрачено з ${formatMoney(budgetTotal)}` : "Кошторис ще не налаштовано."}
+              icon={<Wallet className="h-4 w-4" />}
+              tone={budgetAhead ? "amber" : budgetTotal > 0 ? "blue" : "slate"}
+            />
+          </div>
+
+          <div className="border-t border-slate-100 bg-slate-50/60 p-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Next actions</p>
+              <Link href={planHref} className="text-xs font-semibold text-blue-600 hover:text-blue-800">
+                Відкрити planning →
+              </Link>
+            </div>
+            {nextActions.length > 0 ? (
+              <div className="grid gap-2 xl:grid-cols-2">
+                {nextActions.map((action) => (
+                  <NextActionLink
+                    key={`${action.href}-${action.title}`}
+                    href={action.href}
+                    title={action.title}
+                    meta={action.meta}
+                    tone={action.tone}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyState>Критичних дій немає. Продовжуй оновлювати записи, задачі та результати.</EmptyState>
+            )}
+          </div>
         </DashboardSection>
 
         {/* ── Row 1: Execution + Finance ─────────────────────────────────────── */}
@@ -789,27 +956,5 @@ export async function ProjectOverviewDashboard({
         </div>
       </div>
     </DashboardLayout>
-  );
-}
-
-// ── Health strip item ─────────────────────────────────────────────────────────
-
-function HealthItem({
-  icon,
-  label,
-  value,
-  alert = false,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  alert?: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-2 text-[13px]">
-      <span className="text-slate-400">{icon}</span>
-      <span className="font-medium text-slate-500">{label}:</span>
-      <span className={`font-bold ${alert ? "text-rose-700" : "text-slate-800"}`}>{value}</span>
-    </div>
   );
 }

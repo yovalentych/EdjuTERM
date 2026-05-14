@@ -11,7 +11,12 @@ import { MilestoneTimeline } from "@/components/planning/milestone-timeline";
 import { TaskBoard } from "@/components/planning/task-board";
 import { TaskForm } from "@/components/planning/task-form";
 import { TimeLog } from "@/components/planning/time-log";
-import { Breadcrumb, PageHeader, Tabs, type TabItem } from "@/components/ui";
+import { Tabs, type TabItem } from "@/components/ui";
+import {
+  ProjectResearchHeader,
+  ResearchChip,
+  ResearchWorkspaceFrame,
+} from "@/components/research-os";
 import {
   listMilestones,
   listTasks,
@@ -138,39 +143,29 @@ export default async function PlanningPage({
       project={project}
       activeTab="planning"
     >
-      <PageHeader
-        eyebrow={project.acronym}
+      <ResearchWorkspaceFrame>
+      <ProjectResearchHeader
+        dictionary={dictionary}
+        icon={CalendarDays}
+        locale={localeParam}
+        project={project}
+        tone="amber"
         title={d.title}
-        breadcrumb={
-          <Breadcrumb
-            items={[
-              { label: project.acronym, href: `/${localeParam}/app/project?projectId=${project._id}` },
-              { label: d.title },
-            ]}
-            homeHref={`/${localeParam}/app`}
-          />
-        }
         description={d.summary}
-        stats={
-          <div className="flex flex-wrap gap-2">
-            <StatChip
-              value={tasks.filter((t) => t.status === "todo").length}
-              label="todo"
-              tone="slate"
-            />
-            <StatChip value={activeTasks.length} label="active" tone="blue" />
-            <StatChip value={overdueTasks.length} label="overdue" tone="red" />
-            <StatChip
-              value={tasks.filter((t) => t.status === "done").length}
-              label="done"
-              tone="green"
-            />
-            <StatChip
-              value={upcomingMilestones.length}
-              label="milestones"
-              tone="purple"
-            />
-          </div>
+        metrics={
+          <>
+            <ResearchChip>
+              {tasks.filter((t) => t.status === "todo").length} todo
+            </ResearchChip>
+            <ResearchChip tone="blue">{activeTasks.length} active</ResearchChip>
+            <ResearchChip tone="orange">{overdueTasks.length} overdue</ResearchChip>
+            <ResearchChip tone="emerald">
+              {tasks.filter((t) => t.status === "done").length} done
+            </ResearchChip>
+            <ResearchChip tone="violet">
+              {upcomingMilestones.length} milestones
+            </ResearchChip>
+          </>
         }
       />
 
@@ -350,31 +345,7 @@ export default async function PlanningPage({
           currentUser={user}
         />
       )}
+      </ResearchWorkspaceFrame>
     </ProjectShell>
-  );
-}
-
-function StatChip({
-  value,
-  label,
-  tone,
-}: {
-  value: number;
-  label: string;
-  tone: "slate" | "blue" | "red" | "green" | "purple";
-}) {
-  const colors = {
-    slate: "border-slate-200 bg-white text-slate-600",
-    blue: "border-blue-200 bg-blue-50 text-blue-700",
-    red: "border-rose-200 bg-rose-50 text-rose-700",
-    green: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    purple: "border-violet-200 bg-violet-50 text-violet-700",
-  };
-
-  return (
-    <div className={`flex items-center gap-2 rounded border px-3 py-1.5 text-xs shadow-sm ${colors[tone]}`}>
-      <span className="font-mono text-sm font-bold">{value}</span>
-      <span>{label}</span>
-    </div>
   );
 }

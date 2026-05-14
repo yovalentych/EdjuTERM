@@ -1,7 +1,12 @@
+import { FlaskConical } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { ProjectShell } from "@/components/project-shell";
 import { ExperimentsExplorer } from "@/components/experiments/experiments-explorer";
-import { Breadcrumb, PageHeader } from "@/components/ui";
+import {
+  ProjectResearchHeader,
+  ResearchChip,
+  ResearchWorkspaceFrame,
+} from "@/components/research-os";
 import { listExperiments } from "@/lib/experiments";
 import { listResearchStages } from "@/lib/research-plan";
 import { listProjectRecords } from "@/lib/repositories";
@@ -50,22 +55,32 @@ export default async function ExperimentsPage({
       project={project}
       activeTab="experiments"
     >
-      <PageHeader
-        eyebrow={project.acronym}
+      <ResearchWorkspaceFrame>
+      <ProjectResearchHeader
+        dictionary={dictionary}
+        icon={FlaskConical}
+        locale={localeParam}
+        project={project}
+        tone="cyan"
         title={localeParam === "uk" ? "Експерименти" : "Experiments"}
-        breadcrumb={
-          <Breadcrumb
-            items={[
-              { label: project.acronym, href: `/${localeParam}/app/project?projectId=${project._id}` },
-              { label: localeParam === "uk" ? "Експерименти" : "Experiments" },
-            ]}
-            homeHref={`/${localeParam}/app`}
-          />
-        }
         description={
           localeParam === "uk"
             ? "Протоколи, методи та результати дослідів проєкту."
             : "Protocols, methods and results for project experiments."
+        }
+        metrics={
+          <>
+            <ResearchChip tone="cyan">
+              {localeParam === "uk"
+                ? `${experiments.length} дослідів`
+                : `${experiments.length} experiments`}
+            </ResearchChip>
+            <ResearchChip tone="blue">
+              {localeParam === "uk"
+                ? `${stages.length} етапів`
+                : `${stages.length} stages`}
+            </ResearchChip>
+          </>
         }
       />
       <ExperimentsExplorer
@@ -78,6 +93,7 @@ export default async function ExperimentsPage({
         canManage={isManager}
         initialSelectedId={exp}
       />
+      </ResearchWorkspaceFrame>
     </ProjectShell>
   );
 }

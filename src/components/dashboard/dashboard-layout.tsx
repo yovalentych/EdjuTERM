@@ -18,13 +18,25 @@ const item: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
 };
 
-export function DashboardLayout({ children }: { children: ReactNode }) {
+export function DashboardLayout({
+  children,
+  variant = "main-aside",
+}: {
+  children: ReactNode;
+  variant?: "main-aside" | "single" | "wide";
+}) {
+  const layoutClass = {
+    "main-aside": "app-grid-main-aside",
+    single: "app-stack",
+    wide: "app-grid-dashboard",
+  }[variant];
+
   return (
     <motion.div
       variants={container}
       initial="hidden"
       animate="show"
-      className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]"
+      className={layoutClass}
     >
       {children}
     </motion.div>
