@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Research Navigator Mobile",
+    "slug": "research-navigator-mobile",
+    "scheme": "research-navigator",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
