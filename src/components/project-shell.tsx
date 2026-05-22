@@ -53,6 +53,9 @@ export type ProjectTab =
   | "diary"
   | "phd-plan"
   | "portfolio"
+  | "inventory"
+  | "equipment"
+  | "logs"
   | "settings";
 
 type NavItem = {
@@ -85,6 +88,7 @@ export function ProjectShell({
   const d = dictionary;
   const isUk = locale === "uk";
   const isDissertation = project.projectType === "dissertation";
+  const isLaboratory = project.projectType === "laboratory";
   const workspaceClass = activeTab === "budget" ? "app-workspace--wide" : "app-workspace--standard";
 
   const allItems: NavItem[] = [
@@ -92,7 +96,27 @@ export function ProjectShell({
       id: "overview",
       label: d.projects.tabOverview,
       icon: SquareStack,
-      href: `/${locale}/app/project?projectId=${project._id}&tab=overview`,
+      href: isLaboratory
+        ? `/${locale}/app/laboratory?projectId=${project._id}&tab=overview`
+        : `/${locale}/app/project?projectId=${project._id}&tab=overview`,
+    },
+    {
+      id: "inventory",
+      label: isUk ? "Склад та реактиви" : "Inventory",
+      icon: Database,
+      href: `/${locale}/app/laboratory?projectId=${project._id}&tab=inventory`,
+    },
+    {
+      id: "equipment",
+      label: isUk ? "Обладнання" : "Equipment",
+      icon: Microscope,
+      href: `/${locale}/app/laboratory?projectId=${project._id}&tab=equipment`,
+    },
+    {
+      id: "logs",
+      label: isUk ? "Журнали GLP" : "Usage Logs",
+      icon: NotebookPen,
+      href: `/${locale}/app/laboratory?projectId=${project._id}&tab=logs`,
     },
     {
       id: "records",
@@ -182,22 +206,37 @@ export function ProjectShell({
       id: "team",
       label: d.projects.tabTeam,
       icon: Users,
-      href: `/${locale}/app/project?projectId=${project._id}&tab=team`,
+      href: isLaboratory
+        ? `/${locale}/app/laboratory?projectId=${project._id}&tab=team`
+        : `/${locale}/app/project?projectId=${project._id}&tab=team`,
     },
     {
       id: "settings",
       label: d.projects.settings,
       icon: Settings,
-      href: `/${locale}/app/project-settings?projectId=${project._id}`,
+      href: isLaboratory
+        ? `/${locale}/app/laboratory?projectId=${project._id}&tab=settings`
+        : `/${locale}/app/project-settings?projectId=${project._id}`,
     },
   ];
 
-  const groups: NavGroup[] = [
+  const labGroups: NavGroup[] = [
+    {
+      label: isUk ? "Керування лаб." : "Lab Management",
+      items: allItems.filter((i) =>
+        ["overview", "inventory", "equipment", "logs"].includes(i.id),
+      ),
+    },
+    {
+      label: isUk ? "Команда та налаштування" : "Team & Settings",
+      items: allItems.filter((i) => ["team", "settings"].includes(i.id)),
+    },
+  ];
+
+  const standardGroups: NavGroup[] = [
     {
       label: isUk ? "Огляд" : "Overview",
-      items: allItems.filter((i) =>
-        ["overview"].includes(i.id),
-      ),
+      items: allItems.filter((i) => ["overview"].includes(i.id)),
     },
     {
       label: isUk ? "Доказова база" : "Evidence",
@@ -219,9 +258,7 @@ export function ProjectShell({
     },
     {
       label: isUk ? "Команда" : "Team",
-      items: allItems.filter((i) =>
-        ["team"].includes(i.id),
-      ),
+      items: allItems.filter((i) => ["team"].includes(i.id)),
     },
     {
       label: isUk ? "Навчання" : "Education",
@@ -235,7 +272,9 @@ export function ProjectShell({
       label: isUk ? "Налаштування" : "Settings",
       items: allItems.filter((i) => ["settings"].includes(i.id)),
     },
-  ].filter((group) => group.items.length > 0);
+  ];
+
+  const groups: NavGroup[] = isLaboratory ? labGroups : standardGroups.filter((group) => group.items.length > 0);
 
   return (
     <div className="private-shell flex min-h-screen flex-col text-stone-950">
@@ -264,7 +303,7 @@ export function ProjectShell({
             <span className="shell-chip hidden border border-stone-200 bg-white/70 px-2 py-1 text-xs text-stone-600 sm:inline">
               {user.firstName} {user.lastName}
               <span className="mx-1 text-stone-300">·</span>
-              {d.roles[user.role]}
+              {d.roles[user.role as keyof typeof d.roles]}
             </span>
             <LanguageToggle
               locale={locale}

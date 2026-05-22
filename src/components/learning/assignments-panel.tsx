@@ -350,9 +350,9 @@ function AssignmentCard({ assignment, sessions, topics, modules, projectId, loca
     fd.set("status", next);
     fd.set("notes", assignment.notes);
     fd.set("feedback", assignment.feedback);
-    fd.set("sessionId", assignment.sessionId);
-    fd.set("topicId", assignment.topicId);
-    fd.set("moduleId", assignment.moduleId);
+    fd.set("sessionId", assignment.sessionId ?? "");
+    fd.set("topicId", assignment.topicId ?? "");
+    fd.set("moduleId", assignment.moduleId ?? "");
     start(() => saveAssignmentAction(fd));
   };
 
@@ -493,9 +493,9 @@ function AssignmentCard({ assignment, sessions, topics, modules, projectId, loca
               {canManage && (
                 <form
                   action={(fd) => {
-                    fd.set("sessionId", assignment.sessionId);
-                    fd.set("topicId", assignment.topicId);
-                    fd.set("moduleId", assignment.moduleId);
+                    fd.set("sessionId", assignment.sessionId ?? "");
+                    fd.set("topicId", assignment.topicId ?? "");
+                    fd.set("moduleId", assignment.moduleId ?? "");
                     start(async () => {
                       await saveAssignmentAction(fd);
                       setExpanded(false);

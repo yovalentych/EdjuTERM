@@ -343,11 +343,11 @@ export async function getBudgetSummary(
 
   const totalCommitted = requests
     .filter((r) => r.status === "submitted" || r.status === "approved")
-    .reduce((sum, r) => sum + r.estimatedAmount, 0);
+    .reduce((sum, r) => sum + (r.estimatedAmount ?? 0), 0);
 
   const totalSpent = requests
     .filter((r) => r.status === "purchased" || r.status === "delivered")
-    .reduce((sum, r) => sum + (r.actualAmount ?? r.estimatedAmount), 0);
+    .reduce((sum, r) => sum + (r.actualAmount ?? r.estimatedAmount ?? 0), 0);
 
   const totalRemaining = totalPlanned - totalCommitted - totalSpent;
   const pendingRequests = requests.filter((r) => r.status === "submitted").length;
@@ -364,13 +364,13 @@ export async function getBudgetSummary(
   }
 
   for (const req of requests) {
-    const entry = categoryMap.get(req.category) ?? { planned: 0, committed: 0, spent: 0 };
+    const entry = categoryMap.get(req.category ?? "") ?? { planned: 0, committed: 0, spent: 0 };
     if (req.status === "purchased" || req.status === "delivered") {
-      entry.spent += req.actualAmount ?? req.estimatedAmount;
+      entry.spent += req.actualAmount ?? req.estimatedAmount ?? 0;
     } else if (req.status === "submitted" || req.status === "approved") {
-      entry.committed += req.estimatedAmount;
+      entry.committed += req.estimatedAmount ?? 0;
     }
-    categoryMap.set(req.category, entry);
+    categoryMap.set(req.category ?? "", entry);
   }
 
   const byCategory = Array.from(categoryMap.entries()).map(

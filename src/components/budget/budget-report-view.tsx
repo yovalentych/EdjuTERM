@@ -47,10 +47,10 @@ function buildReportSummary(lineItems: BudgetLineItem[], requests: PurchaseReque
   const totalPlanned = lineItems.reduce((sum, item) => sum + item.plannedAmount, 0);
   const totalCommitted = requests
     .filter((request) => request.status === "submitted" || request.status === "approved")
-    .reduce((sum, request) => sum + request.estimatedAmount, 0);
+    .reduce((sum, request) => sum + (request.estimatedAmount ?? 0), 0);
   const totalSpent = requests
     .filter((request) => request.status === "purchased" || request.status === "delivered")
-    .reduce((sum, request) => sum + (request.actualAmount ?? request.estimatedAmount), 0);
+    .reduce((sum, request) => sum + (request.actualAmount ?? request.estimatedAmount ?? 0), 0);
   const categoryMap = new Map<BudgetCategory, { committed: number; planned: number; remaining: number; spent: number; utilizationPct: number }>();
 
   for (const category of budgetCategories) {
@@ -64,12 +64,12 @@ function buildReportSummary(lineItems: BudgetLineItem[], requests: PurchaseReque
   }
 
   for (const request of requests) {
-    const entry = categoryMap.get(request.category);
+    const entry = request.category ? categoryMap.get(request.category) : undefined;
     if (!entry) continue;
     if (request.status === "purchased" || request.status === "delivered") {
-      entry.spent += request.actualAmount ?? request.estimatedAmount;
+      entry.spent += request.actualAmount ?? request.estimatedAmount ?? 0;
     } else if (request.status === "submitted" || request.status === "approved") {
-      entry.committed += request.estimatedAmount;
+      entry.committed += request.estimatedAmount ?? 0;
     }
   }
 
@@ -310,7 +310,7 @@ export function BudgetReportView({
             </DataTableHead>
             <DataTableBody>
               {actualRequests.map((request) => {
-                const actualAmount = request.actualAmount ?? request.estimatedAmount;
+                const actualAmount = request.actualAmount ?? request.estimatedAmount ?? 0;
                 const date = new Date(request.purchasedAt ?? request.updatedAt);
                 return (
                   <tr key={request._id} className="bg-white transition hover:bg-slate-50">
@@ -323,7 +323,7 @@ export function BudgetReportView({
                       {d.categories[request.category as keyof typeof d.categories]}
                     </td>
                     <td className="px-3 py-3 text-right font-mono text-sm text-slate-500">
-                      {formatAmount(request.estimatedAmount, request.currency)}
+                      {formatAmount(request.estimatedAmount ?? 0, request.currency)}
                     </td>
                     <td className="px-3 py-3 text-right font-mono text-sm font-bold text-slate-950">
                       {formatAmount(actualAmount, request.currency)}

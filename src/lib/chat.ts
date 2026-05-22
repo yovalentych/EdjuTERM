@@ -17,9 +17,11 @@ export async function postChatMessage(
   const msg: ChatMessage = {
     projectId,
     userId,
+    authorId: userId,
     displayName,
     initials,
     content: content.trim(),
+    body: content.trim(),
     createdAt: now,
   };
 

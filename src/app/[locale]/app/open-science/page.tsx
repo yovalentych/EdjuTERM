@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { AppShell } from "@/components/app-shell";
+import { LiquidAppShell } from "@/components/liquid-app-shell";
 import { OpenScienceForm } from "@/components/open-science/open-science-form";
 import { OpenScienceList } from "@/components/open-science/open-science-list";
 import { Breadcrumb, PageHeader } from "@/components/ui";
@@ -34,7 +34,7 @@ export default async function ManageOpenSciencePage({
   const updates = await listOpenScienceUpdatesForProjects(projectIds);
 
   return (
-    <AppShell dictionary={dictionary} locale={localeParam} user={user}>
+    <LiquidAppShell dictionary={dictionary} locale={localeParam} user={user}>
       <PageHeader
         eyebrow="Open science"
         title={dictionary.openScience.manageTitle}
@@ -69,6 +69,6 @@ export default async function ManageOpenSciencePage({
           <OpenScienceList updates={updates} dictionary={dictionary} />
         </div>
       </section>
-    </AppShell>
+    </LiquidAppShell>
   );
 }

@@ -6,6 +6,7 @@ import {
   type ResearchStageStatus,
   type SafeUser,
   researchStageSchema,
+  researchStageInputSchema,
 } from "@/lib/schemas";
 
 export type StageUpdateFields = Partial<
@@ -31,18 +32,20 @@ const localStages: ResearchStage[] = [];
 
 // ── Research Stages ───────────────────────────────────────────────────────────
 
-export async function createResearchStage(
+export async function insertResearchStage(
   input: ResearchStageInput,
-  user: SafeUser,
+  user?: SafeUser,
 ): Promise<ResearchStage> {
   const now = new Date();
+  const parsedInput = researchStageInputSchema.parse(input);
   const stage: ResearchStage = {
-    ...input,
+    ...parsedInput,
     status: "planned",
+    progress: 0,
     linkedTaskIds: [],
     completionNote: "",
     completedAt: null,
-    createdBy: user._id ?? "",
+    createdBy: user?._id ?? "",
     createdAt: now,
     updatedAt: now,
   };
@@ -62,6 +65,13 @@ export async function createResearchStage(
   void _id;
   const result = await db.collection("research_stages").insertOne(insert);
   return { ...stage, _id: result.insertedId.toString() };
+}
+
+export async function createResearchStage(
+  input: ResearchStageInput,
+  user: SafeUser,
+): Promise<ResearchStage> {
+  return insertResearchStage(input, user);
 }
 
 export async function listResearchStages(

@@ -61,8 +61,8 @@ export default async function PortfolioPage({
         initialPortfolio={portfolio}
         userDefaults={{
           fullName: `${user.lastName} ${user.firstName}`,
-          specialty: user.defaultSpecialty,
-          institution: user.affiliation,
+          specialty: user.defaultSpecialty || "",
+          institution: user.affiliation || "",
         }}
       />
     </ProjectShell>

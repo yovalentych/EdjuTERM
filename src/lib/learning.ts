@@ -7,6 +7,8 @@ import {
   learningAssessmentSchema,
   learningSessionSchema,
   learningAssignmentSchema,
+  courseMemberSchema,
+  attendanceRecordSchema,
   type LearningCourse,
   type LearningCourseInput,
   type LearningModule,
@@ -19,6 +21,10 @@ import {
   type LearningSessionInput,
   type LearningAssignment,
   type LearningAssignmentInput,
+  type CourseMember,
+  type CourseMemberInput,
+  type AttendanceRecord,
+  type AttendanceRecordInput,
   type SafeUser,
 } from "@/lib/schemas";
 
@@ -30,6 +36,8 @@ const localTopics: LearningTopic[] = [];
 const localAssessments: LearningAssessment[] = [];
 const localSessions: LearningSession[] = [];
 const localAssignments: LearningAssignment[] = [];
+const localMembers: CourseMember[] = [];
+const localAttendance: AttendanceRecord[] = [];
 
 async function ensureIndexes() {
   if (!hasMongoConfig()) return;
@@ -488,6 +496,189 @@ export async function deleteAssignment(id: string): Promise<void> {
   }
   const db = await getMongoDb();
   await db.collection("learningAssignments").deleteOne({ _id: new ObjectId(id) });
+}
+
+// ── Course members (electronic dean's office) ────────────────────────────────
+
+const MEMBERS_COLLECTION = "courseMembers";
+const ATTENDANCE_COLLECTION = "attendanceRecords";
+
+export async function listCourseMembers(courseId: string): Promise<CourseMember[]> {
+  if (!hasMongoConfig()) {
+    return localMembers.filter((m) => m.courseId === courseId);
+  }
+  const db = await getMongoDb();
+  const docs = await db.collection(MEMBERS_COLLECTION)
+    .find({ courseId })
+    .sort({ fullName: 1 })
+    .toArray();
+  return docs.map((d) => courseMemberSchema.parse({ ...d, _id: d._id.toString() }));
+}
+
+export async function listProjectMembers(projectId: string): Promise<CourseMember[]> {
+  if (!hasMongoConfig()) {
+    return localMembers.filter((m) => m.projectId === projectId);
+  }
+  const db = await getMongoDb();
+  const docs = await db.collection(MEMBERS_COLLECTION)
+    .find({ projectId })
+    .sort({ fullName: 1 })
+    .toArray();
+  return docs.map((d) => courseMemberSchema.parse({ ...d, _id: d._id.toString() }));
+}
+
+export async function enrollMember(input: CourseMemberInput, user: SafeUser): Promise<CourseMember> {
+  const now = new Date();
+  const enrolledAt = input.enrolledAt || now.toISOString().slice(0, 10);
+  const doc: Omit<CourseMember, "_id"> = {
+    ...input,
+    enrolledAt,
+    createdBy: user._id ?? "",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  if (!hasMongoConfig()) {
+    const local = { ...doc, _id: `mem-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` };
+    localMembers.push(local);
+    return local;
+  }
+  const db = await getMongoDb();
+  await db.collection(MEMBERS_COLLECTION).createIndexes([
+    { key: { courseId: 1, fullName: 1 } },
+    { key: { projectId: 1 } },
+  ]);
+  const result = await db.collection(MEMBERS_COLLECTION).insertOne(doc);
+  return { ...doc, _id: result.insertedId.toString() };
+}
+
+export async function updateMember(id: string, patch: Partial<CourseMemberInput>): Promise<void> {
+  if (!hasMongoConfig()) {
+    const m = localMembers.find((x) => x._id === id);
+    if (m) Object.assign(m, patch, { updatedAt: new Date() });
+    return;
+  }
+  const db = await getMongoDb();
+  await db.collection(MEMBERS_COLLECTION).updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { ...patch, updatedAt: new Date() } },
+  );
+}
+
+export async function removeMember(id: string): Promise<void> {
+  if (!hasMongoConfig()) {
+    const idx = localMembers.findIndex((x) => x._id === id);
+    if (idx >= 0) localMembers.splice(idx, 1);
+    return;
+  }
+  const db = await getMongoDb();
+  await db.collection(MEMBERS_COLLECTION).deleteOne({ _id: new ObjectId(id) });
+  // Каскадно прибираємо attendance records для цього учасника.
+  await db.collection(ATTENDANCE_COLLECTION).deleteMany({ memberId: id });
+}
+
+// ── Attendance / Gradebook ───────────────────────────────────────────────────
+
+export async function listAttendanceForSession(sessionId: string): Promise<AttendanceRecord[]> {
+  if (!hasMongoConfig()) {
+    return localAttendance.filter((r) => r.sessionId === sessionId);
+  }
+  const db = await getMongoDb();
+  const docs = await db.collection(ATTENDANCE_COLLECTION).find({ sessionId }).toArray();
+  return docs.map((d) => attendanceRecordSchema.parse({ ...d, _id: d._id.toString() }));
+}
+
+export async function listAttendanceForCourse(courseId: string): Promise<AttendanceRecord[]> {
+  if (!hasMongoConfig()) {
+    return localAttendance.filter((r) => r.courseId === courseId);
+  }
+  const db = await getMongoDb();
+  const docs = await db.collection(ATTENDANCE_COLLECTION).find({ courseId }).toArray();
+  return docs.map((d) => attendanceRecordSchema.parse({ ...d, _id: d._id.toString() }));
+}
+
+export async function listAttendanceForMember(memberId: string): Promise<AttendanceRecord[]> {
+  if (!hasMongoConfig()) {
+    return localAttendance.filter((r) => r.memberId === memberId);
+  }
+  const db = await getMongoDb();
+  const docs = await db.collection(ATTENDANCE_COLLECTION).find({ memberId }).toArray();
+  return docs.map((d) => attendanceRecordSchema.parse({ ...d, _id: d._id.toString() }));
+}
+
+/**
+ * Upsert одного запису attendance.
+ * Унікальний ключ: (sessionId, memberId).
+ */
+export async function setAttendance(
+  input: AttendanceRecordInput,
+  user: SafeUser,
+): Promise<AttendanceRecord> {
+  const now = new Date();
+  const base: Omit<AttendanceRecord, "_id"> = {
+    ...input,
+    createdBy: user._id ?? "",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  if (!hasMongoConfig()) {
+    const existing = localAttendance.find(
+      (r) => r.sessionId === input.sessionId && r.memberId === input.memberId,
+    );
+    if (existing) {
+      Object.assign(existing, input, { updatedAt: now });
+      return existing;
+    }
+    const local: AttendanceRecord = { ...base, _id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` };
+    localAttendance.push(local);
+    return local;
+  }
+
+  const db = await getMongoDb();
+  await db.collection(ATTENDANCE_COLLECTION).createIndexes([
+    { key: { sessionId: 1, memberId: 1 }, unique: true },
+    { key: { courseId: 1 } },
+    { key: { memberId: 1 } },
+  ]);
+  const filter = { sessionId: input.sessionId, memberId: input.memberId };
+  const update = {
+    $set: { ...input, updatedAt: now },
+    $setOnInsert: { createdBy: user._id ?? "", createdAt: now },
+  };
+  const result = await db.collection(ATTENDANCE_COLLECTION).findOneAndUpdate(
+    filter,
+    update,
+    { upsert: true, returnDocument: "after" },
+  );
+  if (!result) throw new Error("Attendance upsert failed");
+  return attendanceRecordSchema.parse({ ...result, _id: result._id.toString() });
+}
+
+export async function bulkSetAttendance(
+  records: AttendanceRecordInput[],
+  user: SafeUser,
+): Promise<number> {
+  let count = 0;
+  for (const r of records) {
+    try {
+      await setAttendance(r, user);
+      count++;
+    } catch (e) {
+      console.error("[attendance] bulk record failed", e);
+    }
+  }
+  return count;
+}
+
+export async function deleteAttendance(sessionId: string, memberId: string): Promise<void> {
+  if (!hasMongoConfig()) {
+    const idx = localAttendance.findIndex((r) => r.sessionId === sessionId && r.memberId === memberId);
+    if (idx >= 0) localAttendance.splice(idx, 1);
+    return;
+  }
+  const db = await getMongoDb();
+  await db.collection(ATTENDANCE_COLLECTION).deleteOne({ sessionId, memberId });
 }
 
 // ── Helpers (re-exported from utils for server-side callers) ──────────────────

@@ -118,7 +118,7 @@ export async function collectReportExportData(
     budget: {
       ...budgetSummary,
       periods: budgetPeriods.map((p) => ({
-        label: p.label,
+        label: p.label ?? "",
         startDate: p.startDate,
         endDate: p.endDate,
       })),
@@ -130,9 +130,9 @@ export async function collectReportExportData(
       })),
       purchaseRequests: purchaseRequests.map((r) => ({
         title: r.title,
-        category: r.category,
+        category: r.category ?? "",
         status: r.status,
-        estimatedAmount: r.estimatedAmount,
+        estimatedAmount: r.estimatedAmount ?? 0,
         actualAmount: r.actualAmount,
       })),
     },

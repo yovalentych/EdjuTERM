@@ -1,5 +1,6 @@
 import { ObjectId, type Document, type WithId } from "mongodb";
 import { getMongoDb, hasMongoConfig } from "@/lib/mongodb";
+import { toObjectId } from "@/lib/object-id";
 import { hashPassword } from "@/lib/passwords";
 import {
   type RegisterInput,
@@ -7,6 +8,7 @@ import {
   type User,
   type UserRole,
   type ProfileInput,
+  type UserAffiliation,
   safeUserSchema,
   userSchema,
 } from "@/lib/schemas";
@@ -40,6 +42,11 @@ function normalizeUserDocument(doc: WithId<Document>) {
     profileBio: doc.profileBio ?? "",
     defaultSpecialty: doc.defaultSpecialty ?? "",
     sessionVersion: doc.sessionVersion ?? 1,
+    affiliations: doc.affiliations ?? [],
+    // null → default for fields that may be null in older DB documents
+    phone: doc.phone ?? "",
+    researchInterests: doc.researchInterests ?? [],
+    academicLinks: doc.academicLinks ?? undefined,
   });
 }
 
@@ -89,7 +96,10 @@ function roleForEmail(email: string): UserRole {
   return adminEmails.includes(email.toLowerCase()) ? "admin" : "user";
 }
 
-export async function createUser(input: RegisterInput) {
+export async function createUser(
+  input: RegisterInput,
+  options?: { accountType?: "personal" | "institution"; institutionId?: string },
+) {
   const existingUser = await findUserByEmail(input.email);
 
   if (existingUser) {
@@ -102,6 +112,8 @@ export async function createUser(input: RegisterInput) {
     lastName: input.lastName,
     firstNameLatin: input.firstNameLatin,
     lastNameLatin: input.lastNameLatin,
+    phone: input.phone || "",
+    phoneVerifiedAt: null,
     orcid: "",
     position: "",
     affiliation: "",
@@ -112,6 +124,10 @@ export async function createUser(input: RegisterInput) {
     role: roleForEmail(input.email),
     sessionVersion: 1,
     emailVerifiedAt: null,
+    accountType: options?.accountType ?? "personal",
+    institutionId: options?.institutionId ?? "",
+    affiliations: [],
+    researchInterests: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -291,6 +307,65 @@ export async function setUserRole(id: string, role: UserRole) {
     : null;
 }
 
+export async function setUserInstitution(userId: string, institutionId: string): Promise<boolean> {
+  const now = new Date();
+  if (!hasMongoConfig()) {
+    const user = localUsers.find((u) => String(u._id) === String(userId));
+    if (!user) return false;
+    user.institutionId = institutionId;
+    user.accountType = "institution";
+    user.updatedAt = now;
+    return true;
+  }
+  const db = await getMongoDb();
+  const _id = toObjectId(userId);
+  if (!_id) return false;
+  const result = await db.collection(collectionName).updateOne(
+    { _id },
+    { $set: { institutionId, accountType: "institution", updatedAt: now } },
+  );
+  return result.matchedCount > 0;
+}
+
+export async function markEmailVerified(userId: string): Promise<boolean> {
+  const now = new Date();
+  if (!hasMongoConfig()) {
+    const user = localUsers.find((u) => String(u._id) === String(userId));
+    if (!user) return false;
+    user.emailVerifiedAt = now;
+    user.updatedAt = now;
+    return true;
+  }
+  const db = await getMongoDb();
+  const _id = toObjectId(userId);
+  if (!_id) return false;
+  const result = await db.collection(collectionName).updateOne(
+    { _id },
+    { $set: { emailVerifiedAt: now, updatedAt: now } },
+  );
+  return result.matchedCount > 0;
+}
+
+export async function updateUserPasswordById(userId: string, newPasswordHash: string): Promise<boolean> {
+  const now = new Date();
+  if (!hasMongoConfig()) {
+    const user = localUsers.find((u) => String(u._id) === String(userId));
+    if (!user) return false;
+    user.passwordHash = newPasswordHash;
+    user.sessionVersion += 1;
+    user.updatedAt = now;
+    return true;
+  }
+  const db = await getMongoDb();
+  const _id = toObjectId(userId);
+  if (!_id) return false;
+  const result = await db.collection(collectionName).updateOne(
+    { _id },
+    { $set: { passwordHash: newPasswordHash, updatedAt: now }, $inc: { sessionVersion: 1 } },
+  );
+  return result.modifiedCount > 0;
+}
+
 export async function updateUserPassword(email: string, newPasswordHash: string): Promise<boolean> {
   const normalized = email.toLowerCase();
 
@@ -316,5 +391,75 @@ async function ensureUserIndexes() {
   await db.collection(collectionName).createIndexes([
     { key: { email: 1 }, unique: true },
     { key: { role: 1 } },
+    { key: { "affiliations.institutionId": 1 } },
   ]);
+}
+
+// ── Affiliations ──────────────────────────────────────────────────────────────
+
+/** Додає або оновлює приналежність користувача до інституції/підрозділу. */
+export async function addAffiliation(
+  userId: string,
+  aff: UserAffiliation,
+): Promise<SafeUser | null> {
+  if (!hasMongoConfig()) {
+    const user = localUsers.find((u) => u._id === userId);
+    if (!user) return null;
+    user.affiliations = [...(user.affiliations ?? []), aff];
+    return toSafeUser(user);
+  }
+  if (!ObjectId.isValid(userId)) return null;
+  const db = await getMongoDb();
+  const result = await db.collection(collectionName).findOneAndUpdate(
+    { _id: new ObjectId(userId) },
+    {
+      $push: { affiliations: aff } as never,
+      $set: { updatedAt: new Date() },
+    },
+    { returnDocument: "after" },
+  );
+  return result ? toSafeUser(normalizeUserDocument(result)) : null;
+}
+
+/** Завершує (isCurrent=false) або видаляє конкретну приналежність (за _id). */
+export async function endAffiliation(userId: string, affiliationId: string): Promise<SafeUser | null> {
+  if (!hasMongoConfig()) {
+    const user = localUsers.find((u) => u._id === userId);
+    if (!user) return null;
+    user.affiliations = (user.affiliations ?? []).map((a) =>
+      a._id === affiliationId ? { ...a, isCurrent: false } : a
+    );
+    return toSafeUser(user);
+  }
+  if (!ObjectId.isValid(userId)) return null;
+  const db = await getMongoDb();
+  const result = await db.collection(collectionName).findOneAndUpdate(
+    { _id: new ObjectId(userId), "affiliations._id": affiliationId },
+    {
+      $set: { "affiliations.$.isCurrent": false, updatedAt: new Date() },
+    },
+    { returnDocument: "after" },
+  );
+  return result ? toSafeUser(normalizeUserDocument(result)) : null;
+}
+
+/** Видаляє приналежність повністю. */
+export async function deleteAffiliation(userId: string, affiliationId: string): Promise<SafeUser | null> {
+  if (!hasMongoConfig()) {
+    const user = localUsers.find((u) => u._id === userId);
+    if (!user) return null;
+    user.affiliations = (user.affiliations ?? []).filter((a) => a._id !== affiliationId);
+    return toSafeUser(user);
+  }
+  if (!ObjectId.isValid(userId)) return null;
+  const db = await getMongoDb();
+  const result = await db.collection(collectionName).findOneAndUpdate(
+    { _id: new ObjectId(userId) },
+    {
+      $pull: { affiliations: { _id: affiliationId } } as never,
+      $set: { updatedAt: new Date() },
+    },
+    { returnDocument: "after" },
+  );
+  return result ? toSafeUser(normalizeUserDocument(result)) : null;
 }

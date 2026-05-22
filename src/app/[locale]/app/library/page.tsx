@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { AppShell } from "@/components/app-shell";
+import { LiquidAppShell } from "@/components/liquid-app-shell";
 import { LibraryHub } from "@/components/library/library-hub";
 import { Breadcrumb, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/current-user";
@@ -21,7 +21,7 @@ export default async function LibraryPage({
   const articles = await listKnowledgeBaseArticles();
 
   return (
-    <AppShell dictionary={dictionary} locale={localeParam} user={user}>
+    <LiquidAppShell dictionary={dictionary} locale={localeParam} user={user}>
       <PageHeader
         eyebrow={localeParam === "uk" ? "База знань" : "Knowledge Base"}
         title={localeParam === "uk" ? "Бібліотека" : "Library"}
@@ -38,6 +38,6 @@ export default async function LibraryPage({
         }
       />
       <LibraryHub locale={localeParam} articles={articles} />
-    </AppShell>
+    </LiquidAppShell>
   );
 }

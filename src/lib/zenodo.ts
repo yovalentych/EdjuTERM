@@ -75,7 +75,7 @@ export async function syncRecordMetadataToZenodo(
 
   try {
     const deposition = record.zenodoDepositionId
-      ? await updateDeposition(record.zenodoDepositionId, record, user)
+      ? await updateDeposition(Number(record.zenodoDepositionId), record, user)
       : await createDeposition(record, user);
 
     const zenodoPatch = depositionToRecordPatch(deposition);
@@ -372,7 +372,7 @@ async function ensureDraftDeposition(record: ProjectRecord, user: SafeUser) {
   }
 
   return record.zenodoDepositionId
-    ? await updateDeposition(record.zenodoDepositionId, record, user)
+    ? await updateDeposition(Number(record.zenodoDepositionId), record, user)
     : await createDeposition(record, user);
 }
 
@@ -672,7 +672,7 @@ function buildReadme(record: ProjectRecord) {
     "## Files",
     "",
     ...record.rawDataFiles.map((file) =>
-      `- ${file.name} (${file.bytes ?? 0} bytes, sha256: ${file.checksum || "not recorded"})`,
+      `- ${file.name} (${file.bytes ?? file.size ?? 0} bytes)`,
     ),
     "",
     "## Usage notes",
@@ -702,7 +702,7 @@ function buildMetadataJson(record: ProjectRecord) {
     processingStatus: record.processingStatus,
     files: record.rawDataFiles.map((file) => ({
       name: file.name,
-      checksumSha256: file.checksum,
+      checksumSha256: undefined,
       mimeType: file.mimeType,
       bytes: file.bytes,
       uploadedAt: file.uploadedAt,
@@ -739,8 +739,8 @@ function depositionToRecordPatch(deposition: ZenodoDeposition) {
   const doiUrl = deposition.doi_url || (doi ? `https://doi.org/${doi}` : "");
 
   return {
-    zenodoDepositionId: deposition.id,
-    zenodoRecordId: deposition.record_id,
+    zenodoDepositionId: String(deposition.id ?? ""),
+    zenodoRecordId: String(deposition.record_id ?? ""),
     zenodoConceptDoi: prereleaseDoi,
     zenodoDoi: deposition.doi ?? "",
     zenodoUrl: deposition.record_url || doiUrl,

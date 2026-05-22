@@ -68,7 +68,7 @@ function buildBudgetRows({
       request.status,
       request.linkedPeriodId ? periodsById.get(request.linkedPeriodId)?.label ?? "" : "",
       request.linkedLineItemId ? lineItemsById.get(request.linkedLineItemId)?.name ?? "" : "",
-      amount(request.estimatedAmount),
+      request.estimatedAmount === undefined ? "" : amount(request.estimatedAmount),
       request.actualAmount === undefined ? "" : amount(request.actualAmount),
       request.currency,
       request.vendor,
@@ -83,8 +83,8 @@ function buildBudgetRows({
       request.title,
       request.category,
       request.linkedLineItemId ? lineItemsById.get(request.linkedLineItemId)?.name ?? "" : "",
-      amount(request.estimatedAmount),
-      amount(request.actualAmount ?? request.estimatedAmount),
+      request.estimatedAmount === undefined ? "" : amount(request.estimatedAmount),
+      amount(request.actualAmount ?? request.estimatedAmount ?? 0),
       request.currency,
       request.vendor,
       request.documents.length,
@@ -128,10 +128,10 @@ function buildSummary(lineItems: BudgetLineItem[], requests: PurchaseRequest[]) 
   const totalPlanned = lineItems.reduce((sum, item) => sum + item.plannedAmount, 0);
   const totalCommitted = requests
     .filter((request) => request.status === "submitted" || request.status === "approved")
-    .reduce((sum, request) => sum + request.estimatedAmount, 0);
+    .reduce((sum, request) => sum + (request.estimatedAmount ?? 0), 0);
   const totalSpent = requests
     .filter((request) => request.status === "purchased" || request.status === "delivered")
-    .reduce((sum, request) => sum + (request.actualAmount ?? request.estimatedAmount), 0);
+    .reduce((sum, request) => sum + (request.actualAmount ?? request.estimatedAmount ?? 0), 0);
   const categoryMap = new Map<string, { committed: number; planned: number; spent: number }>();
 
   for (const category of budgetCategories) {
@@ -144,12 +144,12 @@ function buildSummary(lineItems: BudgetLineItem[], requests: PurchaseRequest[]) 
   }
 
   for (const request of requests) {
-    const entry = categoryMap.get(request.category);
+    const entry = request.category ? categoryMap.get(request.category) : undefined;
     if (!entry) continue;
     if (request.status === "purchased" || request.status === "delivered") {
-      entry.spent += request.actualAmount ?? request.estimatedAmount;
+      entry.spent += request.actualAmount ?? request.estimatedAmount ?? 0;
     } else if (request.status === "submitted" || request.status === "approved") {
-      entry.committed += request.estimatedAmount;
+      entry.committed += request.estimatedAmount ?? 0;
     }
   }
 

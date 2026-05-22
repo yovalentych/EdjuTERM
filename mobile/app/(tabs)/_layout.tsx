@@ -1,82 +1,28 @@
 import { Tabs } from "expo-router";
-import { BlurView } from "expo-blur";
-import { StyleSheet, Platform } from "react-native";
-import { Feather } from "@expo/vector-icons";
-import { colors } from "@/constants/theme";
+import { useMobileStore } from "@/lib/mobile-store";
+import { GlassTabBar } from "@/components/glass-tab-bar";
 
 export default function TabsLayout() {
+  const { activeWorkspaceItem } = useMobileStore();
+  const itemType = activeWorkspaceItem?.type;
+  const isLab    = itemType === "laboratory";
+  const isLearn  = itemType === "course" || itemType === "phd"
+                || itemType === "bachelor" || itemType === "master";
+
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.mutedSoft,
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: "800",
-          marginBottom: 4,
-        },
-        tabBarStyle: {
-          position: "absolute",
-          borderTopWidth: 0,
-          elevation: 0,
-          height: Platform.OS === "ios" ? 88 : 64,
-          backgroundColor: "transparent",
-        },
-        tabBarBackground: () => (
-          <BlurView
-            intensity={80}
-            tint="light"
-            style={StyleSheet.absoluteFill}
-          />
-        ),
-      }}
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <GlassTabBar {...props} />}
     >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: "Головна",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="home" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="learning"
-        options={{
-          title: "Навчання",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="book" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="capture"
-        options={{
-          title: "Запис",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="edit-3" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="budget"
-        options={{
-          title: "Кошти",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="pie-chart" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Профіль",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="user" size={size} color={color} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="space"      options={{ title: "Простір" }} />
+      <Tabs.Screen name="workbench"  options={isLab   ? { title: "Досліди" }  : { href: null }} />
+      <Tabs.Screen name="learning"   options={isLearn ? { title: "Навчання" } : { href: null }} />
+      <Tabs.Screen name="management" options={itemType ? { title: "Проєкт" } : { href: null }} />
+      <Tabs.Screen name="profile"    options={{ title: "Профіль" }} />
+      {/* hidden — доступні через router.push, але не в табах */}
+      <Tabs.Screen name="home" options={{ href: null }} />
+      <Tabs.Screen name="lab-inventory" options={{ href: null }} />
+      <Tabs.Screen name="lab-equipment" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/current-user";
 import { getProjectForUser } from "@/lib/projects";
+import { getItemForUser } from "@/lib/workspaces";
 import {
   getPhdPlan,
   savePhdPlanMeta,
@@ -24,9 +25,19 @@ import {
   phdYearlyCourseSchema,
   phdYearlyScientificItemSchema,
 } from "@/lib/schemas";
+import { syncLearningFromCurriculumCourse } from "@/lib/learning-curriculum-sync";
+import type { SafeUser } from "@/lib/schemas";
 
 function revalidate(locale: string, projectId: string) {
   revalidatePath(`/${locale}/app/phd-plan?projectId=${projectId}`);
+  revalidatePath(`/${locale}/app/space`, "layout");
+}
+
+async function canAccess(projectId: string, user: SafeUser) {
+  const project = await getProjectForUser(projectId, user);
+  if (project) return true;
+  const item = await getItemForUser(projectId, user);
+  return !!item;
 }
 
 // ── Meta ──────────────────────────────────────────────────────────────────────
@@ -36,8 +47,7 @@ export async function savePhdMeta(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   const meta = phdPlanMetaSchema.omit({ projectId: true }).parse({
     studentName: formData.get("studentName") ?? "",
@@ -67,8 +77,7 @@ export async function addCurriculumCourse(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   const course = phdCurriculumCourseSchema.parse({
     cid: `cc-${Date.now()}`,
@@ -82,6 +91,7 @@ export async function addCurriculumCourse(formData: FormData) {
     credited: false,
   });
   await upsertCurriculumCourse(projectId, course, user);
+  await syncLearningFromCurriculumCourse(projectId, course, user);
   revalidate(locale, projectId);
 }
 
@@ -90,8 +100,7 @@ export async function updateCurriculumCourse(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   const course = phdCurriculumCourseSchema.parse({
     cid: formData.get("cid"),
@@ -105,6 +114,7 @@ export async function updateCurriculumCourse(formData: FormData) {
     credited: formData.get("credited") === "true",
   });
   await upsertCurriculumCourse(projectId, course, user);
+  await syncLearningFromCurriculumCourse(projectId, course, user);
   revalidate(locale, projectId);
 }
 
@@ -113,8 +123,7 @@ export async function removeCurriculumCourse(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   await deleteCurriculumCourse(projectId, formData.get("cid") as string);
   revalidate(locale, projectId);
@@ -128,13 +137,14 @@ export async function toggleCurriculumCourseCredit(formData: FormData) {
   const projectId = formData.get("projectId") as string;
   const cid = formData.get("cid") as string;
   const credited = formData.get("credited") === "true";
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   const plan = await getPhdPlan(projectId);
   const course = plan?.curriculumCourses.find((c) => c.cid === cid);
   if (!course) return;
-  await upsertCurriculumCourse(projectId, { ...course, credited }, user);
+  const next = { ...course, credited };
+  await upsertCurriculumCourse(projectId, next, user);
+  await syncLearningFromCurriculumCourse(projectId, next, user);
   revalidate(locale, projectId);
 }
 
@@ -147,8 +157,7 @@ export async function creditFromLearning(formData: FormData) {
   const title = (formData.get("title") as string).trim();
   const credits = Number(formData.get("credits") ?? 3);
   const studyYear = Number(formData.get("studyYear") ?? 1);
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return { ok: false };
+  if (!await canAccess(projectId, user)) return { ok: false };
 
   const plan = await getPhdPlan(projectId);
   const existing = plan?.curriculumCourses.find(
@@ -156,11 +165,11 @@ export async function creditFromLearning(formData: FormData) {
   );
 
   if (existing) {
-    await upsertCurriculumCourse(projectId, { ...existing, credited: true }, user);
+    const next = { ...existing, credited: true };
+    await upsertCurriculumCourse(projectId, next, user);
+    await syncLearningFromCurriculumCourse(projectId, next, user);
   } else {
-    await upsertCurriculumCourse(
-      projectId,
-      phdCurriculumCourseSchema.parse({
+    const course = phdCurriculumCourseSchema.parse({
         cid: `cc-${Date.now()}`,
         cycle: "general",
         subgroup: "mandatory",
@@ -170,9 +179,9 @@ export async function creditFromLearning(formData: FormData) {
         studyYear,
         orderIndex: (plan?.curriculumCourses.length ?? 0),
         credited: true,
-      }),
-      user,
-    );
+      });
+    await upsertCurriculumCourse(projectId, course, user);
+    await syncLearningFromCurriculumCourse(projectId, course, user);
   }
 
   revalidate(locale, projectId);
@@ -187,8 +196,7 @@ export async function addMilestone(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   const milestone = phdMilestoneSchema.parse({
     mid: `ms-${Date.now()}`,
@@ -205,8 +213,7 @@ export async function updateMilestone(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   const milestone = phdMilestoneSchema.parse({
     mid: formData.get("mid"),
@@ -223,8 +230,7 @@ export async function removeMilestone(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   await deleteMilestone(projectId, formData.get("mid") as string);
   revalidate(locale, projectId);
@@ -237,8 +243,7 @@ export async function saveSemesterDates(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   const year = Number(formData.get("year"));
   const sem1Start = (formData.get("sem1Start") as string) ?? "";
@@ -257,8 +262,7 @@ export async function saveYearMeta(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   const year = Number(formData.get("year"));
   await saveYearlyMeta(projectId, year, {
@@ -279,8 +283,7 @@ export async function addYearlyCourse(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   const year = Number(formData.get("year"));
   const course = phdYearlyCourseSchema.parse({
@@ -304,8 +307,7 @@ export async function updateYearlyCourse(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   const year = Number(formData.get("year"));
   const course = phdYearlyCourseSchema.parse({
@@ -329,8 +331,7 @@ export async function removeYearlyCourse(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   const year = Number(formData.get("year"));
   await deleteYearlyCourse(projectId, year, formData.get("ycid") as string);
@@ -344,8 +345,7 @@ export async function addYearlyScientificItem(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   const year = Number(formData.get("year"));
   const item = phdYearlyScientificItemSchema.parse({
@@ -367,8 +367,7 @@ export async function updateYearlyScientificItem(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   const year = Number(formData.get("year"));
   const item = phdYearlyScientificItemSchema.parse({
@@ -392,8 +391,7 @@ export async function importCoursesFromYearly(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   const plan = await getPhdPlan(projectId);
   if (!plan) return;
@@ -417,6 +415,7 @@ export async function importCoursesFromYearly(formData: FormData) {
         orderIndex: orderIndex++,
       });
       await upsertCurriculumCourse(projectId, course, user);
+      await syncLearningFromCurriculumCourse(projectId, course, user);
     }
   }
   revalidate(locale, projectId);
@@ -427,8 +426,7 @@ export async function removeYearlyScientificItem(formData: FormData) {
   if (!user) return;
   const locale = (formData.get("locale") as string) ?? "uk";
   const projectId = formData.get("projectId") as string;
-  const project = await getProjectForUser(projectId, user);
-  if (!project) return;
+  if (!await canAccess(projectId, user)) return;
 
   const year = Number(formData.get("year"));
   await deleteYearlyScientificItem(projectId, year, formData.get("wsid") as string);

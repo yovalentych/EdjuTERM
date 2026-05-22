@@ -20,8 +20,12 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <section className={`surface overflow-hidden ${className}`}>
-      <div className="flex flex-col gap-3 p-5 md:flex-row md:items-start md:justify-between md:p-6">
+    <section className={`liquid-card relative overflow-hidden p-0 ${className}`}>
+      {/* Decorative gradient backdrop — узгоджено з space.tsx / library hub. */}
+      <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-emerald-400/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 -left-16 h-48 w-48 rounded-full bg-blue-400/10 blur-3xl" />
+
+      <div className="relative flex flex-col gap-3 p-5 md:flex-row md:items-start md:justify-between md:p-6">
         <div className="min-w-0">
           {breadcrumb && (
             <div className="mb-2 flex items-center gap-1.5 text-xs text-slate-500">
@@ -29,13 +33,15 @@ export function PageHeader({
             </div>
           )}
           {eyebrow && (
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-blue-600">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">
               {eyebrow}
             </p>
           )}
-          <h1 className="text-xl font-semibold text-slate-900 md:text-2xl">{title}</h1>
+          <h1 className="text-2xl font-bold leading-tight tracking-tight text-slate-950 md:text-3xl">
+            {title}
+          </h1>
           {description && (
-            <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-500">
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
               {description}
             </p>
           )}
@@ -43,7 +49,7 @@ export function PageHeader({
         {actions && <div className="shrink-0">{actions}</div>}
       </div>
       {stats && (
-        <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-3 md:px-6">
+        <div className="relative border-t border-slate-200/60 bg-white/40 px-5 py-3 backdrop-blur md:px-6">
           {stats}
         </div>
       )}

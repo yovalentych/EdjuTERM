@@ -6,7 +6,9 @@ export type ResearchTone =
   | "blue"
   | "cyan"
   | "emerald"
+  | "indigo"
   | "orange"
+  | "rose"
   | "slate"
   | "violet";
 
@@ -15,7 +17,9 @@ const iconToneClasses: Record<ResearchTone, string> = {
   blue: "border-blue-200 bg-blue-50 text-blue-700",
   cyan: "border-cyan-200 bg-cyan-50 text-cyan-700",
   emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  indigo: "border-indigo-200 bg-indigo-50 text-indigo-700",
   orange: "border-orange-200 bg-orange-50 text-orange-700",
+  rose: "border-rose-200 bg-rose-50 text-rose-700",
   slate: "border-slate-200 bg-slate-100 text-slate-700",
   violet: "border-violet-200 bg-violet-50 text-violet-700",
 };
@@ -25,7 +29,9 @@ const chipToneClasses: Record<ResearchTone, string> = {
   blue: "border-blue-200 bg-blue-50 text-blue-700",
   cyan: "border-cyan-200 bg-cyan-50 text-cyan-700",
   emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  indigo: "border-indigo-200 bg-indigo-50 text-indigo-700",
   orange: "border-orange-200 bg-orange-50 text-orange-700",
+  rose: "border-rose-200 bg-rose-50 text-rose-700",
   slate: "border-slate-200 bg-slate-50 text-slate-600",
   violet: "border-violet-200 bg-violet-50 text-violet-700",
 };

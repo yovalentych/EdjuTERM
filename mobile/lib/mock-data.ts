@@ -2,6 +2,8 @@ export type MobileProject = {
   id: string;
   acronym: string;
   title: string;
+  projectType: string;
+  roomNumber?: string;
   status: "active" | "review" | "archived";
   budget: {
     planned: number;
@@ -15,6 +17,7 @@ export type MobileProject = {
     events: number;
     warnings: number;
   };
+  memberCount: number;
 };
 
 export type ActivityItem = {
@@ -47,6 +50,8 @@ export const mockProjects: MobileProject[] = [
     id: "phd-2025",
     acronym: "PHD2025",
     title: "Дисертаційне дослідження",
+    projectType: "dissertation",
+    memberCount: 2,
     status: "active",
     budget: { planned: 120000, committed: 15000, spent: 45000, remaining: 60000 },
     counters: { records: 12, tasks: 8, events: 3, warnings: 1 },
@@ -55,6 +60,8 @@ export const mockProjects: MobileProject[] = [
     id: "grant-alpha",
     acronym: "ALPHA",
     title: "Грант: Штучний інтелект у біомедицині",
+    projectType: "fundamental",
+    memberCount: 5,
     status: "active",
     budget: { planned: 500000, committed: 50000, spent: 120000, remaining: 330000 },
     counters: { records: 45, tasks: 24, events: 12, warnings: 0 },
@@ -63,6 +70,8 @@ export const mockProjects: MobileProject[] = [
     id: "learning-mode",
     acronym: "LEARN",
     title: "Навчальний план: Аспірантура",
+    projectType: "dissertation",
+    memberCount: 1,
     status: "active",
     budget: { planned: 0, committed: 0, spent: 0, remaining: 0 },
     counters: { records: 0, tasks: 15, events: 5, warnings: 2 },

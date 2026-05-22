@@ -251,7 +251,7 @@ export default async function BudgetPage({
                           key={p._id}
                           className="flex items-center justify-between bg-white px-4 py-3 text-sm transition hover:bg-slate-50"
                         >
-                          <span className="font-medium text-slate-800">{p.label}</span>
+                          <span className="font-medium text-slate-800">{p.title}</span>
                           <div className="flex items-center gap-3">
                             <span className="text-xs text-slate-400">
                               {p.startDate} — {p.endDate}
@@ -690,9 +690,9 @@ function buildFinanceTimeline(requests: Awaited<ReturnType<typeof listPurchaseRe
     if (!entry) continue;
 
     if (request.status === "purchased" || request.status === "delivered") {
-      entry.actual += request.actualAmount ?? request.estimatedAmount;
+      entry.actual += request.amount;
     } else if (request.status === "submitted" || request.status === "approved") {
-      entry.committed += request.estimatedAmount;
+      entry.committed += request.amount;
     }
   }
 

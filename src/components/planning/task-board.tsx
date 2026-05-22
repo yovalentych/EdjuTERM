@@ -24,10 +24,10 @@ export function TaskBoard({
     parentTaskId: task.parentTaskId,
     assigneeId: task.assigneeId,
     dueDate: task.dueDate,
-    priority: task.priority,
+    priority: task.priority as TaskBoardTask["priority"],
     category: task.category,
     estimatedHours: task.estimatedHours,
-    status: task.status,
+    status: (task.status as TaskBoardTask["status"]) ?? "todo",
   }));
 
   const boardMembers: TaskBoardMember[] = members.map((member) => ({

@@ -56,6 +56,7 @@ const STATUS_ROW_BG: Record<SessionStatus, string> = {
   cancelled: "bg-rose-50/70",
   rescheduled: "bg-amber-50/50",
   makeup: "bg-emerald-50/50",
+  completed: "bg-slate-50/60",
 };
 
 const WEEKDAY_LABELS = ["Нд", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
@@ -77,6 +78,10 @@ function moduleMap(modules: LearningModule[]) {
 
 function topicMap(topics: LearningTopic[]) {
   return new Map(topics.map((topic) => [topic._id ?? "", topic]));
+}
+
+function isSchedulableTopic(topic: LearningTopic) {
+  return topic.topicType !== "self_study";
 }
 
 // ── Attendance toggle ─────────────────────────────────────────────────────────
@@ -237,13 +242,42 @@ function RecurringGeneratorModal({ courseId, projectId, locale, topics, modules,
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("10:30");
   const [durationHours, setDurationHours] = useState(1.5);
+  const [repeatEvery, setRepeatEvery] = useState(1);
+  const [excludedDates, setExcludedDates] = useState<Set<string>>(new Set());
   const [location, setLocation] = useState("");
   const [assignMode, setAssignMode] = useState<"single_type" | "sequential" | "alternating">("single_type");
   const [singleType, setSingleType] = useState<TopicType>("lecture");
   const [pattern, setPattern] = useState<TopicType[]>(["lecture", "seminar"]);
   const [result, setResult] = useState<{ count: number } | null>(null);
 
-  const courseTopics = topics.filter((t) => t.courseId === courseId);
+  function timeToMinutes(t: string) {
+    const [h, m] = t.split(":").map(Number);
+    return h * 60 + (m || 0);
+  }
+  function minutesToTime(mins: number) {
+    const h = Math.floor(((mins % (24 * 60)) + 24 * 60) % (24 * 60) / 60);
+    const m = ((mins % (24 * 60)) + 24 * 60) % (24 * 60) % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  }
+  function onStartTimeChange(v: string) {
+    setStartTime(v);
+    setEndTime(minutesToTime(timeToMinutes(v) + Math.round(durationHours * 60)));
+  }
+  function onDurationChange(v: number) {
+    const d = Math.max(0.5, v);
+    setDurationHours(d);
+    setEndTime(minutesToTime(timeToMinutes(startTime) + Math.round(d * 60)));
+  }
+  function onEndTimeChange(v: string) {
+    setEndTime(v);
+    const diff = (timeToMinutes(v) - timeToMinutes(startTime)) / 60;
+    if (diff > 0) setDurationHours(Math.round(diff * 2) / 2);
+  }
+  function toggleExclude(date: string) {
+    setExcludedDates((prev) => { const n = new Set(prev); n.has(date) ? n.delete(date) : n.add(date); return n; });
+  }
+
+  const courseTopics = topics.filter((t) => t.courseId === courseId && isSchedulableTopic(t));
   const moduleLookup = moduleMap(modules);
 
   const sessionCount = assignMode === "sequential" && courseTopics.length > 0
@@ -253,15 +287,22 @@ function RecurringGeneratorModal({ courseId, projectId, locale, topics, modules,
   const previewDates = useMemo(() => {
     if (!startDate || weekdays.length === 0 || sessionCount <= 0) return [];
     const dates: string[] = [];
-    const cur = new Date(startDate);
+    const start = new Date(startDate + "T00:00:00");
+    const cur = new Date(startDate + "T00:00:00");
     let safety = 0;
-    while (dates.length < sessionCount && safety < 500) {
-      if (weekdays.includes(cur.getDay())) dates.push(cur.toISOString().slice(0, 10));
+    while (dates.length < sessionCount && safety < 1000) {
+      const dayOfWeek = cur.getDay();
+      const weeksSinceStart = Math.floor((cur.getTime() - start.getTime()) / (7 * 24 * 3600 * 1000));
+      if (weekdays.includes(dayOfWeek) && weeksSinceStart % repeatEvery === 0) {
+        dates.push(cur.toISOString().slice(0, 10));
+      }
       cur.setDate(cur.getDate() + 1);
       safety++;
     }
     return dates;
-  }, [startDate, weekdays, sessionCount]);
+  }, [startDate, weekdays, sessionCount, repeatEvery]);
+
+  const finalDates = useMemo(() => previewDates.filter((d) => !excludedDates.has(d)), [previewDates, excludedDates]);
 
   const getPreviewType = (index: number): TopicType => {
     if (assignMode === "sequential" && courseTopics.length > 0) {
@@ -286,14 +327,13 @@ function RecurringGeneratorModal({ courseId, projectId, locale, topics, modules,
   };
 
   const submit = () => {
-    if (!startDate || weekdays.length === 0 || sessionCount <= 0) return;
+    if (finalDates.length === 0) return;
     const fd = new FormData();
     fd.set("locale", locale);
     fd.set("projectId", projectId);
     fd.set("courseId", courseId);
-    fd.set("weekdays", weekdays.join(","));
-    fd.set("startDate", startDate);
-    fd.set("count", String(sessionCount));
+    fd.set("scheduleDates", JSON.stringify(finalDates));
+    fd.set("count", String(finalDates.length));
     fd.set("startTime", startTime);
     fd.set("endTime", endTime);
     fd.set("durationHours", String(durationHours));
@@ -301,6 +341,9 @@ function RecurringGeneratorModal({ courseId, projectId, locale, topics, modules,
     fd.set("assignMode", assignMode);
     fd.set("singleType", singleType);
     fd.set("pattern", pattern.join(","));
+    // Legacy fields (used for sequential topic lookup server-side)
+    fd.set("weekdays", weekdays.join(","));
+    fd.set("startDate", startDate || finalDates[0] || "");
     start(async () => {
       const res = await generateRecurringSchedule(fd);
       if (res?.ok) setResult({ count: res.count ?? 0 });
@@ -374,6 +417,33 @@ function RecurringGeneratorModal({ courseId, projectId, locale, topics, modules,
                     ))}
                   </div>
 
+                  {/* Periodicity */}
+                  <div className="mb-4">
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Повторення</p>
+                    <div className="flex flex-wrap gap-2">
+                      {([
+                        [1, "Щотижня"],
+                        [2, "Кожні 2 тижні"],
+                        [3, "Кожні 3 тижні"],
+                        [4, "Щомісяця"],
+                      ] as const).map(([v, label]) => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setRepeatEvery(v)}
+                          className={clsx(
+                            "rounded-xl border px-3 py-1.5 text-xs font-semibold transition",
+                            repeatEvery === v
+                              ? "border-indigo-500 bg-indigo-600 text-white shadow-sm"
+                              : "border-slate-200 bg-white text-slate-500 hover:border-indigo-300",
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                     <div>
                       <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Перший день занять</label>
@@ -401,15 +471,21 @@ function RecurringGeneratorModal({ courseId, projectId, locale, topics, modules,
                   <div className="mt-3 grid gap-3 sm:grid-cols-[auto_auto_auto_1fr]">
                     <div>
                       <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Початок</label>
-                      <TimeSelect value={startTime} onChange={setStartTime} className={clsx(inputCls, "w-32")} />
+                      <TimeSelect value={startTime} onChange={onStartTimeChange} className={clsx(inputCls, "w-32")} />
                     </div>
                     <div>
                       <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Кінець</label>
-                      <TimeSelect value={endTime} onChange={setEndTime} className={clsx(inputCls, "w-32")} />
+                      <TimeSelect value={endTime} onChange={onEndTimeChange} className={clsx(inputCls, "w-32")} />
                     </div>
                     <div>
                       <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Тривалість (год.)</label>
-                      <input type="number" min={0.5} max={12} step={0.5} value={durationHours} onChange={(e) => setDurationHours(Number(e.target.value))} className={clsx(inputCls, "w-24")} />
+                      <input
+                        type="number"
+                        min={0.5} max={12} step={0.5}
+                        value={durationHours}
+                        onChange={(e) => onDurationChange(Number(e.target.value))}
+                        className={clsx(inputCls, "w-24")}
+                      />
                     </div>
                     <div>
                       <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Місце / посилання</label>
@@ -526,47 +602,88 @@ function RecurringGeneratorModal({ courseId, projectId, locale, topics, modules,
                 {/* Section 3: Preview */}
                 {previewDates.length > 0 && (
                   <div className="border-t border-slate-100 pt-5">
-                    <div className="mb-3 flex items-center justify-between">
+                    <div className="mb-2 flex items-center justify-between">
                       <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">Попередній перегляд</p>
-                      <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
-                        {previewDates.length} занять
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {excludedDates.size > 0 && (
+                          <span className="text-[10px] text-rose-500 font-semibold">
+                            −{excludedDates.size} виключено
+                          </span>
+                        )}
+                        <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
+                          {finalDates.length} занять
+                        </span>
+                      </div>
                     </div>
-                    <div className="max-h-48 overflow-y-auto rounded-2xl border border-slate-200">
+                    <p className="mb-2 text-[10px] text-slate-400">
+                      Натисніть <X className="inline h-2.5 w-2.5" /> поруч із датою, щоб виключити її (свято, перенесення тощо).
+                    </p>
+                    <div className="max-h-56 overflow-y-auto rounded-2xl border border-slate-200">
                       <table className="w-full text-xs">
                         <tbody>
-                          {previewDates.slice(0, 30).map((date, i) => {
+                          {previewDates.slice(0, 60).map((date, i) => {
                             const type = getPreviewType(i);
-                            const dayIdx = new Date(date).getDay();
+                            const dayIdx = new Date(date + "T00:00:00").getDay();
+                            const excluded = excludedDates.has(date);
+                            const isWeekend = [0, 6].includes(dayIdx);
                             return (
-                              <tr key={date} className={clsx("border-b border-slate-100 last:border-0", i % 2 === 0 ? "bg-white" : "bg-slate-50/50")}>
-                                <td className="w-8 px-2 py-1.5 font-mono text-slate-400">{i + 1}</td>
+                              <tr
+                                key={date}
+                                className={clsx(
+                                  "border-b border-slate-100 last:border-0 transition",
+                                  excluded ? "bg-rose-50/60 opacity-60" : i % 2 === 0 ? "bg-white" : "bg-slate-50/40",
+                                )}
+                              >
+                                <td className="w-8 px-2 py-1.5 font-mono text-slate-400">
+                                  {excluded ? "—" : (i + 1 - [...previewDates.slice(0, i)].filter((d) => excludedDates.has(d)).length)}
+                                </td>
                                 <td className="px-2 py-1.5 font-bold text-slate-700">
-                                  {new Date(date).toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit" })}
+                                  <span className={excluded ? "line-through text-slate-400" : ""}>
+                                    {new Date(date + "T00:00:00").toLocaleDateString("uk-UA", { day: "2-digit", month: "2-digit" })}
+                                  </span>
                                 </td>
                                 <td className="px-2 py-1.5">
                                   <span className={clsx(
                                     "inline-block rounded px-1 text-[10px] font-semibold",
-                                    [0, 6].includes(dayIdx) ? "bg-rose-100 text-rose-600" : "bg-slate-100 text-slate-500",
+                                    isWeekend ? "bg-rose-100 text-rose-600" : "bg-slate-100 text-slate-500",
                                   )}>
                                     {WEEKDAY_LABELS[dayIdx]}
                                   </span>
                                 </td>
                                 <td className="px-2 py-1.5">
-                                  <span className={clsx("inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold", SESSION_TYPE_COLORS[type])}>
-                                    {SESSION_TYPE_LABELS[type]}
-                                  </span>
+                                  {!excluded && (
+                                    <span className={clsx("inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold", SESSION_TYPE_COLORS[type])}>
+                                      {SESSION_TYPE_LABELS[type]}
+                                    </span>
+                                  )}
                                 </td>
                                 <td className="px-2 py-1.5 text-slate-500">
-                                  {getPreviewLabel(i)}
+                                  {!excluded && getPreviewLabel(i)}
+                                </td>
+                                <td className="px-2 py-1.5 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleExclude(date)}
+                                    title={excluded ? "Відновити" : "Виключити (вихідний, свято, перенесення)"}
+                                    className={clsx(
+                                      "flex h-5 w-5 items-center justify-center rounded transition",
+                                      excluded
+                                        ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200"
+                                        : "text-slate-300 hover:bg-rose-100 hover:text-rose-600",
+                                    )}
+                                  >
+                                    {excluded
+                                      ? <Check className="h-3 w-3" />
+                                      : <X className="h-3 w-3" />}
+                                  </button>
                                 </td>
                               </tr>
                             );
                           })}
-                          {previewDates.length > 30 && (
+                          {previewDates.length > 60 && (
                             <tr className="bg-slate-50">
-                              <td colSpan={5} className="px-3 py-2 text-center text-slate-400">
-                                +{previewDates.length - 30} занять не показано
+                              <td colSpan={6} className="px-3 py-2 text-center text-slate-400">
+                                +{previewDates.length - 60} занять не показано
                               </td>
                             </tr>
                           )}
@@ -591,11 +708,11 @@ function RecurringGeneratorModal({ courseId, projectId, locale, topics, modules,
                 <button
                   type="button"
                   onClick={submit}
-                  disabled={pending || previewDates.length === 0 || weekdays.length === 0 || !startDate}
+                  disabled={pending || finalDates.length === 0}
                   className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Wand2 className="h-4 w-4" />
-                  {pending ? "Генерація…" : `Згенерувати ${previewDates.length > 0 ? previewDates.length : ""} занять`}
+                  {pending ? "Генерація…" : `Згенерувати ${finalDates.length > 0 ? finalDates.length : ""} занять`}
                 </button>
               </div>
             </div>
@@ -894,7 +1011,7 @@ function AddSessionRow({ courseId, projectId, locale, modules, topics, orderInde
 
   const moduleLookup = moduleMap(modules);
   const topicLookup = topicMap(topics);
-  const visibleTopics = topics.filter((topic) => !selectedModuleId || topic.moduleId === selectedModuleId);
+  const visibleTopics = topics.filter((topic) => isSchedulableTopic(topic) && (!selectedModuleId || topic.moduleId === selectedModuleId));
   const selectedTopic = topicLookup.get(selectedTopicId);
   const selectedModule = selectedTopic ? moduleLookup.get(selectedTopic.moduleId) : moduleLookup.get(selectedModuleId);
 
@@ -1467,9 +1584,10 @@ function ScheduleInsights({ topics, sessions, modules, onAddUnscheduled }: {
   onAddUnscheduled?: () => void;
 }) {
   const moduleLookup = moduleMap(modules);
+  const schedulableTopics = topics.filter(isSchedulableTopic);
   const activeSessions = sessions.filter((s) => (s.status ?? "active") !== "cancelled");
   const scheduledTopicIds = new Set(activeSessions.map((session) => session.topicId).filter(Boolean));
-  const unscheduledTopics = topics.filter((topic) => !scheduledTopicIds.has(topic._id ?? ""));
+  const unscheduledTopics = schedulableTopics.filter((topic) => !scheduledTopicIds.has(topic._id ?? ""));
   const plannedHours = topics.reduce((sum, topic) => sum + (topic.durationHours || 0), 0);
   const scheduledHours = activeSessions.reduce((sum, session) => sum + (session.durationHours || 0), 0);
   const attendanceMarked = activeSessions.filter((session) => session.attendance !== null).length;
@@ -1479,15 +1597,15 @@ function ScheduleInsights({ topics, sessions, modules, onAddUnscheduled }: {
   const cards = [
     {
       label: "Тем у курсі",
-      value: topics.length,
-      sub: `${topics.filter((topic) => topic.isCompleted).length} завершено`,
+      value: schedulableTopics.length,
+      sub: `${schedulableTopics.filter((topic) => topic.isCompleted).length} завершено`,
       icon: Layers,
       tone: "text-slate-700 bg-slate-50",
     },
     {
       label: "У розкладі",
       value: activeSessions.length,
-      sub: cancelledCount > 0 ? `${cancelledCount} скасовано` : `${Math.max(topics.length - scheduledTopicIds.size, 0)} тем без занять`,
+      sub: cancelledCount > 0 ? `${cancelledCount} скасовано` : `${Math.max(schedulableTopics.length - scheduledTopicIds.size, 0)} тем без занять`,
       icon: CalendarDays,
       tone: "text-indigo-700 bg-indigo-50",
     },
@@ -1604,7 +1722,7 @@ export function ScheduleTab({ courseId, projectId, locale, canManage, sessions, 
     .filter((session) => filter === "all" || session.sessionType === filter);
 
   const scheduledTopicIds = new Set(activeSessions.map((s) => s.topicId).filter(Boolean));
-  const courseTopics = topics.filter((t) => t.courseId === courseId);
+  const courseTopics = topics.filter((t) => t.courseId === courseId && isSchedulableTopic(t));
   const unscheduledTopics = courseTopics.filter((t) => !scheduledTopicIds.has(t._id ?? ""));
 
   const clearAll = (mode: "all" | "cancelled") => {

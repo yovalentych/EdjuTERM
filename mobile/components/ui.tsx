@@ -1,58 +1,120 @@
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View, type TextStyle } from "react-native";
-import { LucideIcon, icons } from "lucide-react-native";
+import { Platform, Pressable, StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
+import * as Icons from "lucide-react-native";
+import { LucideIcon } from "lucide-react-native";
 import { View as MotiView } from "moti";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { colors, spacing, fonts } from "@/constants/theme";
 
-export function Card({ 
-  children, 
-  tone = "plain", 
-  delay = 0 
-}: { 
-  children: ReactNode; 
+// ─── Card ────────────────────────────────────────────────────────────────────
+// Thin wrapper over Glass-style frosted surface. Public API stays compatible
+// with legacy screens that still import { Card } from "@/components/ui".
+export function Card({
+  children,
+  tone = "plain",
+  delay = 0,
+  style,
+}: {
+  children: ReactNode;
   tone?: "plain" | "dark";
   delay?: number;
+  style?: StyleProp<ViewStyle>;
 }) {
+  const isDark = tone === "dark";
   return (
     <MotiView
-      from={{ opacity: 0, scale: 0.95, translateY: 10 }}
-      animate={{ opacity: 1, scale: 1, translateY: 0 }}
-      transition={{ type: "spring", delay }}
-      style={[styles.card, tone === "dark" && styles.darkCard]}
-    >
-      {children}
-    </MotiView>
-  );
-}
-
-export function Eyebrow({ children, inverse = false }: { children: ReactNode; inverse?: boolean }) {
-  return <Text style={[styles.eyebrow, inverse && styles.inverseMuted]}>{children}</Text>;
-}
-
-export function Title({ children, inverse = false, style }: { children: ReactNode; inverse?: boolean; style?: TextStyle }) {
-  return <Text style={[styles.title, inverse && styles.inverseText, style]}>{children}</Text>;
-}
-
-export function Body({ children, inverse = false, style }: { children: ReactNode; inverse?: boolean; style?: TextStyle }) {
-  return <Text style={[styles.body, inverse && styles.inverseBody, style]}>{children}</Text>;
-}
-
-export function Metric({ label, value, icon }: { label: string; value: string; icon?: keyof typeof icons }) {
-  const Icon = icon ? icons[icon] as LucideIcon : null;
-  return (
-    <MotiView 
-      from={{ opacity: 0, translateY: 10 }}
+      from={{ opacity: 0, translateY: 8 }}
       animate={{ opacity: 1, translateY: 0 }}
-      transition={{ type: "spring", damping: 15 }}
-      style={styles.metric}
+      transition={{ type: "spring", damping: 18, delay }}
+      style={[s.card, isDark && s.cardDark, style]}
     >
-      <View style={styles.metricHeader}>
-        <Text style={styles.metricLabel}>{label}</Text>
-        {Icon && <Icon size={14} color={colors.mutedSoft} strokeWidth={2.5} />}
-      </View>
-      <Text style={styles.metricValue}>{value}</Text>
+      {!isDark && (
+        <BlurView
+          intensity={Platform.OS === "ios" ? 60 : 100}
+          tint="light"
+          style={StyleSheet.absoluteFill}
+        >
+          <LinearGradient
+            colors={["rgba(255,255,255,0.78)", "rgba(255,255,255,0.55)"]}
+            style={StyleSheet.absoluteFill}
+          />
+        </BlurView>
+      )}
+      {isDark && (
+        <LinearGradient
+          colors={[colors.primaryDark, "#0a3a36"]}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+      {!isDark && <View pointerEvents="none" style={s.cardHighlight} />}
+      <View style={{ position: "relative", gap: 10 }}>{children}</View>
     </MotiView>
   );
+}
+
+// ─── Typography ──────────────────────────────────────────────────────────────
+export function Eyebrow({ children, inverse = false }: { children: ReactNode; inverse?: boolean }) {
+  return <Text style={[s.eyebrow, inverse && s.inverseMuted]}>{children}</Text>;
+}
+
+export function Title({
+  children,
+  inverse = false,
+  style,
+}: {
+  children: ReactNode;
+  inverse?: boolean;
+  style?: TextStyle;
+}) {
+  return <Text style={[s.title, inverse && s.inverseText, style]}>{children}</Text>;
+}
+
+export function Body({
+  children,
+  inverse = false,
+  style,
+}: {
+  children: ReactNode;
+  inverse?: boolean;
+  style?: TextStyle;
+}) {
+  return <Text style={[s.body, inverse && s.inverseBody, style]}>{children}</Text>;
+}
+
+// ─── Metric ──────────────────────────────────────────────────────────────────
+// Compact stat tile — visually aligned with GlassStatTile.
+export function Metric({ label, value, icon }: { label: string; value: string; icon?: string }) {
+  const Icon = resolveIcon(icon);
+  return (
+    <MotiView
+      from={{ opacity: 0, translateY: 8 }}
+      animate={{ opacity: 1, translateY: 0 }}
+      transition={{ type: "spring", damping: 16 }}
+      style={s.metric}
+    >
+      <View style={s.metricHeader}>
+        <Text style={s.metricLabel}>{label}</Text>
+        {Icon && <Icon size={14} color={colors.mutedSoft} strokeWidth={2.4} />}
+      </View>
+      <Text style={s.metricValue}>{value}</Text>
+    </MotiView>
+  );
+}
+
+// ─── ActionButton ────────────────────────────────────────────────────────────
+// Solid (primary), outlined (secondary), or text-only (ghost) action.
+// Accepts either lucide PascalCase ("ArrowLeft") or Feather kebab-case
+// ("arrow-left") — converts to lucide identifier if needed.
+function resolveIcon(name?: string): LucideIcon | undefined {
+  if (!name) return undefined;
+  const direct = (Icons as any)[name] as LucideIcon | undefined;
+  if (direct) return direct;
+  const pascal = name
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("");
+  return (Icons as any)[pascal] as LucideIcon | undefined;
 }
 
 export function ActionButton({
@@ -64,33 +126,45 @@ export function ActionButton({
   label: string;
   onPress?: () => void;
   variant?: "primary" | "secondary" | "ghost";
-  icon?: keyof typeof icons;
+  icon?: string;
 }) {
-  const Icon = icon ? icons[icon] as LucideIcon : null;
+  const Icon = resolveIcon(icon);
+  const isPrimary = variant === "primary";
+  const isSecondary = variant === "secondary";
+  const isGhost = variant === "ghost";
   return (
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [
-        styles.button,
-        variant === "secondary" && styles.secondaryButton,
-        variant === "ghost" && styles.ghostButton,
-        pressed && styles.pressed,
+        s.button,
+        isSecondary && s.secondaryButton,
+        isGhost && s.ghostButton,
+        pressed && s.pressed,
       ]}
     >
-      <View style={styles.buttonContent}>
+      {isPrimary && (
+        <LinearGradient
+          colors={["#1a8c81", colors.primary]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+      <View style={s.buttonContent}>
         {Icon && (
-          <Icon 
-            size={18} 
-            color={variant === "primary" ? "#fff" : colors.ink} 
-            style={styles.buttonIcon} 
-            strokeWidth={2.5}
+          <Icon
+            size={16}
+            color={isPrimary ? "#fff" : colors.ink}
+            style={s.buttonIcon}
+            strokeWidth={2.4}
           />
         )}
-        <Text style={[
-          styles.buttonText, 
-          variant === "secondary" && styles.secondaryButtonText,
-          variant === "ghost" && styles.secondaryButtonText
-        ]}>
+        <Text
+          style={[
+            s.buttonText,
+            (isSecondary || isGhost) && s.secondaryButtonText,
+          ]}
+        >
           {label}
         </Text>
       </View>
@@ -98,26 +172,37 @@ export function ActionButton({
   );
 }
 
-const styles = StyleSheet.create({
+// ─── Styles ──────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
   card: {
-    gap: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 20,
-    backgroundColor: colors.card,
+    overflow: "hidden",
+    borderWidth: 0.5,
+    borderColor: "rgba(255,255,255,0.7)",
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.35)",
     padding: spacing.card,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 2,
+    shadowColor: "#0b1626",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
   },
-  darkCard: {
-    borderColor: "rgba(255,255,255,0.1)",
+  cardDark: {
+    borderColor: "rgba(255,255,255,0.08)",
     backgroundColor: colors.primaryDark,
     shadowColor: colors.primary,
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
   },
+  cardHighlight: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.9)",
+  },
+
   eyebrow: {
     fontFamily: fonts.bold,
     color: colors.muted,
@@ -128,37 +213,33 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.title,
     color: colors.ink,
-    fontSize: 24,
+    fontSize: 22,
     letterSpacing: -0.5,
+    lineHeight: 28,
   },
   body: {
     fontFamily: fonts.regular,
     color: colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
   },
-  inverseText: {
-    color: "#ffffff",
-  },
-  inverseBody: {
-    color: "rgba(255,255,255,0.7)",
-  },
-  inverseMuted: {
-    color: "rgba(255,255,255,0.5)",
-  },
+  inverseText: { color: "#ffffff" },
+  inverseBody: { color: "rgba(255,255,255,0.72)" },
+  inverseMuted: { color: "rgba(255,255,255,0.5)" },
+
   metric: {
     flex: 1,
     minWidth: 100,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 0.5,
+    borderColor: "rgba(255,255,255,0.7)",
     borderRadius: 18,
-    backgroundColor: "white",
-    padding: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 1,
+    backgroundColor: "rgba(255,255,255,0.78)",
+    padding: 13,
+    shadowColor: "#0b1626",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   metricHeader: {
     flexDirection: "row",
@@ -168,7 +249,7 @@ const styles = StyleSheet.create({
   metricLabel: {
     fontFamily: fonts.semiBold,
     color: colors.muted,
-    fontSize: 12,
+    fontSize: 11,
   },
   metricValue: {
     fontFamily: fonts.title,
@@ -177,16 +258,18 @@ const styles = StyleSheet.create({
     fontSize: 20,
     letterSpacing: -0.5,
   },
+
   button: {
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 16,
+    borderRadius: 14,
     backgroundColor: colors.primary,
     paddingHorizontal: 16,
-    paddingVertical: 15,
+    paddingVertical: 13,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.24,
     shadowRadius: 12,
     elevation: 4,
   },
@@ -195,31 +278,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  buttonIcon: {
-    marginRight: 10,
-  },
+  buttonIcon: { marginRight: 8 },
   secondaryButton: {
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: "white",
+    backgroundColor: "rgba(255,255,255,0.85)",
     shadowColor: "transparent",
+    shadowOpacity: 0,
     elevation: 0,
   },
   ghostButton: {
     backgroundColor: "transparent",
     shadowColor: "transparent",
+    shadowOpacity: 0,
     elevation: 0,
   },
   buttonText: {
     fontFamily: fonts.bold,
     color: "#ffffff",
-    fontSize: 15,
+    fontSize: 14,
+    letterSpacing: -0.2,
   },
-  secondaryButtonText: {
-    color: colors.ink,
-  },
-  pressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.97 }],
-  },
+  secondaryButtonText: { color: colors.ink },
+  pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
 });

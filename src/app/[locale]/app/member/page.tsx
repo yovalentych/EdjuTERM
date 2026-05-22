@@ -1,7 +1,7 @@
 import { BriefcaseBusiness, Building2, Fingerprint, Mail } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { AppShell } from "@/components/app-shell";
+import { LiquidAppShell } from "@/components/liquid-app-shell";
 import { Avatar } from "@/components/ui/avatar";
 import { Breadcrumb, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/current-user";
@@ -53,7 +53,7 @@ export default async function MemberProfilePage({
   const dictionary = getDictionary(localeParam);
 
   return (
-    <AppShell dictionary={dictionary} locale={localeParam} user={currentUser}>
+    <LiquidAppShell dictionary={dictionary} locale={localeParam} user={currentUser}>
       <PageHeader
         eyebrow={dictionary.account.publicProfile}
         title={`${member.firstName} ${member.lastName}`}
@@ -101,7 +101,7 @@ export default async function MemberProfilePage({
           </p>
         </section>
       ) : null}
-    </AppShell>
+    </LiquidAppShell>
   );
 }
 

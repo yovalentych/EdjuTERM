@@ -48,7 +48,7 @@ export async function getPortfolio(projectId: string): Promise<Portfolio | null>
 
 export async function savePortfolioMeta(
   projectId: string,
-  meta: Omit<PortfolioMeta, "projectId">,
+  meta: Record<string, unknown>,
   user: SafeUser,
 ): Promise<Portfolio> {
   const now = new Date();
@@ -82,7 +82,7 @@ export async function savePortfolioMeta(
 
 export async function upsertPublication(
   projectId: string,
-  pub: PortfolioPublication,
+  pub: Record<string, unknown>,
   user: SafeUser,
 ): Promise<void> {
   const v = portfolioPublicationSchema.parse(pub);
@@ -129,7 +129,7 @@ export async function deletePublication(projectId: string, pubid: string): Promi
 
 export async function upsertConference(
   projectId: string,
-  conf: PortfolioConference,
+  conf: Record<string, unknown>,
   user: SafeUser,
 ): Promise<void> {
   const v = portfolioConferenceSchema.parse(conf);
@@ -176,7 +176,7 @@ export async function deleteConference(projectId: string, confid: string): Promi
 
 export async function upsertAward(
   projectId: string,
-  award: PortfolioAward,
+  award: Record<string, unknown>,
   user: SafeUser,
 ): Promise<void> {
   const v = portfolioAwardSchema.parse(award);

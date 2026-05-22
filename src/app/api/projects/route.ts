@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/current-user";
 import { listProjectsForUser } from "@/lib/projects";
+import { listTasks } from "@/lib/planning";
+import { listResearchEvents } from "@/lib/events";
+import { listDiaryEntries } from "@/lib/diary";
+import { getBudgetSummary } from "@/lib/budget";
 
 export async function GET() {
   try {
@@ -12,25 +16,38 @@ export async function GET() {
 
     const projects = await listProjectsForUser(user);
 
-    // Map to MobileProject shape
-    const mobileProjects = projects.map((p) => ({
-      id: p._id,
-      acronym: p.acronym,
-      title: p.title,
-      status: p.status,
-      // For now, return basic info. Future refinement can include real budget/counters.
-      budget: {
-        planned: 0,
-        committed: 0,
-        spent: 0,
-        remaining: 0,
-      },
-      counters: {
-        records: 0,
-        tasks: 0,
-        events: 0,
-        warnings: 0,
-      },
+    const mobileProjects = await Promise.all(projects.map(async (p) => {
+      const [tasks, events, records, budget] = await Promise.all([
+        listTasks(p._id ?? ""),
+        listResearchEvents(p._id ?? ""),
+        listDiaryEntries(p._id ?? ""),
+        getBudgetSummary(p._id ?? "")
+      ]);
+
+      const memberCount = 1 + (p.memberIds?.length || 0);
+
+      return {
+        id: p._id,
+        acronym: p.acronym,
+        title: p.title,
+        projectType: p.projectType,
+        status: p.status,
+        budget: {
+          planned: budget.totalPlanned,
+          committed: budget.totalCommitted,
+          spent: budget.totalSpent,
+          remaining: budget.totalRemaining,
+        },
+        counters: {
+          records: records.length,
+          tasks: tasks.length,
+          events: events.length,
+          warnings: budget.overBudgetCategories.length,
+        },
+        memberCount,
+        institution: p.institution || p.grantProgram || "",
+        roomNumber: p.roomNumber || "",
+      };
     }));
 
     return NextResponse.json({ projects: mobileProjects });

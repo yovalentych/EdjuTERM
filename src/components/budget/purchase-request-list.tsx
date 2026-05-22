@@ -212,7 +212,7 @@ export function PurchaseRequestList({
 
               <div className="shrink-0 text-right">
                 <p className="font-mono text-xl font-semibold text-slate-950">
-                  {formatAmount(req.estimatedAmount, req.currency)}
+                  {formatAmount(req.estimatedAmount ?? 0, req.currency)}
                 </p>
                 {req.actualAmount !== undefined && (
                   <p className="mt-1 font-mono text-sm text-emerald-700">

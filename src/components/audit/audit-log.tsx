@@ -441,7 +441,7 @@ export function AuditLog({ events }: { events: AuditEvent[] }) {
             const cat = getCategory(event.action);
             const meta = CATEGORY_META[cat];
             const label = ACTION_LABEL[event.action] ?? event.action;
-            const title = event.metadata?.title ?? event.metadata?.taskTitle ?? event.metadata?.milestoneTitle ?? null;
+            const title: string | null = (event.metadata?.title ?? event.metadata?.taskTitle ?? event.metadata?.milestoneTitle) as string | null ?? null;
 
             return (
               <div
@@ -473,7 +473,7 @@ export function AuditLog({ events }: { events: AuditEvent[] }) {
                       Object.entries(event.metadata ?? {}).filter(
                         ([k]) => k !== "title" && k !== "taskTitle" && k !== "milestoneTitle"
                       )
-                    )
+                    ) as Record<string, string | number | boolean | null>
                   } />
 
                   <p className="mt-1.5 text-[11px] text-slate-400">

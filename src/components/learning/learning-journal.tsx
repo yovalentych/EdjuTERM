@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart3, Calendar, Plus, ChevronRight, ChevronDown,
   Users, Settings, Layers, FileText, Clock, Award, Trash2, X,
   TrendingUp, AlertCircle, CheckCircle2, Check,
   BookOpen, GraduationCap, ClipboardList, Edit3, BookMarked, Wand2,
+  ArrowUp, ArrowDown,
 } from "lucide-react";
 import clsx from "clsx";
 import type {
@@ -14,13 +15,15 @@ import type {
   LearningSession, LearningAssignment,
   CourseType, CourseStatus, TopicType, AssessmentType, AssessmentStatus,
 } from "@/lib/schemas";
-import { scoreToGrade, gradeColor } from "@/lib/learning-utils";
+import { scoreToGrade, gradeColor, gradeToNational } from "@/lib/learning-utils";
 import { ScheduleTab } from "@/components/learning/schedule-tab";
 import { AssignmentsPanel } from "@/components/learning/assignments-panel";
 import { LearningCalendar } from "@/components/learning/learning-calendar";
 import {
   addCourse, saveCourse, removeCourse,
   addModule, saveModule, removeModule,
+  createModuleFromPlan, previewSyllabusPlan,
+  previewAiSyllabusCourse, applyAiSyllabusCourse, createAiSyllabusCourse,
   addTopic, saveTopic, removeTopic,
   addAssessment, saveAssessment, removeAssessment,
   generateTopicsFromLectures,
@@ -127,9 +130,13 @@ function fmtShort(s: string) {
 }
 
 function courseProgress(course: LearningCourse, topics: LearningTopic[]): number {
-  const t = topics.filter((t) => t.courseId === course._id);
+  const t = topics.filter((t) => t.courseId === course._id && isActionableTopic(t));
   if (!t.length) return 0;
   return Math.round((t.filter((t) => t.isCompleted).length / t.length) * 100);
+}
+
+function isActionableTopic(topic: LearningTopic) {
+  return topic.topicType !== "self_study";
 }
 
 function courseWeightedScore(course: LearningCourse, assessments: LearningAssessment[]): number | null {
@@ -142,6 +149,151 @@ function courseWeightedScore(course: LearningCourse, assessments: LearningAssess
   return Math.round(graded.reduce((s, a) => s + (a.achievedScore! / a.maxScore) * 100, 0) / graded.length);
 }
 
+function courseSemesterEnd(course: LearningCourse) {
+  return Math.max(course.semester, course.semesterEnd ?? course.semester);
+}
+
+function courseSemesterLabel(course: LearningCourse) {
+  const end = courseSemesterEnd(course);
+  return end > course.semester ? `Сем. ${course.semester}-${end}` : `Сем. ${course.semester}`;
+}
+
+function courseCoversSemester(course: LearningCourse, semester: number) {
+  return semester >= course.semester && semester <= courseSemesterEnd(course);
+}
+
+function courseCoveredSemesters(course: LearningCourse) {
+  const end = courseSemesterEnd(course);
+  return Array.from({ length: end - course.semester + 1 }, (_, i) => course.semester + i);
+}
+
+type TopicBundle = {
+  key: string;
+  title: string;
+  topics: LearningTopic[];
+};
+
+type AiCoursePlanPreview = {
+  source?: {
+    institution?: string;
+    programName?: string;
+    faculty?: string;
+    department?: string;
+    studyLevel?: string;
+    evidence?: string;
+  };
+  course: {
+    title: string;
+    code: string;
+    instructor: string;
+    semester: number;
+    semesterEnd: number;
+    year: number;
+    credits: number;
+    courseType: CourseType;
+    status: CourseStatus;
+    note: string;
+  };
+  modules: Array<{
+    title: string;
+    description: string;
+    topics: Array<{
+      title: string;
+      description: string;
+      sessions: Array<{ type: TopicType; hours: number; notes: string }>;
+    }>;
+  }>;
+  assessments: Array<{ title: string; type: AssessmentType; maxScore: number; weight: number; notes: string }>;
+};
+
+type AcademicSemesterSetting = {
+  year: number;
+  semester: number;
+  startsAt?: string;
+  endsAt?: string;
+};
+
+type AcademicSettings = {
+  years?: number;
+  semestersPerYear?: number;
+  semesterDates?: AcademicSemesterSetting[];
+  holidays?: string[];
+  weekends?: number[];
+};
+
+type LearningProfile = {
+  institution?: string;
+  programName?: string;
+  faculty?: string;
+  department?: string;
+  studyLevel?: string;
+  academicSettings?: AcademicSettings | null;
+};
+
+function resolveAcademicSettings(settings?: AcademicSettings | null) {
+  const years = Math.min(10, Math.max(1, Number(settings?.years || 4)));
+  const semestersPerYear = Math.min(4, Math.max(1, Number(settings?.semestersPerYear || 2)));
+  return {
+    years,
+    semestersPerYear,
+    totalSemesters: years * semestersPerYear,
+    semesterDates: settings?.semesterDates ?? [],
+    holidays: settings?.holidays ?? [],
+    weekends: settings?.weekends ?? [0, 6],
+  };
+}
+
+function normalizeCompare(value?: string) {
+  return (value ?? "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function contextMismatchWarnings(plan: AiCoursePlanPreview | null, profile?: LearningProfile) {
+  if (!plan?.source || !profile) return [];
+  const checks: Array<[string, string | undefined, string | undefined]> = [
+    ["Інституція", profile.institution, plan.source.institution],
+    ["Програма", profile.programName, plan.source.programName],
+    ["Факультет/інститут", profile.faculty, plan.source.faculty],
+  ];
+  return checks
+    .filter(([, expected, detected]) => {
+      const a = normalizeCompare(expected);
+      const b = normalizeCompare(detected);
+      return a.length > 3 && b.length > 3 && !a.includes(b) && !b.includes(a);
+    })
+    .map(([label, expected, detected]) => `${label}: у профілі "${expected}", у силабусі "${detected}"`);
+}
+
+function topicBundleKey(title: string) {
+  return title
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[.,;:!?()[\]«»"']/g, "")
+    .trim();
+}
+
+function groupTopicBundles(topics: LearningTopic[]): TopicBundle[] {
+  const map = new Map<string, TopicBundle>();
+
+  topics.forEach((topic) => {
+    const key = topicBundleKey(topic.title) || topic._id || topic.title;
+    const existing = map.get(key);
+    if (existing) {
+      existing.topics.push(topic);
+    } else {
+      map.set(key, { key, title: topic.title, topics: [topic] });
+    }
+  });
+
+  return [...map.values()].map((bundle) => ({
+    ...bundle,
+    topics: [...bundle.topics].sort((a, b) => a.orderIndex - b.orderIndex),
+  }));
+}
+
 // ── Atoms ─────────────────────────────────────────────────────────────────────
 
 function ScoreBadge({ score, max = 100 }: { score: number | null; max?: number }) {
@@ -151,6 +303,119 @@ function ScoreBadge({ score, max = 100 }: { score: number | null; max?: number }
     <span className={clsx("inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-bold", gradeColor(grade))}>
       {score}/{max} <span className="font-black">{grade}</span>
     </span>
+  );
+}
+
+function CoursePeriodPicker({
+  academic,
+  year,
+  semester,
+  semesterEnd,
+  onYearChange,
+  onSemesterChange,
+  onSemesterEndChange,
+}: {
+  academic: ReturnType<typeof resolveAcademicSettings>;
+  year: number;
+  semester: number;
+  semesterEnd: number;
+  onYearChange: (value: number) => void;
+  onSemesterChange: (value: number) => void;
+  onSemesterEndChange: (value: number) => void;
+}) {
+  const years = Array.from({ length: academic.years }, (_, i) => i + 1);
+  const semesters = Array.from({ length: academic.totalSemesters }, (_, i) => i + 1);
+  const selectedDate = academic.semesterDates.find((item) => item.semester === semester);
+
+  function setYear(value: number) {
+    const firstSemester = (value - 1) * academic.semestersPerYear + 1;
+    onYearChange(value);
+    onSemesterChange(firstSemester);
+    onSemesterEndChange(Math.max(firstSemester, Math.min(semesterEnd, firstSemester + academic.semestersPerYear - 1)));
+  }
+
+  function setSemesterStart(value: number) {
+    onSemesterChange(value);
+    onYearChange(Math.ceil(value / academic.semestersPerYear));
+    if (semesterEnd < value) onSemesterEndChange(value);
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Період курсу</span>
+        <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500 ring-1 ring-slate-200">
+          {academic.years} р. · {academic.totalSemesters} сем.
+        </span>
+      </div>
+      <div className="space-y-3">
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Рік навчання</p>
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+            {years.map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setYear(value)}
+                className={clsx(
+                  "rounded-lg border px-2 py-1.5 text-xs font-bold transition",
+                  year === value
+                    ? "border-indigo-400 bg-indigo-50 text-indigo-700"
+                    : "border-slate-200 bg-white text-slate-500 hover:border-slate-300",
+                )}
+              >
+                {value} рік
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Семестр початку</p>
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+            {semesters.map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setSemesterStart(value)}
+                className={clsx(
+                  "rounded-lg border px-2 py-1.5 text-xs font-bold transition",
+                  semester === value
+                    ? "border-indigo-400 bg-indigo-50 text-indigo-700"
+                    : "border-slate-200 bg-white text-slate-500 hover:border-slate-300",
+                )}
+              >
+                Сем. {value}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Кінець курсу</p>
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+            {semesters.filter((value) => value >= semester).map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => onSemesterEndChange(value)}
+                className={clsx(
+                  "rounded-lg border px-2 py-1.5 text-xs font-bold transition",
+                  semesterEnd === value
+                    ? "border-violet-400 bg-violet-50 text-violet-700"
+                    : "border-slate-200 bg-white text-slate-500 hover:border-slate-300",
+                )}
+              >
+                {value === semester ? "1 семестр" : `до ${value}`}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      {(selectedDate?.startsAt || selectedDate?.endsAt) && (
+        <p className="mt-2 text-[11px] font-semibold text-slate-500">
+          Семестр {semester}: {[selectedDate.startsAt, selectedDate.endsAt].filter(Boolean).join(" - ")}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -197,18 +462,217 @@ const COURSE_TYPE_ICONS: Record<CourseType, string> = {
   language: "🌐", physical: "🏃", practice: "🔬", research: "🔭",
 };
 
-function AddCourseModal({ projectId, locale, semesterHint, onClose }: {
-  projectId: string; locale: string; semesterHint: number; onClose: () => void;
+const AI_ERRORS: Record<string, string> = {
+  openai_key_missing: "Додайте OPENAI_API_KEY у .env і перезапустіть dev server",
+  unsupported_file: "Підтримуються PDF, DOCX, XLSX, CSV, TXT/MD",
+  file_too_large: "Файл завеликий (макс. 20 МБ)",
+  empty: "Додайте файл або вставте текст силабуса",
+};
+
+function AddCourseModal({ projectId, locale, semesterHint, learningProfile, onClose }: {
+  projectId: string; locale: string; semesterHint: number; learningProfile?: LearningProfile; onClose: () => void;
 }) {
   const [pending, start] = useTransition();
   const [selectedType, setSelectedType] = useState<CourseType>("mandatory");
+  const academic = resolveAcademicSettings(learningProfile?.academicSettings);
+  const initialSemester = Math.min(Math.max(1, semesterHint), academic.totalSemesters);
+  const [manualYear, setManualYear] = useState(Math.max(1, Math.ceil(initialSemester / academic.semestersPerYear)));
+  const [manualSemester, setManualSemester] = useState(initialSemester);
+  const [manualSemesterEnd, setManualSemesterEnd] = useState(initialSemester);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiText, setAiText] = useState("");
+  const [titleHint, setTitleHint] = useState("");
+  const [aiStatus, setAiStatus] = useState<string | null>(null);
+  const [aiStep, setAiStep] = useState<"input" | "preview">("input");
+  const [aiPlan, setAiPlan] = useState<AiCoursePlanPreview | null>(null);
+  const [aiSelectedModules, setAiSelectedModules] = useState<Set<number>>(new Set());
+  const [aiExpandedModules, setAiExpandedModules] = useState<Set<number>>(new Set());
+  const [aiStage, setAiStage] = useState("");
+  const [userHint, setUserHint] = useState("");
+  const aiFileRef = useRef<HTMLInputElement>(null);
+
+  function buildPreviewFd() {
+    const fd = new FormData();
+    fd.set("locale", locale);
+    fd.set("projectId", projectId);
+    fd.set("courseTitle", titleHint);
+    fd.set("sourceText", aiText);
+    fd.set("userHint", userHint);
+    fd.set("expectedInstitution", learningProfile?.institution ?? "");
+    fd.set("expectedProgramName", learningProfile?.programName ?? "");
+    fd.set("expectedFaculty", learningProfile?.faculty ?? "");
+    fd.set("expectedDepartment", learningProfile?.department ?? "");
+    fd.set("expectedStudyLevel", learningProfile?.studyLevel ?? "");
+    const file = aiFileRef.current?.files?.[0];
+    if (file) fd.set("syllabusFile", file);
+    return fd;
+  }
+
+  function runAiPreview() {
+    setAiStatus(null);
+    setAiStage(aiFileRef.current?.files?.[0] ? "Читаю файл…" : "Аналізую текст…");
+    start(async () => {
+      setAiStage("AI аналізує силабус…");
+      const res = await previewAiSyllabusCourse(buildPreviewFd());
+      setAiStage("");
+      if (res.ok && res.plan) {
+        const incoming = res.plan as AiCoursePlanPreview;
+        setAiPlan(incoming);
+        setAiSelectedModules(new Set(incoming.modules.map((_, i) => i)));
+        setAiExpandedModules(new Set());
+        setAiStep("preview");
+      } else {
+        setAiStatus(AI_ERRORS[res.error ?? ""] ?? `AI не вдався: ${res.error || "unknown"}`);
+      }
+    });
+  }
+
+  function rerunWithCorrections() {
+    if (!aiPlan) return;
+    setAiStatus(null);
+    setAiStep("input");
+    setAiStage("Переробляю з поправками…");
+    start(async () => {
+      setAiStage("AI аналізує силабус…");
+      const res = await previewAiSyllabusCourse(buildPreviewFd());
+      setAiStage("");
+      if (res.ok && res.plan) {
+        const incoming = res.plan as AiCoursePlanPreview;
+        setAiPlan(incoming);
+        setAiSelectedModules(new Set(incoming.modules.map((_, i) => i)));
+        setAiExpandedModules(new Set());
+        setAiStep("preview");
+      } else {
+        setAiStatus(AI_ERRORS[res.error ?? ""] ?? `AI не вдався: ${res.error || "unknown"}`);
+      }
+    });
+  }
+
+  function createFromAiPlan() {
+    if (!aiPlan) return;
+    const mismatches = contextMismatchWarnings(aiPlan, learningProfile);
+    if (mismatches.length > 0 && !window.confirm(`Силабус схожий на документ з іншого контексту:\n\n${mismatches.join("\n")}\n\nПродовжити створення курсу?`)) {
+      return;
+    }
+    const filteredPlan: AiCoursePlanPreview = {
+      ...aiPlan,
+      modules: aiPlan.modules.filter((_, i) => aiSelectedModules.has(i)),
+    };
+    const fd = new FormData();
+    fd.set("locale", locale);
+    fd.set("projectId", projectId);
+    fd.set("courseTitle", titleHint);
+    fd.set("planJson", JSON.stringify(filteredPlan));
+
+    setAiStatus(null);
+    setAiStage("Створюю курс…");
+    start(async () => {
+      const res = await createAiSyllabusCourse(fd);
+      setAiStage("");
+      if (res.ok) {
+        onClose();
+      } else {
+        setAiStatus(AI_ERRORS[res.error ?? ""] ?? `Не вдалося: ${res.error || "unknown"}`);
+        setAiStep("input");
+      }
+    });
+  }
+
+  function toggleAiModule(index: number) {
+    setAiSelectedModules((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index); else next.add(index);
+      return next;
+    });
+  }
+
+  function toggleAiModuleExpand(index: number) {
+    setAiExpandedModules((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index); else next.add(index);
+      return next;
+    });
+  }
+
+  function updateAiPlan(mutator: (draft: AiCoursePlanPreview) => void) {
+    if (!aiPlan) return;
+    const next = structuredClone(aiPlan);
+    mutator(next);
+    next.course.semesterEnd = Math.max(next.course.semester, next.course.semesterEnd || next.course.semester);
+    next.modules = next.modules.filter((module) => module.title.trim() || module.topics.length > 0);
+    setAiPlan(next);
+    setAiSelectedModules(new Set(next.modules.map((_, i) => i)));
+  }
+
+  function moveAiModule(index: number, delta: -1 | 1) {
+    updateAiPlan((draft) => {
+      const target = index + delta;
+      if (target < 0 || target >= draft.modules.length) return;
+      const [item] = draft.modules.splice(index, 1);
+      draft.modules.splice(target, 0, item);
+    });
+  }
+
+  function addAiModule() {
+    updateAiPlan((draft) => {
+      draft.modules.push({ title: `Новий модуль ${draft.modules.length + 1}`, description: "", topics: [] });
+    });
+  }
+
+  function addAiTopic(moduleIndex: number) {
+    updateAiPlan((draft) => {
+      draft.modules[moduleIndex]?.topics.push({
+        title: "Нова тема",
+        description: "",
+        sessions: [{ type: "lecture", hours: 2, notes: "" }],
+      });
+    });
+    setAiExpandedModules((prev) => new Set(prev).add(moduleIndex));
+  }
+
+  function moveAiTopic(moduleIndex: number, topicIndex: number, delta: -1 | 1) {
+    updateAiPlan((draft) => {
+      const topics = draft.modules[moduleIndex]?.topics;
+      if (!topics) return;
+      const target = topicIndex + delta;
+      if (target < 0 || target >= topics.length) return;
+      const [item] = topics.splice(topicIndex, 1);
+      topics.splice(target, 0, item);
+    });
+  }
+
+  function addAiSession(moduleIndex: number, topicIndex: number, type: TopicType = "lecture") {
+    updateAiPlan((draft) => {
+      draft.modules[moduleIndex]?.topics[topicIndex]?.sessions.push({ type, hours: type === "consultation" ? 1 : 2, notes: "" });
+    });
+  }
+
+  const aiSelectedPlanModules = aiPlan?.modules.filter((_, i) => aiSelectedModules.has(i)) ?? [];
+  const aiTotalHours = aiSelectedPlanModules.reduce(
+    (sum, module) => sum + module.topics.reduce(
+      (topicSum, topic) => topicSum + topic.sessions.reduce((sessionSum, session) => sessionSum + Math.max(0, Number(session.hours) || 0), 0),
+      0,
+    ),
+    0,
+  );
+  const aiTotalSessions = aiSelectedPlanModules.reduce(
+    (sum, module) => sum + module.topics.reduce((topicSum, topic) => topicSum + topic.sessions.filter((session) => session.hours > 0).length, 0),
+    0,
+  );
+  const aiWarnings = [
+    aiPlan && !aiPlan.course.title.trim() ? "Немає назви курсу" : "",
+    aiPlan && aiSelectedModules.size === 0 ? "Не вибрано жодного модуля" : "",
+    aiPlan && aiTotalSessions === 0 ? "Немає занять з годинами більше 0" : "",
+    aiPlan && aiPlan.course.semesterEnd < aiPlan.course.semester ? "Кінець семестру менший за початок" : "",
+  ].filter(Boolean);
+  const aiContextWarnings = contextMismatchWarnings(aiPlan, learningProfile);
 
   return (
     <motion.div className="fixed inset-0 z-50 flex items-center justify-center p-4"
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <motion.div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
       <motion.div
-        className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="relative max-h-[calc(100vh-32px)] w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl"
         initial={{ opacity: 0, scale: 0.96, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 16 }}
@@ -230,14 +694,474 @@ function AddCourseModal({ projectId, locale, semesterHint, onClose }: {
           </button>
         </div>
         <form
-          action={(fd) => { fd.set("courseType", selectedType); start(async () => { await addCourse(fd); onClose(); }); }}
-          className="space-y-4 px-6 py-5">
+          action={(fd) => {
+            fd.set("courseType", selectedType);
+            fd.set("semester", String(manualSemester));
+            fd.set("semesterEnd", String(Math.max(manualSemester, manualSemesterEnd)));
+            fd.set("year", String(manualYear));
+            start(async () => { await addCourse(fd); onClose(); });
+          }}
+          className="max-h-[calc(100vh-132px)] space-y-4 overflow-y-auto px-6 py-5">
           <input type="hidden" name="locale" value={locale} />
           <input type="hidden" name="projectId" value={projectId} />
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Назва курсу *</label>
-            <input name="title" required autoFocus className="input-control w-full text-base font-medium"
+            <input name="title" required autoFocus value={titleHint} onChange={(e) => setTitleHint(e.target.value)}
+              className="input-control w-full text-base font-medium"
               placeholder="Молекулярна біологія…" />
+          </div>
+          <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="flex items-center gap-1.5 text-sm font-black text-violet-950">
+                  <Wand2 className="h-4 w-4" /> Створити з силабуса
+                </p>
+                <p className="mt-0.5 text-xs text-violet-800/70">
+                  AI заповнить модулі, теми, заняття та оцінювання — ви оберете, що залишити.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setAiOpen((v) => !v); setAiStep("input"); setAiPlan(null); setAiStatus(null); }}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-violet-700"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                {aiOpen ? "Сховати" : "AI імпорт"}
+              </button>
+            </div>
+            {aiOpen && (
+              <div className="mt-3 space-y-3">
+                {/* ── Step 1: input ── */}
+                {aiStep === "input" && (
+                  <>
+                    {/* File upload */}
+                    <input
+                      ref={aiFileRef}
+                      type="file"
+                      accept=".pdf,.docx,.xlsx,.xls,.csv,.txt,.md,application/pdf,text/plain"
+                      className="w-full text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-violet-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-violet-800 hover:file:bg-violet-200"
+                    />
+                    <textarea
+                      value={aiText}
+                      onChange={(e) => setAiText(e.target.value)}
+                      rows={3}
+                      className="w-full resize-none rounded-xl border border-violet-100 bg-white px-3 py-2 text-sm leading-relaxed text-slate-800 outline-none transition focus:ring-2 focus:ring-violet-300"
+                      placeholder="Або вставте текст силабуса…"
+                    />
+
+                    {/* User hint */}
+                    <textarea
+                      value={userHint}
+                      onChange={(e) => setUserHint(e.target.value)}
+                      rows={2}
+                      className="w-full resize-none rounded-xl border border-violet-100 bg-white/70 px-3 py-2 text-xs leading-relaxed text-slate-700 outline-none placeholder-slate-400 transition focus:ring-2 focus:ring-violet-300"
+                      placeholder="Додаткові вказівки (необов'язково): як трактувати неоднозначні колонки, що об'єднати, що не додавати..."
+                    />
+
+                    {aiStatus && <p className="text-xs font-semibold text-rose-600">{aiStatus}</p>}
+                    <button
+                      type="button"
+                      onClick={runAiPreview}
+                      disabled={pending}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-violet-700 disabled:opacity-60"
+                    >
+                      <Wand2 className="h-4 w-4" />
+                      {pending ? (aiStage || "Аналізую…") : "Переглянути план"}
+                    </button>
+                  </>
+                )}
+
+                {/* ── Step 2: preview ── */}
+                {aiStep === "preview" && aiPlan && (
+                  <div className="space-y-2.5">
+                    {/* Course editor */}
+                    <div className="rounded-xl border border-violet-100 bg-white/90 p-4 text-xs shadow-sm">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="font-black text-slate-900">Метадані курсу</p>
+                          <p className="mt-0.5 text-[11px] text-slate-400">Це буде записано в картку курсу перед створенням модулів.</p>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <span className="rounded-full bg-violet-100 px-2 py-1 text-[10px] font-bold text-violet-700">
+                            {aiSelectedModules.size} мод.
+                          </span>
+                          <span className="rounded-full bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700">
+                            {aiTotalSessions} занять
+                          </span>
+                          <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">
+                            {aiTotalHours} год
+                          </span>
+                        </div>
+                      </div>
+                      {aiPlan.source && (aiPlan.source.institution || aiPlan.source.programName || aiPlan.source.faculty || aiPlan.source.evidence) && (
+                        <div className={clsx(
+                          "mb-3 rounded-xl border px-3 py-2",
+                          aiContextWarnings.length > 0 ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50/70",
+                        )}>
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <p className={clsx("text-[10px] font-black uppercase tracking-wider", aiContextWarnings.length > 0 ? "text-amber-800" : "text-emerald-800")}>
+                                Перевірка контексту силабуса
+                              </p>
+                              <p className="mt-1 text-[11px] font-semibold text-slate-700">
+                                {[aiPlan.source.institution, aiPlan.source.faculty, aiPlan.source.programName].filter(Boolean).join(" · ") || "Метадані не виявлені"}
+                              </p>
+                              {aiPlan.source.evidence && <p className="mt-0.5 text-[10px] text-slate-500">{aiPlan.source.evidence}</p>}
+                            </div>
+                            {aiContextWarnings.length > 0 && (
+                              <span className="rounded-full bg-amber-100 px-2 py-1 text-[10px] font-black text-amber-800">
+                                потребує підтвердження
+                              </span>
+                            )}
+                          </div>
+                          {aiContextWarnings.length > 0 && (
+                            <ul className="mt-2 space-y-1 text-[11px] font-semibold text-amber-800">
+                              {aiContextWarnings.map((warning) => <li key={warning}>{warning}</li>)}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+                      <div className="grid gap-3 md:grid-cols-12">
+                        <label className="md:col-span-8">
+                          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Назва курсу</span>
+                          <input
+                            value={aiPlan.course.title}
+                            onChange={(e) => updateAiPlan((draft) => { draft.course.title = e.target.value; })}
+                            className="input-control w-full py-2 text-sm font-semibold"
+                            placeholder="Назва курсу"
+                          />
+                        </label>
+                        <label className="md:col-span-4">
+                          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Код</span>
+                          <input
+                            value={aiPlan.course.code}
+                            onChange={(e) => updateAiPlan((draft) => { draft.course.code = e.target.value; })}
+                            className="input-control w-full py-2 font-mono text-sm"
+                            placeholder="ОК4"
+                          />
+                        </label>
+                        <label className="md:col-span-6">
+                          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Викладач</span>
+                          <input
+                            value={aiPlan.course.instructor}
+                            onChange={(e) => updateAiPlan((draft) => { draft.course.instructor = e.target.value; })}
+                            className="input-control w-full py-2 text-sm"
+                            placeholder="ПІБ викладача"
+                          />
+                        </label>
+                        <label className="md:col-span-2">
+                          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">ECTS</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={60}
+                            step={0.5}
+                            value={aiPlan.course.credits}
+                            onChange={(e) => updateAiPlan((draft) => { draft.course.credits = Number(e.target.value); })}
+                            className="input-control w-full py-2 text-sm"
+                          />
+                        </label>
+                        <div className="md:col-span-4">
+                          <CoursePeriodPicker
+                            academic={academic}
+                            year={aiPlan.course.year}
+                            semester={aiPlan.course.semester}
+                            semesterEnd={aiPlan.course.semesterEnd}
+                            onYearChange={(value) => updateAiPlan((draft) => { draft.course.year = value; })}
+                            onSemesterChange={(value) => updateAiPlan((draft) => { draft.course.semester = value; })}
+                            onSemesterEndChange={(value) => updateAiPlan((draft) => { draft.course.semesterEnd = value; })}
+                          />
+                        </div>
+                        <label className="md:col-span-3">
+                          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Тип дисципліни</span>
+                          <select
+                            value={aiPlan.course.courseType}
+                            onChange={(e) => updateAiPlan((draft) => { draft.course.courseType = e.target.value as CourseType; })}
+                            className="input-control w-full py-2 text-sm"
+                          >
+                            {(Object.keys(COURSE_TYPE_LABELS) as CourseType[]).map((type) => (
+                              <option key={type} value={type}>{COURSE_TYPE_LABELS[type]}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="md:col-span-3">
+                          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Статус</span>
+                          <select
+                            value={aiPlan.course.status}
+                            onChange={(e) => updateAiPlan((draft) => { draft.course.status = e.target.value as CourseStatus; })}
+                            className="input-control w-full py-2 text-sm"
+                          >
+                            {(Object.keys(COURSE_STATUS_LABELS) as CourseStatus[]).map((status) => (
+                              <option key={status} value={status}>{COURSE_STATUS_LABELS[status]}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="md:col-span-6">
+                          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Нотатка курсу</span>
+                          <input
+                            value={aiPlan.course.note}
+                            onChange={(e) => updateAiPlan((draft) => { draft.course.note = e.target.value; })}
+                            className="input-control w-full py-2 text-sm"
+                            placeholder="Коротка службова нотатка"
+                          />
+                        </label>
+                      </div>
+                      {aiWarnings.length > 0 && (
+                        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] font-semibold text-amber-800">
+                          {aiWarnings.join(" · ")}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Module list */}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-violet-600">
+                        Структура курсу · {aiSelectedModules.size}/{aiPlan.modules.length}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={addAiModule}
+                        className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-white px-2 py-1 text-[10px] font-bold text-violet-700 transition hover:bg-violet-50"
+                      >
+                        <Plus className="h-3 w-3" /> Модуль
+                      </button>
+                    </div>
+                    <div className="max-h-[420px] space-y-2 overflow-y-auto pr-0.5">
+                      {aiPlan.modules.map((mod, i) => {
+                        const checked = aiSelectedModules.has(i);
+                        const expanded = aiExpandedModules.has(i);
+                        const totalHours = mod.topics.reduce(
+                          (sum, t) => sum + t.sessions.reduce((s, se) => s + (se.hours || 0), 0), 0,
+                        );
+                        const sessionTypeSummary = (() => {
+                          const counts: Record<string, number> = {};
+                          mod.topics.forEach((t) => t.sessions.forEach((se) => {
+                            if (se.hours > 0) counts[se.type] = (counts[se.type] || 0) + se.hours;
+                          }));
+                          const TYPE_SHORT: Record<string, string> = {
+                            lecture: "Лек", seminar: "Сем", practical: "Пр",
+                            lab: "Лаб", self_study: "СР", consultation: "Конс",
+                          };
+                          return Object.entries(counts)
+                            .map(([t, h]) => `${TYPE_SHORT[t] ?? t} ${h}г`)
+                            .join(" · ");
+                        })();
+                        return (
+                          <div
+                            key={i}
+                            className={clsx(
+                              "rounded-xl border transition",
+                              checked ? "border-violet-200 bg-violet-50/40" : "border-slate-100 bg-white opacity-50",
+                            )}
+                          >
+                            <div className="flex items-start gap-2 px-2.5 py-2">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleAiModule(i)}
+                                className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-violet-600"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <input
+                                  value={mod.title}
+                                  onChange={(e) => updateAiPlan((draft) => { draft.modules[i].title = e.target.value; })}
+                                  className="w-full rounded-md border border-transparent bg-transparent px-1 py-0.5 text-xs font-semibold leading-tight text-slate-800 outline-none transition focus:border-violet-200 focus:bg-white"
+                                  placeholder="Назва модуля"
+                                />
+                                <p className="mt-0.5 text-[10px] text-slate-400">
+                                  {mod.topics.length} тем · {totalHours}г
+                                  {sessionTypeSummary && <span className="ml-1.5 text-slate-300">·</span>}
+                                  {sessionTypeSummary && <span className="ml-1.5">{sessionTypeSummary}</span>}
+                                </p>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-0.5">
+                                <button type="button" onClick={() => moveAiModule(i, -1)} disabled={i === 0}
+                                  className="flex h-6 w-6 items-center justify-center rounded text-slate-300 transition hover:bg-white hover:text-violet-500 disabled:opacity-30"
+                                  title="Підняти модуль">
+                                  <ArrowUp className="h-3 w-3" />
+                                </button>
+                                <button type="button" onClick={() => moveAiModule(i, 1)} disabled={i === aiPlan.modules.length - 1}
+                                  className="flex h-6 w-6 items-center justify-center rounded text-slate-300 transition hover:bg-white hover:text-violet-500 disabled:opacity-30"
+                                  title="Опустити модуль">
+                                  <ArrowDown className="h-3 w-3" />
+                                </button>
+                                <button type="button" onClick={() => updateAiPlan((draft) => { draft.modules.splice(i, 1); })}
+                                  className="flex h-6 w-6 items-center justify-center rounded text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
+                                  title="Видалити модуль">
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => toggleAiModuleExpand(i)}
+                                className="shrink-0 rounded p-0.5 text-slate-300 hover:text-violet-500 transition"
+                                title={expanded ? "Сховати теми" : "Показати теми"}
+                              >
+                                <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
+                              </button>
+                            </div>
+                            {/* Expanded topic list */}
+                            {expanded && (
+                              <div className="space-y-2 border-t border-violet-100/60 px-3 pb-2 pt-2">
+                                <input
+                                  value={mod.description}
+                                  onChange={(e) => updateAiPlan((draft) => { draft.modules[i].description = e.target.value; })}
+                                  className="input-control w-full py-1.5 text-[11px]"
+                                  placeholder="Опис модуля"
+                                />
+                                {mod.topics.map((topic, ti) => {
+                                  return (
+                                    <div key={ti} className="rounded-lg border border-violet-100 bg-white p-2">
+                                      <div className="flex items-start gap-1.5">
+                                        <span className="mt-1 shrink-0 text-[9px] font-bold text-slate-300">{ti + 1}.</span>
+                                        <div className="min-w-0 flex-1 space-y-1">
+                                          <input
+                                            value={topic.title}
+                                            onChange={(e) => updateAiPlan((draft) => { draft.modules[i].topics[ti].title = e.target.value; })}
+                                            className="w-full rounded-md border border-transparent bg-transparent px-1 py-0.5 text-[11px] font-bold leading-tight text-slate-800 outline-none transition focus:border-violet-200 focus:bg-violet-50"
+                                            placeholder="Назва теми"
+                                          />
+                                          <input
+                                            value={topic.description}
+                                            onChange={(e) => updateAiPlan((draft) => { draft.modules[i].topics[ti].description = e.target.value; })}
+                                            className="input-control w-full py-1 text-[10px]"
+                                            placeholder="Опис / джерело / уточнення"
+                                          />
+                                        </div>
+                                        <div className="flex shrink-0 items-center gap-0.5">
+                                          <button type="button" onClick={() => moveAiTopic(i, ti, -1)} disabled={ti === 0}
+                                            className="flex h-6 w-6 items-center justify-center rounded text-slate-300 transition hover:bg-violet-50 hover:text-violet-500 disabled:opacity-30"
+                                            title="Підняти тему">
+                                            <ArrowUp className="h-3 w-3" />
+                                          </button>
+                                          <button type="button" onClick={() => moveAiTopic(i, ti, 1)} disabled={ti === mod.topics.length - 1}
+                                            className="flex h-6 w-6 items-center justify-center rounded text-slate-300 transition hover:bg-violet-50 hover:text-violet-500 disabled:opacity-30"
+                                            title="Опустити тему">
+                                            <ArrowDown className="h-3 w-3" />
+                                          </button>
+                                          <button type="button" onClick={() => updateAiPlan((draft) => { draft.modules[i].topics.splice(ti, 1); })}
+                                            className="flex h-6 w-6 items-center justify-center rounded text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
+                                            title="Видалити тему">
+                                            <Trash2 className="h-3 w-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+
+                                      <div className="mt-2 space-y-1">
+                                        {topic.sessions.length > 0 && (
+                                          <div className="grid grid-cols-[112px_64px_minmax(0,1fr)_24px] gap-1.5 px-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                                            <span>Тип</span>
+                                            <span>Год.</span>
+                                            <span>Нотатка</span>
+                                            <span />
+                                          </div>
+                                        )}
+                                        {topic.sessions.map((session, si) => (
+                                          <div key={si} className="grid grid-cols-[112px_64px_minmax(0,1fr)_24px] items-center gap-1.5">
+                                            <select
+                                              value={session.type}
+                                              onChange={(e) => updateAiPlan((draft) => { draft.modules[i].topics[ti].sessions[si].type = e.target.value as TopicType; })}
+                                              className="input-control w-full py-1 text-[10px]"
+                                            >
+                                              {(Object.keys(TOPIC_TYPE_LABELS) as TopicType[]).map((type) => (
+                                                <option key={type} value={type}>{TOPIC_TYPE_LABELS[type]}</option>
+                                              ))}
+                                            </select>
+                                            <input
+                                              type="number"
+                                              min={0}
+                                              max={200}
+                                              step={0.5}
+                                              value={session.hours}
+                                              onChange={(e) => updateAiPlan((draft) => { draft.modules[i].topics[ti].sessions[si].hours = Number(e.target.value); })}
+                                              className="input-control w-full py-1 text-[10px]"
+                                              aria-label="Години"
+                                            />
+                                            <input
+                                              value={session.notes}
+                                              onChange={(e) => updateAiPlan((draft) => { draft.modules[i].topics[ti].sessions[si].notes = e.target.value; })}
+                                              className="input-control w-full py-1 text-[10px]"
+                                              placeholder="Нотатки"
+                                            />
+                                            <button type="button" onClick={() => updateAiPlan((draft) => { draft.modules[i].topics[ti].sessions.splice(si, 1); })}
+                                              className="flex h-6 w-6 items-center justify-center rounded text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
+                                              title="Видалити заняття">
+                                              <Trash2 className="h-3 w-3" />
+                                            </button>
+                                          </div>
+                                        ))}
+                                        <div className="flex flex-wrap gap-1">
+                                          {(Object.keys(TOPIC_TYPE_LABELS) as TopicType[]).slice(0, 5).map((type) => (
+                                            <button key={type} type="button" onClick={() => addAiSession(i, ti, type)}
+                                              className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-1 text-[9px] font-bold text-slate-500 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700">
+                                              + {TOPIC_TYPE_LABELS[type]}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                <button type="button" onClick={() => addAiTopic(i)}
+                                  className="inline-flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-violet-200 bg-white px-2 py-1.5 text-[11px] font-bold text-violet-600 transition hover:bg-violet-50">
+                                  <Plus className="h-3 w-3" /> Додати тему
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Correction field */}
+                    <div className="rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2.5 space-y-1.5">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                        Поправки / уточнення
+                      </p>
+                      <p className="text-[10px] text-amber-700/70">
+                        Опишіть що не так — AI переробить план з урахуванням вказівок.
+                      </p>
+                      <textarea
+                        value={userHint}
+                        onChange={(e) => setUserHint(e.target.value)}
+                        rows={2}
+                        className="w-full resize-none rounded-lg border border-amber-100 bg-white px-2.5 py-1.5 text-xs text-slate-700 outline-none placeholder-slate-400 focus:ring-2 focus:ring-amber-300 transition"
+                        placeholder="Наприклад: об'єднай модулі 1 і 2, не додавай самостійну роботу, неоднозначну колонку трактуй як семінари..."
+                      />
+                      <button
+                        type="button"
+                        onClick={rerunWithCorrections}
+                        disabled={pending}
+                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-xs font-bold text-amber-800 transition hover:bg-amber-50 disabled:opacity-60"
+                      >
+                        <Wand2 className="h-3 w-3" />
+                        {pending ? (aiStage || "Переробляю…") : "Переробити з поправками"}
+                      </button>
+                    </div>
+
+                    {aiStatus && <p className="text-xs font-semibold text-rose-600">{aiStatus}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => { setAiStep("input"); setAiStatus(null); }}
+                        className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                      >
+                        ← Назад
+                      </button>
+                      <button
+                        type="button"
+                        onClick={createFromAiPlan}
+                        disabled={pending || aiWarnings.length > 0}
+                        className="flex flex-[2] items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-700 disabled:opacity-60"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        {pending ? (aiStage || "Створюю…") : `Створити курс (${aiSelectedModules.size} мод.)`}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -248,9 +1172,16 @@ function AddCourseModal({ projectId, locale, semesterHint, onClose }: {
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Викладач</label>
               <input name="instructor" className="input-control w-full" placeholder="Прізвище І.І." />
             </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Семестр</label>
-              <input name="semester" type="number" min={1} max={12} defaultValue={semesterHint} className="input-control w-full" />
+            <div className="col-span-2">
+              <CoursePeriodPicker
+                academic={academic}
+                year={manualYear}
+                semester={manualSemester}
+                semesterEnd={manualSemesterEnd}
+                onYearChange={setManualYear}
+                onSemesterChange={setManualSemester}
+                onSemesterEndChange={setManualSemesterEnd}
+              />
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Кредити (ECTS)</label>
@@ -311,7 +1242,7 @@ function CourseItem({ course, topics, assessments, isActive, onClick }: {
             isActive ? "text-slate-900" : "text-slate-600 group-hover:text-slate-800")}>
             {course.title}
           </p>
-          <p className="mt-0.5 text-[11px] text-slate-400">{course.credits} кр. · Сем.{course.semester}</p>
+          <p className="mt-0.5 text-[11px] text-slate-400">{course.credits} кр. · {courseSemesterLabel(course)}</p>
         </div>
         {score !== null && (
           <span className={clsx(
@@ -366,6 +1297,407 @@ function AddModuleRow({ projectId, locale, courseId, orderIndex, onDone }: {
   );
 }
 
+function PlanModuleBuilder({ projectId, locale, courseId, orderIndex, onDone }: {
+  projectId: string; locale: string; courseId: string; orderIndex: number; onDone: () => void;
+}) {
+  const [pending, start] = useTransition();
+  const [extractPending, extractStart] = useTransition();
+  const [status, setStatus] = useState<string | null>(null);
+  const [extractStatus, setExtractStatus] = useState<string | null>(null);
+  const [pattern, setPattern] = useState("lecture_practical");
+  const [plan, setPlan] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const previewCount = pattern.includes("self") ? 3 : pattern === "lecture_only" ? 1 : 2;
+
+  function extractFromSyllabus() {
+    const fd = new FormData();
+    fd.set("projectId", projectId);
+    fd.set("courseId", courseId);
+    fd.set("sourceText", plan);
+    const file = fileRef.current?.files?.[0];
+    if (file) fd.set("syllabusFile", file);
+
+    setExtractStatus(null);
+    extractStart(async () => {
+      const res = await previewSyllabusPlan(fd);
+      if (res.ok && res.topics.length > 0) {
+        setPlan(res.topics.join("\n"));
+        setExtractStatus(`Знайдено тем: ${res.topics.length}`);
+      } else {
+        const msg: Record<string, string> = {
+          file_too_large: "Файл завеликий",
+          unsupported_file: "Підтримуються PDF або текстові файли",
+          no_topics: "Не знайшов теми. Спробуйте вставити фрагмент таблиці вручну.",
+        };
+        setExtractStatus(msg[res.error ?? ""] ?? "Не вдалося витягнути теми");
+      }
+    });
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="overflow-hidden rounded-xl border border-violet-200 bg-violet-50/50"
+    >
+      <form
+        action={(fd) => {
+          setStatus(null);
+          start(async () => {
+            const res = await createModuleFromPlan(fd);
+            if (res?.ok) {
+              setStatus(`Створено занять: ${res.count}`);
+              onDone();
+            } else {
+              setStatus(res?.error === "empty" ? "Вставте хоча б одну тему" : "Не вдалося створити план");
+            }
+          });
+        }}
+        className="space-y-3 p-4"
+      >
+        <input type="hidden" name="locale" value={locale} />
+        <input type="hidden" name="projectId" value={projectId} />
+        <input type="hidden" name="courseId" value={courseId} />
+        <input type="hidden" name="orderIndex" value={orderIndex} />
+
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-bold text-violet-900">
+              <Wand2 className="h-4 w-4" /> Конструктор з плану курсу
+            </p>
+            <p className="mt-0.5 text-xs text-violet-700/70">
+              Вставте список тем з PDF або силабуса. Кожен рядок стане темою з набором занять.
+            </p>
+          </div>
+          <button type="button" onClick={onDone}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-violet-400 hover:bg-white hover:text-violet-700">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+          <div className="space-y-2">
+            <input
+              name="moduleTitle"
+              className="input-control w-full bg-white text-sm font-semibold"
+              placeholder={`Назва модуля, напр. Змістовий модуль ${orderIndex + 1}`}
+            />
+            <div className="flex flex-col gap-2 rounded-xl border border-violet-100 bg-white/70 p-2 sm:flex-row sm:items-center">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="application/pdf,text/plain,.pdf,.txt,.md"
+                className="min-w-0 flex-1 text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-violet-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-violet-700 hover:file:bg-violet-200"
+              />
+              <button
+                type="button"
+                onClick={extractFromSyllabus}
+                disabled={extractPending}
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-50 disabled:opacity-60"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                {extractPending ? "Читаю…" : "Витягнути теми"}
+              </button>
+            </div>
+            {extractStatus && (
+              <p className="px-1 text-xs font-medium text-violet-700">{extractStatus}</p>
+            )}
+            <textarea
+              name="plan"
+              required
+              rows={8}
+              value={plan}
+              onChange={(e) => setPlan(e.target.value)}
+              className="w-full resize-none rounded-xl border border-violet-100 bg-white px-3 py-2 text-sm leading-relaxed text-slate-800 outline-none transition focus:ring-2 focus:ring-violet-300"
+              placeholder={[
+                "Вступ до машинного навчання",
+                "Підготовка даних",
+                "Лінійна регресія",
+                "Класифікація біомедичних даних",
+              ].join("\n")}
+            />
+          </div>
+
+          <div className="space-y-3">
+            <label className="block">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-violet-500">Патерн занять</span>
+              <select
+                name="pattern"
+                value={pattern}
+                onChange={(e) => setPattern(e.target.value)}
+                className="input-control w-full bg-white text-xs"
+              >
+                <option value="lecture_practical">Лекція + практична</option>
+                <option value="lecture_seminar">Лекція + семінар</option>
+                <option value="lecture_practical_self">Лекція + практична + самостійна</option>
+                <option value="lecture_seminar_self">Лекція + семінар + самостійна</option>
+                <option value="lecture_only">Тільки лекції</option>
+              </select>
+            </label>
+
+            <div className="grid grid-cols-2 gap-2">
+              <label>
+                <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-violet-500">Лекц.</span>
+                <input name="lectureHours" type="number" min={0} step={0.5} defaultValue={2} className="input-control w-full bg-white text-xs" />
+              </label>
+              <label>
+                <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-violet-500">Практ.</span>
+                <input name="practicalHours" type="number" min={0} step={0.5} defaultValue={2} className="input-control w-full bg-white text-xs" />
+              </label>
+              <label>
+                <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-violet-500">Сем.</span>
+                <input name="seminarHours" type="number" min={0} step={0.5} defaultValue={2} className="input-control w-full bg-white text-xs" />
+              </label>
+              <label>
+                <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-violet-500">Сам.</span>
+                <input name="selfStudyHours" type="number" min={0} step={0.5} defaultValue={2} className="input-control w-full bg-white text-xs" />
+              </label>
+            </div>
+
+            <div className="rounded-lg border border-violet-100 bg-white/80 px-3 py-2 text-xs text-violet-700">
+              1 рядок = {previewCount} занят{previewCount === 1 ? "тя" : "тя"} в модулі
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 border-t border-violet-100 pt-3">
+          <span className="text-xs font-medium text-violet-700">{status}</span>
+          <button
+            type="submit"
+            disabled={pending}
+            className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:opacity-60"
+          >
+            <Wand2 className="h-4 w-4" />
+            {pending ? "Створюю…" : "Створити модуль і заняття"}
+          </button>
+        </div>
+      </form>
+    </motion.div>
+  );
+}
+
+function AiSyllabusImporter({ projectId, locale, course, onDone }: {
+  projectId: string;
+  locale: string;
+  course: LearningCourse;
+  onDone: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [sourceText, setSourceText] = useState("");
+  const [plan, setPlan] = useState<AiCoursePlanPreview | null>(null);
+  const [selectedModules, setSelectedModules] = useState<Set<number>>(new Set());
+  const [status, setStatus] = useState<string | null>(null);
+  const [updateCourse, setUpdateCourse] = useState(true);
+  const [pending, start] = useTransition();
+
+  function runPreview() {
+    const fd = new FormData();
+    fd.set("locale", locale);
+    fd.set("projectId", projectId);
+    fd.set("courseId", course._id ?? "");
+    fd.set("courseTitle", course.title);
+    fd.set("sourceText", sourceText);
+    const file = fileRef.current?.files?.[0];
+    if (file) fd.set("syllabusFile", file);
+
+    setStatus(null);
+    start(async () => {
+      const res = await previewAiSyllabusCourse(fd);
+      if (res.ok && res.plan) {
+        const incoming = res.plan as AiCoursePlanPreview;
+        setPlan(incoming);
+        setSelectedModules(new Set(incoming.modules.map((_, i) => i)));
+        setStatus("AI підготував структуру. Перевірте та оберіть модулі перед створенням.");
+      } else {
+        setStatus(AI_ERRORS[res.error ?? ""] ?? `AI імпорт не вдався: ${res.error || "unknown"}`);
+      }
+    });
+  }
+
+  function toggleModule(index: number) {
+    setSelectedModules((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index); else next.add(index);
+      return next;
+    });
+  }
+
+  function applyPlan() {
+    if (!plan) return;
+    const filteredPlan = { ...plan, modules: plan.modules.filter((_, i) => selectedModules.has(i)) };
+    const fd = new FormData();
+    fd.set("locale", locale);
+    fd.set("projectId", projectId);
+    fd.set("courseId", course._id ?? "");
+    fd.set("planJson", JSON.stringify(filteredPlan));
+    fd.set("updateCourse", String(updateCourse));
+    setStatus(null);
+    start(async () => {
+      const res = await applyAiSyllabusCourse(fd);
+      if (res.ok) {
+        setStatus(`Створено елементів: ${res.count}`);
+        onDone();
+      } else {
+        setStatus(`Не вдалося створити курс: ${res.error || "unknown"}`);
+      }
+    });
+  }
+
+  const selectedPlan = plan
+    ? { ...plan, modules: plan.modules.filter((_, i) => selectedModules.has(i)) }
+    : null;
+
+  const totalSessions = selectedPlan?.modules.reduce(
+    (sum, module) => sum + module.topics.reduce(
+      (s, topic) => s + topic.sessions.filter((session) => session.hours > 0).length,
+      0,
+    ),
+    0,
+  ) ?? 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50/60 shadow-sm"
+    >
+      <div className="space-y-4 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-black text-emerald-950">
+              <Wand2 className="h-4 w-4" /> AI імпорт силабуса
+            </p>
+            <p className="mt-0.5 text-xs text-emerald-800/70">
+              PDF/DOCX/XLSX/CSV/TXT → повна структура курсу з модулями, темами, заняттями й оцінюванням.
+            </p>
+          </div>
+          <button type="button" onClick={onDone}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-emerald-500 hover:bg-white hover:text-emerald-800">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-2">
+            <div className="flex flex-col gap-2 rounded-xl border border-emerald-100 bg-white/80 p-2 sm:flex-row sm:items-center">
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.docx,.xlsx,.xls,.csv,.txt,.md,application/pdf,text/plain"
+                className="min-w-0 flex-1 text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-800 hover:file:bg-emerald-200"
+              />
+              <button
+                type="button"
+                onClick={runPreview}
+                disabled={pending}
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+                {pending ? "Аналізую…" : "AI проаналізувати"}
+              </button>
+            </div>
+            <textarea
+              value={sourceText}
+              onChange={(e) => setSourceText(e.target.value)}
+              rows={8}
+              className="w-full resize-none rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm leading-relaxed text-slate-800 outline-none transition focus:ring-2 focus:ring-emerald-300"
+              placeholder="Або вставте сюди текст силабуса / таблицю з темами, годинами та формами контролю..."
+            />
+            <label className="flex items-center gap-2 text-xs font-semibold text-emerald-900">
+              <input
+                type="checkbox"
+                checked={updateCourse}
+                onChange={(e) => setUpdateCourse(e.target.checked)}
+                className="h-4 w-4 accent-emerald-600"
+              />
+              Оновити назву, код, кредити, викладача й нотатки курсу з силабуса
+            </label>
+            {status && <p className="text-xs font-semibold text-emerald-800">{status}</p>}
+          </div>
+
+          <div className="rounded-xl border border-emerald-100 bg-white p-3">
+            {plan ? (
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-emerald-600">Preview</p>
+                  <h3 className="mt-1 text-sm font-black text-slate-900">{plan.course.title}</h3>
+                  <p className="text-xs text-slate-500">
+                    {plan.course.code || "без коду"} · {plan.course.credits} ECTS · Сем. {plan.course.semester}
+                    {plan.course.semesterEnd > plan.course.semester ? `-${plan.course.semesterEnd}` : ""}
+                  </p>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-lg bg-slate-50 p-2 text-center">
+                    <p className="text-lg font-black text-slate-900">{selectedModules.size}/{plan.modules.length}</p>
+                    <p className="text-[10px] text-slate-400">модулів</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-2 text-center">
+                    <p className="text-lg font-black text-slate-900">{totalSessions}</p>
+                    <p className="text-[10px] text-slate-400">занять</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-2 text-center">
+                    <p className="text-lg font-black text-slate-900">{plan.assessments.length}</p>
+                    <p className="text-[10px] text-slate-400">оцінок</p>
+                  </div>
+                </div>
+                <div className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
+                  {plan.modules.map((module, index) => {
+                    const checked = selectedModules.has(index);
+                    const sessCount = module.topics.reduce(
+                      (s, t) => s + t.sessions.filter((se) => se.hours > 0).length, 0,
+                    );
+                    return (
+                      <label
+                        key={`${module.title}-${index}`}
+                        className={clsx(
+                          "flex cursor-pointer items-start gap-2 rounded-lg border p-2 transition",
+                          checked
+                            ? "border-emerald-200 bg-emerald-50/60"
+                            : "border-slate-100 bg-white opacity-50",
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleModule(index)}
+                          className="mt-0.5 h-3.5 w-3.5 accent-emerald-600"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold leading-snug text-slate-800">{module.title}</p>
+                          <p className="mt-0.5 text-[10px] text-slate-400">
+                            {module.topics.length} тем · {sessCount} занять
+                          </p>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={applyPlan}
+                  disabled={pending || selectedModules.size === 0}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  <Check className="h-4 w-4" />
+                  {pending ? "Створюю…" : `Створити курс (${selectedModules.size} мод.)`}
+                </button>
+              </div>
+            ) : (
+              <div className="flex h-full min-h-56 flex-col items-center justify-center text-center">
+                <FileText className="h-8 w-8 text-emerald-200" />
+                <p className="mt-2 text-sm font-bold text-slate-600">Preview з&apos;явиться тут</p>
+                <p className="mt-1 max-w-64 text-xs text-slate-400">
+                  AI не записує нічого в журнал, доки ви не підтвердите створення.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // ── Add Topic ─────────────────────────────────────────────────────────────────
 
 function AddTopicRow({ projectId, locale, courseId, moduleId, orderIndex, onDone }: {
@@ -409,12 +1741,13 @@ function AddTopicRow({ projectId, locale, courseId, moduleId, orderIndex, onDone
 
 // ── Topic row ─────────────────────────────────────────────────────────────────
 
-function TopicRow({ topic, projectId, locale, canManage, linkedAssessments }: {
+function TopicRow({ topic, projectId, locale, canManage, linkedAssessments, hideTitle = false }: {
   topic: LearningTopic; projectId: string; locale: string; canManage: boolean;
-  linkedAssessments: LearningAssessment[];
+  linkedAssessments: LearningAssessment[]; hideTitle?: boolean;
 }) {
   const [showEdit, setShowEdit] = useState(false);
   const [pending, start] = useTransition();
+  const isSelfStudy = topic.topicType === "self_study";
 
   const toggleComplete = () => {
     const fd = new FormData();
@@ -429,27 +1762,43 @@ function TopicRow({ topic, projectId, locale, canManage, linkedAssessments }: {
 
   return (
     <div className={clsx(
-      "group rounded-lg border-l-4 border border-slate-100 bg-white transition-all",
+      "group overflow-hidden rounded-lg border-l-4 border border-slate-100 bg-white transition-all",
+      hideTitle && "bg-slate-50/70",
       TOPIC_LEFT_BORDER[topic.topicType],
-      topic.isCompleted && "opacity-60"
+      topic.isCompleted && !isSelfStudy && "opacity-60",
+      isSelfStudy && "bg-slate-50/80"
     )}>
-      <div className="flex items-center gap-2.5 px-3 py-2">
-        <button type="button" onClick={canManage ? toggleComplete : undefined} disabled={pending}
-          className={clsx(
-            "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition",
-            topic.isCompleted ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 hover:border-emerald-400"
-          )}>
-          {topic.isCompleted && <Check className="h-3 w-3" strokeWidth={3} />}
-        </button>
+      <div className={clsx("flex min-w-0 items-center gap-2.5 overflow-hidden px-3", hideTitle ? "py-1.5" : "py-2")}>
+        {isSelfStudy ? (
+          <span
+            className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 border-slate-200 bg-slate-100"
+            title="Самостійна робота враховується тільки в годинах"
+          />
+        ) : (
+          <button type="button" onClick={canManage ? toggleComplete : undefined} disabled={pending}
+            className={clsx(
+              "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border-2 transition",
+              topic.isCompleted ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 hover:border-emerald-400"
+            )}>
+            {topic.isCompleted && <Check className="h-3 w-3" strokeWidth={3} />}
+          </button>
+        )}
 
         <span className={clsx("flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold", TOPIC_TYPE_COLORS[topic.topicType])}>
           {TOPIC_TYPE_LABELS[topic.topicType].slice(0, 4)}
         </span>
 
-        <span className={clsx("flex-1 text-sm min-w-0 truncate",
-          topic.isCompleted ? "text-slate-400 line-through" : "font-medium text-slate-800")}>
-          {topic.title}
-        </span>
+        {hideTitle ? (
+          <span className="block min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-xs text-slate-500">
+            {topic.description || topic.notes || TOPIC_TYPE_LABELS[topic.topicType]}
+          </span>
+        ) : (
+          <span className={clsx("block min-w-0 flex-1 overflow-hidden truncate whitespace-nowrap text-sm",
+            topic.isCompleted && !isSelfStudy ? "text-slate-400 line-through" : "font-medium text-slate-800",
+            isSelfStudy && "text-slate-500")}>
+            {topic.title}
+          </span>
+        )}
 
         {topic.linkedLectureId && (
           <span className="flex-shrink-0 flex items-center gap-0.5 rounded bg-violet-50 px-1.5 py-0.5 text-[9px] font-medium text-violet-500"
@@ -465,7 +1814,7 @@ function TopicRow({ topic, projectId, locale, canManage, linkedAssessments }: {
         )}
 
         {linkedAssessments.length > 0 && (
-          <div className="hidden sm:flex gap-1">
+          <div className="hidden shrink-0 gap-1 sm:flex">
             {linkedAssessments.map((a) => (
               <span key={a._id} className={clsx("rounded border px-1 py-0.5 text-[9px] font-semibold", ASSESSMENT_TYPE_BADGE[a.assessmentType])}>
                 {ASSESSMENT_TYPE_LABELS[a.assessmentType].slice(0, 3)}
@@ -475,7 +1824,7 @@ function TopicRow({ topic, projectId, locale, canManage, linkedAssessments }: {
         )}
 
         {canManage && (
-          <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition">
+          <div className="flex shrink-0 gap-0.5 opacity-0 transition group-hover:opacity-100">
             <button type="button" onClick={() => setShowEdit((v) => !v)}
               className={clsx("rounded p-1 transition",
                 showEdit ? "bg-indigo-100 text-indigo-600" : "text-slate-400 hover:bg-indigo-50 hover:text-indigo-600")}>
@@ -553,6 +1902,113 @@ function TopicRow({ topic, projectId, locale, canManage, linkedAssessments }: {
   );
 }
 
+function TopicBundleCard({ bundle, projectId, locale, canManage, assessments }: {
+  bundle: TopicBundle;
+  projectId: string;
+  locale: string;
+  canManage: boolean;
+  assessments: LearningAssessment[];
+}) {
+  const [open, setOpen] = useState(true);
+  const actionableTopics = bundle.topics.filter(isActionableTopic);
+  const done = actionableTopics.filter((topic) => topic.isCompleted).length;
+  const totalHours = bundle.topics.reduce((sum, topic) => sum + (topic.durationHours || 0), 0);
+  const pct = actionableTopics.length ? Math.round((done / actionableTopics.length) * 100) : 0;
+  const typeSummary = (Object.keys(TOPIC_TYPE_LABELS) as TopicType[])
+    .map((type) => {
+      const typeTopics = bundle.topics.filter((topic) => topic.topicType === type);
+      const hours = typeTopics.reduce((sum, topic) => sum + (topic.durationHours || 0), 0);
+      return { type, count: typeTopics.length, hours };
+    })
+    .filter((item) => item.count > 0);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-slate-50"
+      >
+        <motion.div animate={{ rotate: open ? 90 : 0 }} transition={{ duration: 0.15 }}>
+          <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+        </motion.div>
+
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="flex min-w-0 items-center gap-2">
+            <BookOpen className="h-4 w-4 shrink-0 text-indigo-400" />
+            <span className="block min-w-0 flex-1 truncate text-sm font-bold text-slate-800">{bundle.title}</span>
+          </div>
+          <div className="mt-1 flex items-center gap-2">
+            <div className="h-1 flex-1 overflow-hidden rounded-full bg-slate-100">
+              <div
+                className={clsx("h-full rounded-full transition-all", pct === 100 ? "bg-emerald-500" : "bg-indigo-400")}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <span className="shrink-0 text-[10px] font-medium text-slate-400">
+              {actionableTopics.length > 0 ? `${done}/${actionableTopics.length}` : "години"}
+            </span>
+          </div>
+        </div>
+
+        <div className="hidden max-w-[46%] shrink-0 items-center justify-end gap-1 overflow-hidden md:flex">
+          {typeSummary.map(({ type, count, hours }) => (
+            <span
+              key={type}
+              className={clsx(
+                "inline-flex min-w-0 shrink items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold",
+                TOPIC_TYPE_COLORS[type],
+              )}
+            >
+              <span className="truncate">{TOPIC_TYPE_LABELS[type]}{count > 1 ? ` x${count}` : ""}{hours > 0 ? ` · ${hours}г` : ""}</span>
+            </span>
+          ))}
+          {totalHours > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">
+              <Clock className="h-2.5 w-2.5" />{totalHours}г
+            </span>
+          )}
+        </div>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-slate-100 bg-slate-50/60 px-3 py-2">
+              <div className="mb-2 flex flex-wrap gap-1 md:hidden">
+                {typeSummary.map(({ type, count, hours }) => (
+                  <span key={type} className={clsx("rounded-full px-2 py-1 text-[10px] font-bold", TOPIC_TYPE_COLORS[type])}>
+                    {TOPIC_TYPE_LABELS[type]}{count > 1 ? ` x${count}` : ""}{hours > 0 ? ` · ${hours}г` : ""}
+                  </span>
+                ))}
+              </div>
+              <div className="grid gap-1.5">
+                {bundle.topics.map((topic) => (
+                  <TopicRow
+                    key={topic._id}
+                    topic={topic}
+                    projectId={projectId}
+                    locale={locale}
+                    canManage={canManage}
+                    hideTitle
+                    linkedAssessments={assessments.filter((a) => a.linkedTopicIds.includes(topic._id ?? ""))}
+                  />
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ── Module card ───────────────────────────────────────────────────────────────
 
 function ModuleCard({ mod, topics, assessments, projectId, locale, canManage }: {
@@ -569,9 +2025,11 @@ function ModuleCard({ mod, topics, assessments, projectId, locale, canManage }: 
   const [pending, start] = useTransition();
 
   const modTopics = topics.filter((t) => t.moduleId === mod._id);
+  const topicBundles = groupTopicBundles(modTopics);
   const modAssessments = assessments.filter((a) => a.linkedModuleIds.includes(mod._id ?? ""));
-  const done = modTopics.filter((t) => t.isCompleted).length;
-  const pct = modTopics.length ? Math.round((done / modTopics.length) * 100) : 0;
+  const actionableModTopics = modTopics.filter(isActionableTopic);
+  const done = actionableModTopics.filter((t) => t.isCompleted).length;
+  const pct = actionableModTopics.length ? Math.round((done / actionableModTopics.length) * 100) : 0;
   const totalHours = modTopics.reduce((s, t) => s + (t.durationHours || 0), 0);
   const hasLectures = modTopics.some((t) => t.topicType === "lecture");
 
@@ -641,15 +2099,16 @@ function ModuleCard({ mod, topics, assessments, projectId, locale, canManage }: 
                   <Check className="h-2.5 w-2.5" />завершено
                 </span>
               )}
+              {topicBundles.length > 0 && <span className="text-[11px] text-slate-400">{topicBundles.length} тем</span>}
               {totalHours > 0 && <span className="text-[11px] text-slate-400">{totalHours}г</span>}
             </div>
-            {modTopics.length > 0 && (
+            {actionableModTopics.length > 0 && (
               <div className="mt-1.5 flex items-center gap-2">
                 <div className="flex-1 h-1 overflow-hidden rounded-full bg-slate-100">
                   <div className={clsx("h-full rounded-full transition-all duration-500",
                     pct === 100 ? "bg-emerald-500" : "bg-indigo-400")} style={{ width: `${pct}%` }} />
                 </div>
-                <span className="flex-shrink-0 text-[11px] text-slate-400">{done}/{modTopics.length}</span>
+                <span className="flex-shrink-0 text-[11px] text-slate-400">{done}/{actionableModTopics.length} занять</span>
               </div>
             )}
           </div>
@@ -686,13 +2145,19 @@ function ModuleCard({ mod, topics, assessments, projectId, locale, canManage }: 
         {open && (
           <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }}
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }} className="overflow-hidden">
-            <div className="border-t border-slate-100 px-4 py-3 space-y-1.5">
+            <div className="border-t border-slate-100 bg-slate-50/40 px-4 py-3 space-y-2">
               {modTopics.length === 0 && !addingTopic && (
                 <p className="py-1 text-xs italic text-slate-400">Теми ще не додані</p>
               )}
-              {modTopics.map((topic) => (
-                <TopicRow key={topic._id} topic={topic} projectId={projectId} locale={locale} canManage={canManage}
-                  linkedAssessments={assessments.filter((a) => a.linkedTopicIds.includes(topic._id ?? ""))} />
+              {topicBundles.map((bundle) => (
+                <TopicBundleCard
+                  key={bundle.key}
+                  bundle={bundle}
+                  projectId={projectId}
+                  locale={locale}
+                  canManage={canManage}
+                  assessments={assessments}
+                />
               ))}
               {addingTopic && (
                 <AddTopicRow projectId={projectId} locale={locale}
@@ -1001,8 +2466,8 @@ function GradeBookRow({ assessment, projectId, locale, canManage, onEdit }: {
           onSave={saveScore} disabled={!canManage || pending} />
       </td>
       <td className="px-2 py-2.5 text-center">
-        {grade ? (
-          <span className={clsx("rounded-lg border px-2 py-0.5 text-xs font-black", gradeColor(grade))}>{grade}</span>
+        {pct !== null ? (
+          <span className="tabular-nums text-xs font-semibold text-slate-500">{Math.round(pct)}%</span>
         ) : <span className="text-xs text-slate-300">—</span>}
       </td>
       <td className="py-2.5 pl-2 pr-4">
@@ -1077,7 +2542,7 @@ function GradeBook({ assessments, projectId, locale, canManage, onAdd, onEdit }:
               <th className="px-2 py-2.5 text-center">Вага</th>
               <th className="px-2 py-2.5 text-left">Статус</th>
               <th className="px-2 py-2.5 text-center">Бал</th>
-              <th className="px-2 py-2.5 text-center">Оцінка</th>
+              <th className="px-2 py-2.5 text-center">%</th>
               <th className="py-2.5 pl-2 pr-4 w-16" />
             </tr>
           </thead>
@@ -1091,8 +2556,11 @@ function GradeBook({ assessments, projectId, locale, canManage, onAdd, onEdit }:
           {finalGrade && (
             <tfoot>
               <tr className="border-t-2 border-slate-200 bg-slate-50">
-                <td colSpan={4} className="py-3 pl-4 pr-2 text-xs font-bold text-slate-500">
-                  Підсумкова оцінка {totalWeight > 0 ? `· зважена (${totalWeight}%)` : "· середня"}
+                <td colSpan={4} className="py-3 pl-4 pr-2">
+                  <p className="text-xs font-bold text-slate-600">
+                    Підсумкова оцінка {totalWeight > 0 ? `· зважена (${totalWeight}%)` : "· середня"}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-slate-400">{gradeToNational(finalGrade)}</p>
                 </td>
                 <td />
                 <td className="px-2 py-3 text-center">
@@ -1133,13 +2601,16 @@ const COURSE_TABS = [
 
 type CourseTab = typeof COURSE_TABS[number]["id"];
 
-function CourseView({ course, modules, topics, assessments, sessions, assignments, projectId, locale, canManage, isDissertation }: {
+function CourseView({ course, modules, topics, assessments, sessions, assignments, projectId, locale, canManage, isDissertation, academic }: {
   course: LearningCourse; modules: LearningModule[]; topics: LearningTopic[];
   assessments: LearningAssessment[]; sessions: LearningSession[]; assignments: LearningAssignment[];
   projectId: string; locale: string; canManage: boolean; isDissertation?: boolean;
+  academic: ReturnType<typeof resolveAcademicSettings>;
 }) {
   const [tab, setTab] = useState<CourseTab>("modules");
   const [addingModule, setAddingModule] = useState(false);
+  const [buildingFromPlan, setBuildingFromPlan] = useState(false);
+  const [aiImportOpen, setAiImportOpen] = useState(false);
   const [showAssessmentModal, setShowAssessmentModal] = useState(false);
   const [editAssessment, setEditAssessment] = useState<LearningAssessment | null>(null);
   const [creditStatus, setCreditStatus] = useState<"idle" | "pending" | "done">("idle");
@@ -1174,7 +2645,7 @@ function CourseView({ course, modules, topics, assessments, sessions, assignment
                   {course.credits} ECTS
                 </span>
                 <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                  Сем. {course.semester}
+                  {courseSemesterLabel(course)}
                 </span>
 
                 {isDissertation && course.status === "completed" && (
@@ -1219,10 +2690,12 @@ function CourseView({ course, modules, topics, assessments, sessions, assignment
               </div>
             )}
           </div>
-          {courseTopics.length > 0 && (
+          {courseTopics.filter(isActionableTopic).length > 0 && (
             <div className="mt-3">
               <div className="mb-1 flex justify-between text-xs text-slate-400">
-                <span>{courseTopics.filter((t) => t.isCompleted).length}/{courseTopics.length} тем завершено</span>
+                <span>
+                  {courseTopics.filter((t) => isActionableTopic(t) && t.isCompleted).length}/{courseTopics.filter(isActionableTopic).length} тем завершено
+                </span>
                 <span>{pct}%</span>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
@@ -1276,7 +2749,7 @@ function CourseView({ course, modules, topics, assessments, sessions, assignment
 
           {tab === "modules" && (
             <div className="space-y-2">
-              {courseMods.length === 0 && !addingModule ? (
+              {courseMods.length === 0 && !addingModule && !buildingFromPlan && !aiImportOpen ? (
                 <div className="rounded-xl border-2 border-dashed border-slate-200 px-6 py-12 text-center">
                   <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50">
                     <Layers className="h-5 w-5 text-indigo-400" />
@@ -1284,14 +2757,41 @@ function CourseView({ course, modules, topics, assessments, sessions, assignment
                   <p className="font-semibold text-slate-700">Немає модулів</p>
                   <p className="mt-1 text-sm text-slate-400">Тематичні блоки курсу</p>
                   {canManage && (
-                    <button type="button" onClick={() => setAddingModule(true)}
-                      className="mt-4 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition">
-                      <Plus className="h-4 w-4" /> Додати перший модуль
-                    </button>
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                      <button type="button" onClick={() => setAiImportOpen(true)}
+                        className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition">
+                        <FileText className="h-4 w-4" /> AI імпорт силабуса
+                      </button>
+                      <button type="button" onClick={() => setBuildingFromPlan(true)}
+                        className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-2 text-sm font-semibold text-white hover:bg-violet-700 transition">
+                        <Wand2 className="h-4 w-4" /> Створити з плану
+                      </button>
+                      <button type="button" onClick={() => setAddingModule(true)}
+                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">
+                        <Plus className="h-4 w-4" /> Додати вручну
+                      </button>
+                    </div>
                   )}
                 </div>
               ) : (
                 <>
+                  {aiImportOpen && (
+                    <AiSyllabusImporter
+                      projectId={projectId}
+                      locale={locale}
+                      course={course}
+                      onDone={() => setAiImportOpen(false)}
+                    />
+                  )}
+                  {buildingFromPlan && (
+                    <PlanModuleBuilder
+                      projectId={projectId}
+                      locale={locale}
+                      courseId={course._id ?? ""}
+                      orderIndex={courseMods.length}
+                      onDone={() => setBuildingFromPlan(false)}
+                    />
+                  )}
                   {courseMods.map((mod) => (
                     <ModuleCard key={mod._id} mod={mod} topics={courseTopics}
                       assessments={courseAssessments} projectId={projectId}
@@ -1302,10 +2802,20 @@ function CourseView({ course, modules, topics, assessments, sessions, assignment
                       courseId={course._id ?? ""} orderIndex={courseMods.length}
                       onDone={() => setAddingModule(false)} />
                   ) : canManage && (
-                    <button type="button" onClick={() => setAddingModule(true)}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-3 text-sm text-slate-400 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50 transition">
-                      <Plus className="h-4 w-4" /> Додати модуль
-                    </button>
+                    <div className="grid gap-2 lg:grid-cols-3">
+                      <button type="button" onClick={() => setAiImportOpen(true)}
+                        className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-emerald-200 py-3 text-sm text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition">
+                        <FileText className="h-4 w-4" /> AI імпорт силабуса
+                      </button>
+                      <button type="button" onClick={() => setBuildingFromPlan(true)}
+                        className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-violet-200 py-3 text-sm text-violet-500 hover:border-violet-300 hover:bg-violet-50 transition">
+                        <Wand2 className="h-4 w-4" /> Створити модуль з плану
+                      </button>
+                      <button type="button" onClick={() => setAddingModule(true)}
+                        className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-3 text-sm text-slate-400 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50 transition">
+                        <Plus className="h-4 w-4" /> Додати порожній модуль
+                      </button>
+                    </div>
                   )}
                 </>
               )}
@@ -1330,85 +2840,18 @@ function CourseView({ course, modules, topics, assessments, sessions, assignment
           )}
 
           {tab === "settings" && canManage && (
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-100 px-5 py-3.5">
-                <p className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <Settings className="h-4 w-4 text-slate-400" /> Параметри курсу
-                </p>
-              </div>
-              <form action={(fd) => { start(() => saveCourse(fd)); }} className="px-5 py-5">
-                <input type="hidden" name="locale" value={locale} />
-                <input type="hidden" name="projectId" value={projectId} />
-                <input type="hidden" name="courseId" value={course._id ?? ""} />
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Назва курсу</label>
-                    <input name="title" defaultValue={course.title} className="input-control w-full text-base font-medium" />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Код</label>
-                    <input name="code" defaultValue={course.code} className="input-control w-full font-mono" />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Викладач</label>
-                    <input name="instructor" defaultValue={course.instructor} className="input-control w-full" />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Семестр</label>
-                    <input name="semester" type="number" defaultValue={course.semester} className="input-control w-full" />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Рік</label>
-                    <input name="year" type="number" defaultValue={course.year} className="input-control w-full" />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Кредити (ECTS)</label>
-                    <input name="credits" type="number" defaultValue={course.credits} className="input-control w-full" />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Тип</label>
-                    <select name="courseType" defaultValue={course.courseType} className="input-control w-full">
-                      {(Object.keys(COURSE_TYPE_LABELS) as CourseType[]).map((t) => (
-                        <option key={t} value={t}>{COURSE_TYPE_LABELS[t]}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Статус</label>
-                    <select name="status" defaultValue={course.status} className="input-control w-full">
-                      {(Object.keys(COURSE_STATUS_LABELS) as CourseStatus[]).map((s) => (
-                        <option key={s} value={s}>{COURSE_STATUS_LABELS[s]}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Підсумковий бал</label>
-                    <input name="finalScore" type="number" min={0} max={100}
-                      defaultValue={course.finalScore ?? ""} className="input-control w-full" placeholder="—" />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Нотатки</label>
-                    <textarea name="note" rows={3} defaultValue={course.note}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white resize-none transition" />
-                  </div>
-                </div>
-                <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
-                  <button type="button"
-                    onClick={() => {
-                      const fd = new FormData();
-                      fd.set("locale", locale); fd.set("projectId", projectId); fd.set("courseId", course._id ?? "");
-                      start(() => removeCourse(fd));
-                    }}
-                    className="flex items-center gap-1.5 rounded-xl border border-rose-200 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition">
-                    <Trash2 className="h-3.5 w-3.5" /> Видалити курс
-                  </button>
-                  <button type="submit"
-                    className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition">
-                    <Check className="h-4 w-4" /> Зберегти
-                  </button>
-                </div>
-              </form>
-            </div>
+            <CourseSettingsForm
+              key={course._id}
+              course={course}
+              projectId={projectId}
+              locale={locale}
+              academic={academic}
+              onDelete={() => {
+                const fd = new FormData();
+                fd.set("locale", locale); fd.set("projectId", projectId); fd.set("courseId", course._id ?? "");
+                start(() => removeCourse(fd));
+              }}
+            />
           )}
         </motion.div>
       </AnimatePresence>
@@ -1419,6 +2862,213 @@ function CourseView({ course, modules, topics, assessments, sessions, assignment
           assessment={editAssessment}
           onClose={() => { setShowAssessmentModal(false); setEditAssessment(null); }} />
       )}
+    </div>
+  );
+}
+
+// ── Course settings form (auto-save) ─────────────────────────────────────────
+
+function CourseSettingsForm({
+  course, projectId, locale, academic, onDelete,
+}: {
+  course: LearningCourse;
+  projectId: string;
+  locale: string;
+  academic: ReturnType<typeof resolveAcademicSettings>;
+  onDelete: () => void;
+}) {
+  const [title, setTitle]           = useState(course.title);
+  const [code, setCode]             = useState(course.code ?? "");
+  const [instructor, setInstructor] = useState(course.instructor ?? "");
+  const [semester, setSemester]     = useState(String(course.semester ?? 1));
+  const [semesterEnd, setSemEnd]    = useState(String(courseSemesterEnd(course)));
+  const [year, setYear]             = useState(String(course.year ?? 1));
+  const [credits, setCredits]       = useState(String(course.credits ?? 3));
+  const [courseType, setCourseType] = useState<CourseType>(course.courseType ?? "mandatory");
+  const [status, setStatus]         = useState<CourseStatus>(course.status ?? "planned");
+  const [finalScore, setFinalScore] = useState(course.finalScore != null ? String(course.finalScore) : "");
+  const [note, setNote]             = useState(course.note ?? "");
+  const [saveState, setSaveState]   = useState<"idle" | "saving" | "saved">("idle");
+
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [, startTransition] = useTransition();
+
+  // Always-current snapshot for the debounce closure
+  const latestRef = useRef({ title, code, instructor, semester, semesterEnd, year, credits, courseType, status, finalScore, note });
+  latestRef.current = { title, code, instructor, semester, semesterEnd, year, credits, courseType, status, finalScore, note };
+
+  function doSave(patch: Partial<typeof latestRef.current> = {}) {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    const v = { ...latestRef.current, ...patch };
+    const fd = new FormData();
+    fd.set("locale", locale);
+    fd.set("projectId", projectId);
+    fd.set("courseId", course._id ?? "");
+    fd.set("title", v.title);
+    fd.set("code", v.code);
+    fd.set("instructor", v.instructor);
+    fd.set("semester", v.semester);
+    fd.set("semesterEnd", v.semesterEnd);
+    fd.set("year", v.year);
+    fd.set("credits", v.credits);
+    fd.set("courseType", v.courseType);
+    fd.set("status", v.status);
+    fd.set("finalScore", v.finalScore);
+    fd.set("finalGrade", v.finalScore ? scoreToGrade(Number(v.finalScore)) : "");
+    fd.set("note", v.note);
+    setSaveState("saving");
+    startTransition(async () => {
+      await saveCourse(fd);
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2500);
+    });
+  }
+
+  function schedule(patch: Partial<typeof latestRef.current> = {}) {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    // Merge patch into latest so concurrent keystrokes accumulate correctly
+    latestRef.current = { ...latestRef.current, ...patch };
+    timerRef.current = setTimeout(() => doSave(), 800);
+  }
+
+  // When score changes: auto-derive status (only if currently "active")
+  function handleScoreChange(raw: string) {
+    const n = Number(raw);
+    let nextStatus = status;
+    if (raw && !isNaN(n)) {
+      if (n >= 60 && status === "active") nextStatus = "completed";
+      else if (n < 60 && n > 0 && status === "active") nextStatus = "failed";
+    }
+    setFinalScore(raw);
+    if (nextStatus !== status) setStatus(nextStatus);
+    schedule({ finalScore: raw, status: nextStatus });
+  }
+
+  const scoreNum = finalScore ? Number(finalScore) : null;
+  const autoGrade = scoreNum != null && !isNaN(scoreNum) ? scoreToGrade(scoreNum) : null;
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+        <p className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <Settings className="h-4 w-4 text-slate-400" /> Параметри курсу
+        </p>
+        <span className={clsx(
+          "text-[11px] transition-opacity",
+          saveState === "saving" && "animate-pulse text-slate-400",
+          saveState === "saved" && "flex items-center gap-1 font-semibold text-emerald-600",
+          saveState === "idle" && "opacity-0",
+        )}>
+          {saveState === "saving" && "Збереження…"}
+          {saveState === "saved" && <><Check className="h-3 w-3 inline" /> Збережено</>}
+        </span>
+      </div>
+      <div className="px-5 py-5">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Назва курсу</label>
+            <input
+              value={title}
+              onChange={(e) => { setTitle(e.target.value); schedule({ title: e.target.value }); }}
+              className="input-control w-full text-base font-medium"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Код</label>
+            <input
+              value={code}
+              onChange={(e) => { setCode(e.target.value); schedule({ code: e.target.value }); }}
+              className="input-control w-full font-mono"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Викладач</label>
+            <input
+              value={instructor}
+              onChange={(e) => { setInstructor(e.target.value); schedule({ instructor: e.target.value }); }}
+              className="input-control w-full"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <CoursePeriodPicker
+              academic={academic}
+              year={Number(year) || 1}
+              semester={Number(semester) || 1}
+              semesterEnd={Number(semesterEnd) || Number(semester) || 1}
+              onYearChange={(value) => { setYear(String(value)); schedule({ year: String(value) }); }}
+              onSemesterChange={(value) => { setSemester(String(value)); schedule({ semester: String(value) }); }}
+              onSemesterEndChange={(value) => { setSemEnd(String(value)); schedule({ semesterEnd: String(value) }); }}
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Кредити (ECTS)</label>
+            <input
+              type="number" value={credits}
+              onChange={(e) => { setCredits(e.target.value); schedule({ credits: e.target.value }); }}
+              className="input-control w-full"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Тип</label>
+            <select
+              value={courseType}
+              onChange={(e) => { setCourseType(e.target.value as CourseType); schedule({ courseType: e.target.value as CourseType }); }}
+              className="input-control w-full"
+            >
+              {(Object.keys(COURSE_TYPE_LABELS) as CourseType[]).map((t) => (
+                <option key={t} value={t}>{COURSE_TYPE_LABELS[t]}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Статус</label>
+            <select
+              value={status}
+              onChange={(e) => { setStatus(e.target.value as CourseStatus); schedule({ status: e.target.value as CourseStatus }); }}
+              className="input-control w-full"
+            >
+              {(Object.keys(COURSE_STATUS_LABELS) as CourseStatus[]).map((s) => (
+                <option key={s} value={s}>{COURSE_STATUS_LABELS[s]}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Підсумковий бал
+              {autoGrade && (
+                <span className="ml-2 font-bold" style={{ color: gradeColor(autoGrade) }}>
+                  → {autoGrade} · {gradeToNational(autoGrade)}
+                </span>
+              )}
+            </label>
+            <input
+              type="number" min={0} max={100}
+              value={finalScore}
+              onChange={(e) => handleScoreChange(e.target.value)}
+              placeholder="—"
+              className="input-control w-full"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Нотатки</label>
+            <textarea
+              rows={3}
+              value={note}
+              onChange={(e) => { setNote(e.target.value); schedule({ note: e.target.value }); }}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:bg-white resize-none transition"
+            />
+          </div>
+        </div>
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={onDelete}
+            className="flex items-center gap-1.5 rounded-xl border border-rose-200 px-4 py-2 text-sm text-rose-600 transition hover:bg-rose-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Видалити курс
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1434,7 +3084,7 @@ function OverviewPanel({ courses, topics, assessments, assignments }: {
   const graded = assessments.filter((a) => a.achievedScore !== null && a.maxScore > 0);
   const avgScore = graded.length
     ? Math.round(graded.reduce((s, a) => s + (a.achievedScore! / a.maxScore) * 100, 0) / graded.length) : null;
-  const semesterGroups = Array.from(new Set(courses.map((c) => c.semester))).sort();
+  const semesterGroups = Array.from(new Set(courses.flatMap(courseCoveredSemesters))).sort((a, b) => a - b);
 
   const now = Date.now();
   type DeadlineItem = { title: string; course: string; date: string; kind: "assessment" | "assignment" };
@@ -1511,7 +3161,7 @@ function OverviewPanel({ courses, topics, assessments, assignments }: {
       )}
 
       {semesterGroups.map((sem) => {
-        const semCourses = courses.filter((c) => c.semester === sem);
+        const semCourses = courses.filter((c) => courseCoversSemester(c, sem));
         return (
           <div key={sem} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
@@ -1569,12 +3219,13 @@ function OverviewPanel({ courses, topics, assessments, assignments }: {
 export function LearningJournal({
   projectId, locale, canManage, initialCourseId,
   courses, modules, topics, assessments, sessions, assignments,
-  isDissertation,
+  isDissertation, learningProfile,
 }: {
   projectId: string; locale: string; canManage: boolean; initialCourseId: string | null;
   courses: LearningCourse[]; modules: LearningModule[]; topics: LearningTopic[];
   assessments: LearningAssessment[]; sessions: LearningSession[]; assignments: LearningAssignment[];
   isDissertation?: boolean;
+  learningProfile?: LearningProfile;
 }) {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(
     initialCourseId ?? (courses.length > 0 ? (courses[0]._id ?? null) : null),
@@ -1583,8 +3234,9 @@ export function LearningJournal({
   const [showAddCourse, setShowAddCourse] = useState(false);
 
   const selectedCourse = courses.find((c) => c._id === selectedCourseId) ?? null;
-  const maxSemester = courses.length ? Math.max(...courses.map((c) => c.semester)) : 1;
-  const semesterGroups = Array.from(new Set(courses.map((c) => c.semester))).sort();
+  const academic = resolveAcademicSettings(learningProfile?.academicSettings);
+  const maxSemester = courses.length ? Math.max(...courses.map(courseSemesterEnd)) : 1;
+  const yearGroups = Array.from(new Set(courses.map((c) => c.year ?? Math.ceil(c.semester / 2)))).sort((a, b) => a - b);
 
   return (
     <div>
@@ -1624,23 +3276,32 @@ export function LearningJournal({
             </div>
 
             <div className="flex-1 overflow-y-auto p-2 space-y-3">
-              {semesterGroups.length === 0 && (
+              {yearGroups.length === 0 && (
                 <p className="px-2 py-4 text-xs text-center text-slate-400">Курси ще не додані</p>
               )}
-              {semesterGroups.map((sem) => (
-                <div key={sem}>
-                  <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                    Сем. {sem}
-                  </p>
-                  <div className="space-y-0.5">
-                    {courses.filter((c) => c.semester === sem).map((course) => (
-                      <CourseItem key={course._id} course={course} topics={topics} assessments={assessments}
-                        isActive={selectedCourseId === course._id}
-                        onClick={() => { setSelectedCourseId(course._id ?? null); setShowCalendar(false); }} />
+              {yearGroups.map((yr) => {
+                const yearCourses = courses.filter((c) => (c.year ?? Math.ceil(c.semester / 2)) === yr);
+                const semGroups = Array.from(new Set(yearCourses.flatMap(courseCoveredSemesters))).sort((a, b) => a - b);
+                return (
+                  <div key={yr}>
+                    <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-widest text-indigo-400">
+                      {yr} рік навч.
+                    </p>
+                    {semGroups.map((sem) => (
+                      <div key={sem} className="mb-2">
+                        <p className="mb-0.5 px-1 text-[10px] font-semibold text-slate-400">Семестр {sem}</p>
+                        <div className="space-y-0.5">
+                          {yearCourses.filter((c) => courseCoversSemester(c, sem)).map((course) => (
+                            <CourseItem key={course._id} course={course} topics={topics} assessments={assessments}
+                              isActive={selectedCourseId === course._id}
+                              onClick={() => { setSelectedCourseId(course._id ?? null); setShowCalendar(false); }} />
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {canManage && (
@@ -1663,7 +3324,7 @@ export function LearningJournal({
               <CourseView course={selectedCourse} modules={modules} topics={topics}
                 assessments={assessments} sessions={sessions} assignments={assignments}
                 projectId={projectId} locale={locale} canManage={canManage}
-                isDissertation={isDissertation} />
+                isDissertation={isDissertation} academic={academic} />
             </motion.div>
           ) : showCalendar ? (
             <motion.div key="calendar" className="flex-1 min-w-0"
@@ -1686,7 +3347,8 @@ export function LearningJournal({
       <AnimatePresence>
         {showAddCourse && (
           <AddCourseModal projectId={projectId} locale={locale}
-            semesterHint={maxSemester > 1 ? maxSemester : 1}
+            semesterHint={maxSemester + 1}
+            learningProfile={learningProfile}
             onClose={() => setShowAddCourse(false)} />
         )}
       </AnimatePresence>

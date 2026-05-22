@@ -1,3 +1,4 @@
+import "server-only";
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 
@@ -41,12 +42,7 @@ function signPayload(payload: string) {
   return createHmac("sha256", sessionSecret).update(payload).digest("base64url");
 }
 
-export async function createSession(
-  userId: string,
-  role: string,
-  remember = false,
-  sessionVersion = 1,
-) {
+export async function encryptSession(userId: string, role: string, remember = false, sessionVersion = 1) {
   const maxAge = remember ? SESSION_LONG_S : SESSION_SHORT_S;
   const payload: SessionPayload = {
     userId,
@@ -56,9 +52,20 @@ export async function createSession(
   };
   const body = toBase64Url(JSON.stringify(payload));
   const signature = signPayload(body);
+  return `${body}.${signature}`;
+}
+
+export async function createSession(
+  userId: string,
+  role: string,
+  remember = false,
+  sessionVersion = 1,
+) {
+  const maxAge = remember ? SESSION_LONG_S : SESSION_SHORT_S;
+  const token = await encryptSession(userId, role, remember, sessionVersion);
   const cookieStore = await cookies();
 
-  cookieStore.set(cookieName, `${body}.${signature}`, {
+  cookieStore.set(cookieName, token, {
     httpOnly: true,
     sameSite,
     secure: process.env.NODE_ENV === "production",
@@ -72,17 +79,11 @@ export async function destroySession() {
   cookieStore.delete(cookieName);
 }
 
-export async function readSession() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(cookieName)?.value;
-
-  if (!token) {
-    return null;
-  }
-
+export function verifySessionToken(token: string): SessionPayload | null {
   const [body, signature] = token.split(".");
 
   if (!body || !signature) {
+    console.warn("[SESSION] Invalid token format: missing body or signature");
     return null;
   }
 
@@ -94,6 +95,7 @@ export async function readSession() {
     signatureBuffer.length !== expectedBuffer.length ||
     !timingSafeEqual(signatureBuffer, expectedBuffer)
   ) {
+    console.warn("[SESSION] Signature mismatch");
     return null;
   }
 
@@ -101,11 +103,24 @@ export async function readSession() {
     const payload = JSON.parse(fromBase64Url(body)) as SessionPayload;
 
     if (payload.exp < Math.floor(Date.now() / 1000)) {
+      console.warn(`[SESSION] Token expired at ${new Date(payload.exp * 1000).toISOString()}`);
       return null;
     }
 
     return payload;
-  } catch {
+  } catch (e) {
+    console.error("[SESSION] Failed to parse payload:", e);
     return null;
   }
+}
+
+export async function readSession() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(cookieName)?.value;
+
+  if (!token) {
+    return null;
+  }
+
+  return verifySessionToken(token);
 }

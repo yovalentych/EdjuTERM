@@ -1,45 +1,6 @@
 import { z } from "zod";
 
-export const recordKinds = [
-  // Group 1: Planning & Strategy
-  "research_question", "literature_review", "theoretical_framework", "hypothesis", "project_charter",
-  // Group 2: Methodology & Protocols
-  "methodology", "sop", "protocol", "data_collection_protocol", "analysis_protocol", "safety_protocol", "measurement_method", "spectrophotometry_method",
-  // Group 3: Data & Measurements
-  "dataset", "data_dictionary", "data_collection_form", "measurement_log", "calibration_record", "experiment_log",
-  // Group 4: Samples & Materials
-  "sample", "reagent", "equipment", "consumable", "culture_medium_recipe",
-  // Group 5: Team & Communication
-  "task", "task_set", "meeting_minutes", "decision_log", "raci", "training_record", "supervision_log",
-  // Group 6: Risk, Safety & Ethics
-  "risk", "ethics_approval", "dpia", "coi_declaration", "safety_assessment",
-  // Group 7: Outputs & Publications
-  "output", "conference_abstract", "dissertation_chapter", "patent", "report", "outreach",
-  // Group 8: Knowledge & Standards
-  "literature_note", "glossary", "standard", "regulatory_requirement",
-  // Group 9: Finance & Resources
-  "purchase_request", "expense_record",
-] as const;
-
-export const accessCategories = [
-  "internal",
-  "open",
-  "embargoed",
-  "restricted",
-] as const;
-
-export const openScienceCategories = [
-  "data_repository",
-  "updates",
-  "news",
-  "conferences",
-  "publications",
-  "protocols",
-  "outreach",
-] as const;
-
-export const userRoles = ["admin", "supervisor", "member", "user"] as const;
-
+// --- Project Base Enums ---
 export const projectTypes = [
   "fundamental",
   "applied",
@@ -49,223 +10,278 @@ export const projectTypes = [
   "dissertation",
   "experimental",
   "internship",
+  "laboratory",
 ] as const;
 
-/** @deprecated Use CLASSIFICATION_1021 from classification-1021.ts */
-export const researchFields = [
-  "physiology",
-  "neuroscience",
-  "molecular_biology",
-  "bioinformatics",
-  "biomedicine",
-] as const;
+export const projectVisibilityOptions = ["private", "team", "public_profile"] as const;
+export const dataPolicyOptions = ["internal", "open_by_default", "embargo_then_open", "restricted_sensitive"] as const;
+export const repositoryPlanOptions = ["github_zenodo", "osf", "institutional", "undecided"] as const;
+export const ethicsReviewOptions = ["not_required", "planned", "approved"] as const;
 
-export const projectVisibilityOptions = [
-  "private",
-  "team",
-  "public_profile",
-] as const;
+// --- Laboratory Enums ---
+export const labSafetyLevels = ["BSL-1", "BSL-2", "BSL-3", "BSL-4"] as const;
+export const labAccessPolicies = ["private", "request", "public"] as const;
+export const labCategories = ["biological", "chemical", "physical", "analytical", "computational", "clinical", "general"] as const;
 
-export const dataPolicyOptions = [
-  "internal",
-  "open_by_default",
-  "embargo_then_open",
-  "restricted_sensitive",
-] as const;
+// --- User Affiliation (community-driven institution membership) ---
+export const PARENT_UNIT_TYPES = ["faculty", "institute", "college", "division", "center", "school", "other"] as const;
+export const CHILD_UNIT_TYPES = ["department", "lab", "division", "center", "group", "section", "other"] as const;
+export type ParentUnitType = typeof PARENT_UNIT_TYPES[number];
+export type ChildUnitType = typeof CHILD_UNIT_TYPES[number];
 
-export const repositoryPlanOptions = [
-  "github_zenodo",
-  "osf",
-  "institutional",
-  "undecided",
-] as const;
-
-export const processingStatuses = ["raw", "processed", "analyzed", "published"] as const;
-
-export const recordCreatorSchema = z.object({
-  name: z.string().max(200),           // Ukrainian / native script
-  nameEn: z.string().max(200).default(""), // Latin script for Zenodo (Last, First)
-  affiliation: z.string().max(200).default(""),
-  orcid: z.string().max(40).default(""),
-});
-
-export const recordContributorRoles = [
-  "DataCollector",
-  "DataCurator",
-  "DataManager",
-  "Editor",
-  "ProjectLeader",
-  "ProjectMember",
-  "Researcher",
-  "Supervisor",
-  "Other",
-] as const;
-
-export const recordContributorSchema = z.object({
-  name: z.string().max(200),
-  nameEn: z.string().max(200).default(""),
-  affiliation: z.string().max(200).default(""),
-  orcid: z.string().max(40).default(""),
-  role: z.enum(recordContributorRoles).default("Other"),
-});
-
-export const relatedIdentifierSchemes = ["doi", "url", "isbn", "issn", "arxiv", "pmid", "handle", "urn"] as const;
-export const relatedIdentifierRelations = [
-  "IsCitedBy", "Cites",
-  "IsSupplementTo", "IsSupplementedBy",
-  "IsPartOf", "HasPart",
-  "IsVersionOf", "IsNewVersionOf", "IsPreviousVersionOf",
-  "References", "IsReferencedBy",
-  "IsDocumentedBy", "Documents",
-  "IsDerivedFrom", "IsSourceOf",
-] as const;
-
-export const relatedIdentifierSchema = z.object({
-  identifier: z.string().max(500),
-  scheme: z.enum(relatedIdentifierSchemes).default("doi"),
-  relation: z.enum(relatedIdentifierRelations).default("References"),
-});
-
-export const projectRecordInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  kind: z.enum(recordKinds),
-  localId: z.string().min(3).max(80),
-  title: z.string().min(3).max(240),
-  stage: z.string().min(3).max(80),
-  group: z.string().max(120).default(""),
-  dataFormat: z.string().max(80).default(""),
-  version: z.string().max(40).default(""),
-  rootRecordId: z.string().max(120).default(""),
-  parentVersionId: z.string().max(120).default(""),
-  variantLabel: z.string().max(200).default(""),
-  versionNote: z.string().max(1000).default(""),
-  access: z.enum(accessCategories),
-  owner: z.string().min(1).max(120),
-  repository: z.string().min(1).max(160),
-  summary: z.string().max(1200).default(""),
-  usageNotes: z.string().max(2400).default(""),
-  keywords: z.string().max(400).default(""),
-  license: z.string().max(80).default(""),
-  tags: z.array(z.string().max(60)).default([]),
-  doi: z.string().max(200).default(""),
-  processingStatus: z.enum(processingStatuses).default("raw"),
-  linkedPublicationIds: z.array(z.string()).default([]),
-  // Zenodo-aligned metadata
-  creators: z.array(recordCreatorSchema).default([]),
-  language: z.string().max(10).default(""),
-  embargoDate: z.string().max(32).default(""),
-  dateCollectedFrom: z.string().max(32).default(""),
-  dateCollectedTo: z.string().max(32).default(""),
-  fundingGrant: z.string().max(400).default(""),
-  subjects: z.array(z.string().max(200)).default([]),
-  notes: z.string().max(2000).default(""),
-  contributors: z.array(recordContributorSchema).default([]),
-  references: z.string().max(4000).default(""),
-  relatedIdentifiers: z.array(relatedIdentifierSchema).default([]),
-  typedData: z.record(z.string(), z.unknown()).default({}),
-});
-
-export const projectRecordSchema = projectRecordInputSchema.extend({
+export const userAffiliationSchema = z.object({
   _id: z.string().optional(),
-  createdBy: z.string().default(""),
-  status: z
-    .enum(["planned", "active", "review", "released", "blocked"])
-    .default("planned"),
-  processingHistory: z
-    .array(
-      z.object({
-        status: z.enum(processingStatuses),
-        changedAt: z.coerce.date(),
-        changedBy: z.string().default(""),
-        note: z.string().max(600).default(""),
-      }),
-    )
-    .default([]),
-  relatedIds: z.array(z.string()).default([]),
-  rawDataFiles: z
-    .array(
-      z.object({
-        name: z.string(),
-        storageUri: z.string(),
-        checksum: z.string().optional(),
-        mimeType: z.string().optional(),
-        bytes: z.number().optional(),
-        uploadedAt: z.coerce.date().optional(),
-      }),
-    )
-    .default([]),
-  archivedAt: z.coerce.date().optional(),
-  zenodoDepositionId: z.number().optional(),
-  zenodoRecordId: z.number().optional(),
-  zenodoConceptDoi: z.string().max(200).default(""),
-  zenodoDoi: z.string().max(200).default(""),
-  zenodoUrl: z.string().max(500).default(""),
-  zenodoDraftUrl: z.string().max(500).default(""),
-  zenodoState: z.string().max(80).default(""),
-  zenodoSubmitted: z.boolean().default(false),
-  zenodoFileCount: z.number().int().min(0).default(0),
-  zenodoFilesSyncedAt: z.coerce.date().nullable().default(null),
-  zenodoPublishedAt: z.coerce.date().nullable().default(null),
-  zenodoSyncedAt: z.coerce.date().nullable().default(null),
-  zenodoSyncError: z.string().max(1200).default(""),
+  institutionId: z.string(),
+  institutionName: z.string(),
+  // Two-level unit hierarchy: parent (faculty/institute) → child (dept/lab/division)
+  parentUnitId: z.string().default(""),
+  parentUnitType: z.string().default(""),   // "faculty" | "institute" | ...
+  parentUnitName: z.string().default(""),   // e.g. "Факультет природничих наук"
+  unitId: z.string().default(""),
+  unitType: z.string().default(""),         // "department" | "lab" | ...
+  unitName: z.string().default(""),         // e.g. "Кафедра молекулярної біології"
+  // Optional educational program (community-created)
+  programId: z.string().default(""),
+  programName: z.string().default(""),      // e.g. "Молекулярна біологія та біохімія (PhD)"
+  role: z.string().max(200).default(""),
+  position: z.string().max(200).default(""),
+  startYear: z.number().int().nullable().default(null),
+  endYear: z.number().int().nullable().default(null),
+  isCurrent: z.boolean().default(true),
+});
+
+export const affiliationInputSchema = z.object({
+  institutionName: z.string().min(2).max(300),
+  parentUnitType: z.string().max(40).default(""),
+  parentUnitName: z.string().max(200).default(""),
+  unitType: z.string().max(40).default(""),
+  unitName: z.string().max(200).default(""),
+  programName: z.string().max(300).default(""),
+  role: z.string().max(200).default(""),
+  position: z.string().max(200).default(""),
+  startYear: z.number().int().min(1950).max(2100).nullable().optional(),
+  endYear: z.number().int().min(1950).max(2100).nullable().optional(),
+  isCurrent: z.boolean().default(true),
+});
+
+export type UserAffiliation = z.infer<typeof userAffiliationSchema>;
+export type AffiliationInput = z.infer<typeof affiliationInputSchema>;
+
+// --- Personal Profile Database ---
+// Central user-owned profile used for autofill across education, publications,
+// reports, mobile forms, and external-service metadata.
+export const personalProfileLinkSchema = z.object({
+  kind: z.enum([
+    "orcid",
+    "google_scholar",
+    "scopus",
+    "web_of_science",
+    "researchgate",
+    "academia",
+    "linkedin",
+    "github",
+    "website",
+    "telegram",
+    "other",
+  ]).default("other"),
+  label: z.string().max(120).default(""),
+  value: z.string().max(300).default(""),
+  url: z.string().max(500).default(""),
+  isPrimary: z.boolean().default(false),
+});
+
+export const personalProfileInstitutionSchema = z.object({
+  _id: z.string().optional(),
+  institutionId: z.string().default(""),
+  institutionName: z.string().max(300).default(""),
+  shortName: z.string().max(80).default(""),
+  country: z.string().max(100).default(""),
+  city: z.string().max(120).default(""),
+  parentUnitName: z.string().max(200).default(""),
+  unitName: z.string().max(200).default(""),
+  programName: z.string().max(300).default(""),
+  educationLevel: z.string().max(80).default(""),
+  role: z.string().max(160).default(""),
+  position: z.string().max(200).default(""),
+  startYear: z.number().int().min(1950).max(2100).nullable().default(null),
+  endYear: z.number().int().min(1950).max(2100).nullable().default(null),
+  isCurrent: z.boolean().default(true),
+  isPrimary: z.boolean().default(false),
+});
+
+export const personalProfileSchema = z.object({
+  _id: z.string().optional(),
+  userId: z.string(),
+  email: z.string().email(),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  firstNameLatin: z.string().max(100).default(""),
+  lastNameLatin: z.string().max(100).default(""),
+  phone: z.string().max(20).default(""),
+  orcid: z.string().max(40).default(""),
+  position: z.string().max(200).default(""),
+  affiliation: z.string().max(300).default(""),
+  profileBio: z.string().max(2000).default(""),
+  defaultSpecialty: z.string().max(120).default(""),
+  researchInterests: z.array(z.string().max(80)).default([]),
+  institutions: z.array(personalProfileInstitutionSchema).default([]),
+  links: z.array(personalProfileLinkSchema).default([]),
+  preferences: z.object({
+    preferredLanguage: z.enum(["uk", "en"]).default("uk"),
+    citationName: z.string().max(240).default(""),
+    defaultAffiliationId: z.string().default(""),
+  }).default({ preferredLanguage: "uk", citationName: "", defaultAffiliationId: "" }),
+  onboardingCompleted: z.boolean().default(false),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
 
-export type ProjectRecordInput = z.infer<typeof projectRecordInputSchema>;
-export type ProjectRecord = z.infer<typeof projectRecordSchema>;
-export type ProcessingStatus = (typeof processingStatuses)[number];
+export const personalProfileInputSchema = personalProfileSchema
+  .omit({ _id: true, userId: true, email: true, createdAt: true, updatedAt: true })
+  .partial()
+  .extend({
+    firstName: z.string().min(1).max(100).optional(),
+    lastName: z.string().min(1).max(100).optional(),
+  });
 
-export const registerInputSchema = z.object({
-  firstName: z.string().min(1).max(80),
-  lastName: z.string().min(1).max(80),
-  firstNameLatin: z.string().min(1).max(80),
-  lastNameLatin: z.string().min(1).max(80),
-  email: z.string().email().max(240).transform((email) => email.toLowerCase()),
-  password: z.string().min(8).max(200),
+export type PersonalProfile = z.infer<typeof personalProfileSchema>;
+export type PersonalProfileInput = z.infer<typeof personalProfileInputSchema>;
+export type PersonalProfileInstitution = z.infer<typeof personalProfileInstitutionSchema>;
+export type PersonalProfileLink = z.infer<typeof personalProfileLinkSchema>;
+
+// --- User Schema ---
+export const safeUserSchema = z.object({
+  _id: z.string().optional(),
+  email: z.string().email(),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  role: z.string(),
+  affiliation: z.string().optional(),
+  position: z.string().optional(),
+  orcid: z.string().optional(),
+  profileBio: z.string().optional(),
+  defaultSpecialty: z.string().optional(),
+  firstNameLatin: z.string().optional(),
+  lastNameLatin: z.string().optional(),
+  phone: z.string().optional(),
+  phoneVerifiedAt: z.coerce.date().nullable().optional(),
+  emailVerifiedAt: z.coerce.date().nullable().optional(),
+  sessionVersion: z.number().int().default(1),
+  accountType: z.enum(["personal", "institution"]).default("personal").optional(),
+  institutionId: z.string().optional(),
+  // Structured affiliations (community-driven)
+  affiliations: z.array(userAffiliationSchema).optional(),
+  // Academic profile
+  academicLinks: z.object({
+    googleScholar: z.string().max(200).optional(),
+    researchGate: z.string().max(200).optional(),
+    scopus: z.string().max(100).optional(),
+    webOfScience: z.string().max(100).optional(),
+    publons: z.string().max(200).optional(),
+    academia: z.string().max(200).optional(),
+    linkedin: z.string().max(200).optional(),
+    github: z.string().max(200).optional(),
+    website: z.string().max(300).optional(),
+    telegram: z.string().max(100).optional(),
+  }).optional(),
+  researchInterests: z.array(z.string().max(80)).optional(),
+});
+
+export const userSchema = safeUserSchema.extend({
+  firstNameLatin: z.string().default(""),
+  lastNameLatin: z.string().default(""),
+  phone: z.string().default(""),
+  phoneVerifiedAt: z.coerce.date().nullable().default(null),
+  orcid: z.string().default(""),
+  position: z.string().default(""),
+  profileBio: z.string().default(""),
+  passwordHash: z.string(),
+  sessionVersion: z.number().int().default(1),
+  emailVerifiedAt: z.coerce.date().nullable().default(null),
+  accountType: z.enum(["personal", "institution"]).default("personal"),
+  institutionId: z.string().default(""),
+  affiliations: z.array(userAffiliationSchema).default([]),
+  academicLinks: z.object({
+    googleScholar: z.string().max(200).optional(),
+    researchGate: z.string().max(200).optional(),
+    scopus: z.string().max(100).optional(),
+    webOfScience: z.string().max(100).optional(),
+    publons: z.string().max(200).optional(),
+    academia: z.string().max(200).optional(),
+    linkedin: z.string().max(200).optional(),
+    github: z.string().max(200).optional(),
+    website: z.string().max(300).optional(),
+    telegram: z.string().max(100).optional(),
+  }).optional(),
+  researchInterests: z.array(z.string().max(80)).default([]),
+  updatedAt: z.coerce.date(),
+  createdAt: z.coerce.date(),
 });
 
 export const loginInputSchema = z.object({
-  email: z.string().email().max(240).transform((email) => email.toLowerCase()),
-  password: z.string().min(1).max(200),
+  email: z.string().email().max(240),
+  password: z.string().min(1).max(100),
 });
 
-export const userSchema = z.object({
-  _id: z.string().optional(),
-  firstName: z.string().min(1).max(80),
-  lastName: z.string().min(1).max(80),
-  firstNameLatin: z.string().min(1).max(80),
-  lastNameLatin: z.string().min(1).max(80),
-  email: z.string().email(),
-  orcid: z.string().max(32).default(""),
-  position: z.string().max(120).default(""),
-  affiliation: z.string().max(200).default(""),
-  profileBio: z.string().max(1200).default(""),
-  defaultSpecialty: z.string().max(10).default(""),
-  passwordHash: z.string(),
-  role: z.enum(userRoles).default("user"),
-  sessionVersion: z.number().int().min(1).default(1),
-  emailVerifiedAt: z.coerce.date().nullable().default(null),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
+// E.164-друже: + з 7..15 цифр. Опціональний — якщо порожній рядок, пропустимо.
+const phoneE164 = z
+  .string()
+  .max(20)
+  .regex(/^\+?[1-9]\d{6,14}$/u, "Номер у форматі +380XXXXXXXXX")
+  .optional()
+  .or(z.literal(""));
+
+export const registerInputSchema = z.object({
+  email: z.string().email().max(240),
+  password: z.string().min(8).max(100),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  firstNameLatin: z.string().min(1).max(100),
+  lastNameLatin: z.string().min(1).max(100),
+  phone: phoneE164,
 });
 
-export const safeUserSchema = userSchema.omit({ passwordHash: true });
+export const profileInputSchema = z.object({
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  firstNameLatin: z.string().max(100).optional(),
+  lastNameLatin: z.string().max(100).optional(),
+  phone: phoneE164,
+  orcid: z.string().max(20).optional(),
+  position: z.string().max(200).optional(),
+  affiliation: z.string().max(300).optional(),
+  profileBio: z.string().max(2000).optional(),
+  defaultSpecialty: z.string().max(120).optional(),
+  academicLinks: z.object({
+    googleScholar: z.string().max(200).optional(),
+    researchGate: z.string().max(200).optional(),
+    scopus: z.string().max(100).optional(),
+    webOfScience: z.string().max(100).optional(),
+    publons: z.string().max(200).optional(),
+    academia: z.string().max(200).optional(),
+    linkedin: z.string().max(200).optional(),
+    github: z.string().max(200).optional(),
+    website: z.string().max(300).optional(),
+    telegram: z.string().max(100).optional(),
+  }).optional(),
+  researchInterests: z.array(z.string().max(80)).optional(),
+});
 
+// --- Project/Laboratory Input Schema ---
 export const projectInputSchema = z.object({
-  title: z.string().min(3).max(200),
-  acronym: z.string().min(2).max(32),
+  title: z.string().min(3).max(300),
+  acronym: z.string().min(2).max(40),
   summary: z.string().max(1200).default(""),
-  projectType: z.enum(projectTypes).default("fundamental"),
-  researchField: z.string().max(100).default(""),
-  grantProgram: z.string().max(160).default(""),
+  projectType: z.enum(projectTypes),
+  researchField: z.string().max(120).default(""),
+  grantProgram: z.string().max(200).default(""),
   startDate: z.string().max(32).default(""),
   endDate: z.string().max(32).default(""),
   defaultLocale: z.enum(["uk", "en"]).default("uk"),
   visibility: z.enum(projectVisibilityOptions).default("private"),
   dataPolicy: z.enum(dataPolicyOptions).default("embargo_then_open"),
   repositoryPlan: z.enum(repositoryPlanOptions).default("github_zenodo"),
-  ethicsReview: z.enum(["not_required", "planned", "approved"]).default("planned"),
+  ethicsReview: z.enum(ethicsReviewOptions).default("not_required"),
   hasHumanData: z.coerce.boolean().default(false),
   hasAnimalData: z.coerce.boolean().default(false),
   hasPersonalData: z.coerce.boolean().default(false),
@@ -273,6 +289,15 @@ export const projectInputSchema = z.object({
   teamChatEnabled: z.coerce.boolean().default(true),
   taskManagementEnabled: z.coerce.boolean().default(true),
   rawDataRegistryEnabled: z.coerce.boolean().default(true),
+  
+  // Laboratory unique fields
+  roomNumber: z.string().max(40).default(""),
+  institution: z.string().max(200).default(""),
+  labCategory: z.enum(labCategories).default("general"),
+  safetyLevel: z.enum(labSafetyLevels).default("BSL-1"),
+  accessPolicy: z.enum(labAccessPolicies).default("private"),
+  responsiblePersonIds: z.array(z.string()).default([]),
+  workingHours: z.string().max(100).default("9:00 - 18:00"),
 });
 
 export const projectSchema = projectInputSchema.extend({
@@ -280,121 +305,79 @@ export const projectSchema = projectInputSchema.extend({
   ownerId: z.string(),
   supervisorId: z.string(),
   memberIds: z.array(z.string()).default([]),
+  linkedLabIds: z.array(z.string()).default([]),
   joinCode: z.string().max(32).default(""),
   supervisorJoinCode: z.string().max(32).default(""),
   status: z.enum(["active", "archived"]).default("active"),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
   deletedAt: z.coerce.date().optional(),
   deletedBy: z.string().optional(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
 });
 
-export const profileInputSchema = z.object({
-  firstName: z.string().min(1).max(80),
-  lastName: z.string().min(1).max(80),
-  firstNameLatin: z.string().min(1).max(80),
-  lastNameLatin: z.string().min(1).max(80),
-  orcid: z.string().max(32).default(""),
-  position: z.string().max(120).default(""),
-  affiliation: z.string().max(200).default(""),
-  profileBio: z.string().max(1200).default(""),
-  defaultSpecialty: z.string().max(10).default(""),
-});
-
-export const openScienceUpdateInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  category: z.enum(openScienceCategories).default("updates"),
-  title: z.string().min(3).max(240),
-  summary: z.string().max(600).default(""),
-  content: z.string().max(5000).default(""),
-  publicUrl: z.string().max(500).default(""),
-  accessibilityNotes: z.string().max(1200).default(""),
-  license: z.string().max(80).default(""),
-  status: z.enum(["draft", "published"]).default("draft"),
-  linkedRecordIds: z.array(z.string()).default([]),
-});
-
-export const openScienceUpdateSchema = openScienceUpdateInputSchema.extend({
+// --- Chat ---
+export const chatMessageSchema = z.object({
   _id: z.string().optional(),
-  createdBy: z.string(),
-  updatedBy: z.string().optional(),
-  publishedAt: z.coerce.date().nullable().default(null),
+  projectId: z.string(),
+  userId: z.string(),
+  authorId: z.string().default(""),
+  displayName: z.string(),
+  initials: z.string(),
+  content: z.string().min(1).max(5000),
+  body: z.string().default(""),
   createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
 });
 
-export const teamMessageLabels = ["urgent", "question", "decision", "info", "note"] as const;
-export type TeamMessageLabel = (typeof teamMessageLabels)[number];
-
-export const teamMessageInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  body: z.string().min(1).max(2000),
-  topic: z.string().max(80).default("general"),
-  label: z.enum(teamMessageLabels).nullable().default(null),
-});
-
-export const teamMessageSchema = teamMessageInputSchema.extend({
-  _id: z.string().optional(),
-  authorId: z.string(),
+export const teamMessageSchema = chatMessageSchema.extend({
   starredBy: z.array(z.string()).default([]),
   pinned: z.boolean().default(false),
-  createdAt: z.coerce.date(),
+  label: z.enum(["urgent", "question", "decision", "info", "note"]).nullable().optional(),
+  topic: z.string().optional(),
+  reactions: z.record(z.string(), z.array(z.string())).optional(),
 });
 
-export const projectInvitationInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  email: z.string().email().max(240).transform((email) => email.toLowerCase()),
-});
+export const budgetCategories = ["equipment", "reagents", "consumables", "services", "travel", "personnel", "subcontracting", "overhead", "software", "publications", "other"] as const;
+export const currencyOptions = ["UAH", "USD", "EUR", "GBP"] as const;
 
-export const projectInvitationSchema = projectInvitationInputSchema.extend({
+// --- Audit ---
+export const auditEventSchema = z.object({
   _id: z.string().optional(),
-  code: z.string().min(6).max(32),
-  status: z.enum(["pending", "accepted", "revoked", "expired"]).default("pending"),
-  createdBy: z.string(),
-  acceptedBy: z.string().optional(),
-  expiresAt: z.coerce.date(),
+  projectId: z.string().optional(),
+  actorId: z.string(),
+  actorEmail: z.string(),
+  action: z.string(),
+  targetUserId: z.string().optional(),
+  targetEmail: z.string().optional(),
+  targetEntity: z.string().optional(),
+  actorName: z.string().optional(),
+  before: z.unknown().optional(),
+  after: z.unknown().optional(),
+  metadata: z.record(z.string(), z.any()).default({}),
+  requestId: z.string().optional(),
   createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
 });
 
-export const taskPriorities = ["low", "medium", "high", "critical"] as const;
-
-export const taskStatuses = [
-  "todo",
-  "in_progress",
-  "review",
-  "done",
-  "cancelled",
-] as const;
-
-export const taskCategories = [
-  "research",
-  "experiment",
-  "data_collection",
-  "analysis",
-  "writing",
-  "report",
-  "meeting",
-  "procurement",
-  "admin",
-  "other",
-] as const;
+// --- Planning ---
+export const taskStatusOptions = ["todo", "in_progress", "review", "done", "blocked", "cancelled", "archived"] as const;
+export const taskPriorityOptions = ["low", "medium", "high", "critical"] as const;
+export const taskPriorities = taskPriorityOptions;
+export const taskCategories = ["research", "admin", "lab", "writing", "meeting", "other"] as const;
 
 export const taskInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  title: z.string().min(2).max(240),
+  projectId: z.string(),
+  title: z.string().min(1).max(300).catch(""),
   description: z.string().max(2000).default(""),
-  parentTaskId: z.string().max(120).default(""),
-  assigneeId: z.string().max(120).default(""),
+  status: z.enum(taskStatusOptions).catch("todo").default("todo"),
+  priority: z.enum(taskPriorityOptions).catch("medium").default("medium"),
+  category: z.enum(taskCategories).catch("other").default("other"),
   dueDate: z.string().max(32).default(""),
-  priority: z.enum(taskPriorities).default("medium"),
-  category: z.enum(taskCategories).default("research"),
-  estimatedHours: z.coerce.number().min(0).max(9999).default(0),
+  assigneeId: z.string().default(""),
+  parentTaskId: z.string().default(""),
+  estimatedHours: z.number().default(0),
 });
 
 export const taskSchema = taskInputSchema.extend({
   _id: z.string().optional(),
-  status: z.enum(taskStatuses).default("todo"),
   createdBy: z.string(),
   completedAt: z.coerce.date().nullable().default(null),
   createdAt: z.coerce.date(),
@@ -402,28 +385,29 @@ export const taskSchema = taskInputSchema.extend({
 });
 
 export const milestoneInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  title: z.string().min(2).max(200),
-  description: z.string().max(1000).default(""),
-  dueDate: z.string().min(1).max(32),
+  projectId: z.string(),
+  stageId: z.string().optional(),
+  title: z.string().min(1).max(300).catch(""),
+  description: z.string().max(2000).default(""),
+  dueDate: z.string().max(32).default(""),
 });
 
 export const milestoneSchema = milestoneInputSchema.extend({
   _id: z.string().optional(),
   status: z.enum(["upcoming", "reached", "missed"]).default("upcoming"),
-  createdBy: z.string(),
   reachedAt: z.coerce.date().nullable().default(null),
+  createdBy: z.string(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
 
 export const timeEntryInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  taskId: z.string().max(120).default(""),
-  date: z.string().min(1).max(32),
+  projectId: z.string(),
+  date: z.string().max(32),
   hours: z.coerce.number().min(0.25).max(24),
-  description: z.string().max(500).default(""),
-  category: z.enum(taskCategories).default("research"),
+  category: z.string().max(100).default("research"),
+  description: z.string().max(1000).default(""),
+  taskId: z.string().optional(),
 });
 
 export const timeEntrySchema = timeEntryInputSchema.extend({
@@ -432,130 +416,26 @@ export const timeEntrySchema = timeEntryInputSchema.extend({
   createdAt: z.coerce.date(),
 });
 
-export const budgetCategories = [
-  "personnel",
-  "equipment",
-  "reagents",
-  "consumables",
-  "travel",
-  "services",
-  "subcontracting",
-  "overhead",
-  "software",
-  "publications",
-  "other",
-] as const;
-
-export const currencyOptions = ["UAH", "EUR", "USD"] as const;
-
-export const purchaseRequestStatuses = [
-  "draft",
-  "submitted",
-  "approved",
-  "rejected",
-  "purchased",
-  "delivered",
-] as const;
-
-export const budgetPeriodInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  label: z.string().min(2).max(100),
-  startDate: z.string().max(32),
-  endDate: z.string().max(32),
-});
-
-export const budgetPeriodSchema = budgetPeriodInputSchema.extend({
-  _id: z.string().optional(),
-  status: z.enum(["active", "closed"]).default("active"),
-  createdBy: z.string(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-});
-
-export const budgetLineItemInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  periodId: z.string().max(120).default(""),
-  category: z.enum(budgetCategories),
-  name: z.string().min(2).max(300),
-  description: z.string().max(1000).default(""),
-  quantity: z.coerce.number().min(0).max(999_999).default(1),
-  unit: z.string().max(50).default("шт."),
-  unitPrice: z.coerce.number().min(0).max(999_999_999).default(0),
-  plannedAmount: z.coerce.number().min(0).max(999_999_999),
-  currency: z.enum(currencyOptions).default("UAH"),
-  vendor: z.string().max(200).default(""),
-  url: z.string().max(500).default(""),
-  notes: z.string().max(600).default(""),
-});
-
-export const budgetLineItemSchema = budgetLineItemInputSchema.extend({
-  _id: z.string().optional(),
-  createdBy: z.string(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-});
-
-export const purchaseRequestInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  title: z.string().min(3).max(240),
-  description: z.string().min(3).max(2000),
-  category: z.enum(budgetCategories),
-  estimatedAmount: z.coerce.number().min(0).max(999_999_999),
-  currency: z.enum(currencyOptions).default("UAH"),
-  vendor: z.string().max(200).default(""),
-  justification: z.string().max(1200).default(""),
-  linkedPeriodId: z.string().max(120).default(""),
-  linkedLineItemId: z.string().max(120).default(""),
-});
-
-export const budgetDocumentSchema = z.object({
-  name: z.string(),
-  storageUri: z.string(),
-  checksum: z.string().optional(),
-  mimeType: z.string().optional(),
-  bytes: z.number().optional(),
-  uploadedAt: z.coerce.date(),
-});
-
-export const purchaseRequestSchema = purchaseRequestInputSchema.extend({
-  _id: z.string().optional(),
-  requesterId: z.string(),
-  status: z.enum(purchaseRequestStatuses).default("draft"),
-  reviewedBy: z.string().optional(),
-  reviewNote: z.string().max(600).default(""),
-  actualAmount: z.coerce.number().min(0).optional(),
-  purchasedAt: z.coerce.date().nullable().default(null),
-  documents: z.array(budgetDocumentSchema).default([]),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-});
-
-export const researchStageStatuses = [
-  "planned",
-  "active",
-  "completed",
-  "reported",
-] as const;
-
+// --- Research Plan ---
 export const researchStageInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  stageNumber: z.coerce.number().int().min(1).max(99),
-  title: z.string().min(2).max(2000),
-  goals: z.string().max(10000).default(""),
-  tasksText: z.string().max(20000).default(""),
+  projectId: z.string(),
+  stageNumber: z.number().int().min(1),
+  title: z.string().min(1).max(300).catch(""),
+  goals: z.string().max(2000).default(""),
+  tasksText: z.string().max(2000).default(""),
+  indicators: z.string().max(2000).default(""),
   startDate: z.string().max(32).default(""),
   endDate: z.string().max(32).default(""),
-  indicators: z.string().max(10000).default(""),
-  budget: z.coerce.number().min(0).max(999_999_999).default(0),
-  currency: z.enum(currencyOptions).default("UAH"),
-  linkedMilestoneId: z.string().max(120).default(""),
-  progress: z.coerce.number().int().min(0).max(100).default(0),
+  budget: z.coerce.number().min(0).default(0),
+  currency: z.string().max(10).default("UAH"),
 });
 
 export const researchStageSchema = researchStageInputSchema.extend({
   _id: z.string().optional(),
-  status: z.enum(researchStageStatuses).default("planned"),
+  status: z.enum(["planned", "active", "completed", "reported"]).default("planned"),
+  progress: z.number().int().min(0).max(100).default(0),
   linkedTaskIds: z.array(z.string()).default([]),
+  linkedMilestoneId: z.string().optional(),
   completionNote: z.string().max(2000).default(""),
   completedAt: z.coerce.date().nullable().default(null),
   createdBy: z.string(),
@@ -563,386 +443,23 @@ export const researchStageSchema = researchStageInputSchema.extend({
   updatedAt: z.coerce.date(),
 });
 
-export const publicationTypes = [
-  "article",
-  "conference",
-  "book_chapter",
-  "monograph",
-  "patent",
-  "report",
-  "dataset",
-  "software",
-  "other",
-] as const;
-
-export const publicationStatuses = [
-  "planned",
-  "submitted",
-  "under_review",
-  "accepted",
-  "published",
-  "rejected",
-] as const;
-
-export const researchPublicationInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  stageId: z.string().max(120).default(""),
-  type: z.enum(publicationTypes).default("article"),
-  title: z.string().min(2).max(500),
-  authors: z.string().max(500).default(""),
-  journal: z.string().max(300).default(""),
-  status: z.enum(publicationStatuses).default("planned"),
-  expectedYear: z.coerce.number().int().min(2020).max(2040).nullable().default(null),
-  doi: z.string().max(200).default(""),
-  url: z.string().max(500).default(""),
-  note: z.string().max(1000).default(""),
-});
-
-export const researchPublicationSchema = researchPublicationInputSchema.extend({
-  _id: z.string().optional(),
-  createdBy: z.string(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-});
-
-export type PublicationType = (typeof publicationTypes)[number];
-export type PublicationStatus = (typeof publicationStatuses)[number];
-export type ResearchPublicationInput = z.infer<typeof researchPublicationInputSchema>;
-export type ResearchPublication = z.infer<typeof researchPublicationSchema>;
-
-export const deliverableTypes = [
-  "publication",
-  "dataset",
-  "software",
-  "patent",
-  "protocol",
-  "report",
-  "training",
-  "equipment",
-  "other",
-] as const;
-
-export const deliverableStatuses = [
-  "planned",
-  "in_progress",
-  "delayed",
-  "completed",
-] as const;
-
-export const researchDeliverableInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  stageId: z.string().max(120).default(""),
-  type: z.enum(deliverableTypes).default("publication"),
-  title: z.string().min(2).max(500),
-  description: z.string().max(2000).default(""),
-  plannedDate: z.string().max(32).default(""),
-  status: z.enum(deliverableStatuses).default("planned"),
-  link: z.string().max(500).default(""),
-  note: z.string().max(1000).default(""),
-});
-
-export const researchDeliverableSchema = researchDeliverableInputSchema.extend({
-  _id: z.string().optional(),
-  completedAt: z.coerce.date().nullable().default(null),
-  createdBy: z.string(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-});
-
-export type DeliverableType = (typeof deliverableTypes)[number];
-export type DeliverableStatus = (typeof deliverableStatuses)[number];
-export type ResearchDeliverableInput = z.infer<typeof researchDeliverableInputSchema>;
-export type ResearchDeliverable = z.infer<typeof researchDeliverableSchema>;
-
-// ── Experiments ───────────────────────────────────────────────────────────────
-
-export const experimentTypes = [
-  "in_silico",
-  "in_vitro",
-  "in_vivo",
-  "clinical",
-  "other",
-] as const;
-
-export const experimentStatuses = [
-  "planned",
-  "running",
-  "completed",
-  "failed",
-  "on_hold",
-] as const;
-
-export const experimentPriorities = ["low", "medium", "high", "critical"] as const;
-export type ExperimentPriority = (typeof experimentPriorities)[number];
-
-export const experimentInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  stageId: z.string().max(120).default(""),
-  title: z.string().min(2).max(300),
-  type: z.enum(experimentTypes).default("in_silico"),
-  status: z.enum(experimentStatuses).default("planned"),
-  priority: z.enum(experimentPriorities).default("medium"),
-  startDate: z.string().max(32).default(""),
-  endDate: z.string().max(32).default(""),
-  objectives: z.string().max(2000).default(""),
-  hypothesis: z.string().max(3000).default(""),
-  variables: z.string().max(2000).default(""),
-  controls: z.string().max(1000).default(""),
-  replicates: z.coerce.number().int().min(0).default(0),
-  methods: z.string().max(5000).default(""),
-  results: z.string().max(5000).default(""),
-  conclusion: z.string().max(2000).default(""),
-  notes: z.string().max(50000).default(""),
-  linkedMethodologyId: z.string().max(120).default(""),
-  linkedRecordIds: z.array(z.string()).default([]),
-  outputRecordIds: z.array(z.string()).default([]),
-});
-
-export const experimentSchema = experimentInputSchema.extend({
-  _id: z.string().optional(),
-  createdBy: z.string(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-});
-
-export type ExperimentType = (typeof experimentTypes)[number];
-export type ExperimentStatus = (typeof experimentStatuses)[number];
-export type ExperimentInput = z.infer<typeof experimentInputSchema>;
-export type Experiment = z.infer<typeof experimentSchema>;
-
-export const auditActions = [
-  "project.created",
-  "project.settings.updated",
-  "project.member.added",
-  "project.member.removed",
-  "project.supervisor.changed",
-  "project.invitation.created",
-  "project.join_code.generated",
-  "project.joined_by_code",
-  "user.profile.updated",
-  "admin.viewed",
-  "budget.period.created",
-  "budget.line_item.created",
-  "budget.request.submitted",
-  "budget.request.approved",
-  "budget.request.rejected",
-  "budget.request.purchased",
-  "budget.request.documents_uploaded",
-  "planning.task.created",
-  "planning.task.status_changed",
-  "planning.milestone.created",
-  "planning.milestone.reached",
-  "planning.time.logged",
-  "research.stage.created",
-  "research.stage.updated",
-  "research.stage.deleted",
-  "research.stage.status_changed",
-  "research.stage.progress_updated",
-  "research.publication.created",
-  "research.deliverable.created",
-  "experiment.created",
-  "experiment.updated",
-  "experiment.methodology_linked",
-  "experiment.record_generated",
-  "report.created",
-  "report.updated",
-  "report.status_changed",
-  "record.created",
-  "record.updated",
-  "record.versioned",
-  "record.variant_created",
-  "record.processing_status.changed",
-  "record.archived",
-  "record.restored",
-  "record.deleted",
-  "zenodo.draft.synced",
-  "zenodo.draft.sync_failed",
-  "zenodo.files.synced",
-  "zenodo.files.sync_failed",
-  "zenodo.record.published",
-  "zenodo.record.publish_failed",
-  "zenodo.status.checked",
-  "zenodo.status.deleted",
-  "open_science.created",
-  "open_science.updated",
-  "open_science.deleted",
-  "manuscript.created",
-  "manuscript.updated",
-  "manuscript.deleted",
-  "manuscript.blocks_updated",
-  "manuscript.attachments_updated",
-  "event.created",
-  "event.updated",
-  "event.deleted",
-  "event.participation.added",
-  "event.participation.updated",
-  "event.participation.removed",
-  "event.submission.added",
-  "event.submission.updated",
-  "event.submission.removed",
-  "project.soft_deleted",
-  "project.restored",
-  "project.hard_deleted",
-] as const;
-
-// ── Chat ─────────────────────────────────────────────────────────────────────
-
-export const chatMessageSchema = z.object({
-  _id: z.string().optional(),
-  projectId: z.string().min(1),
-  userId: z.string().min(1),
-  displayName: z.string().min(1).max(100),
-  initials: z.string().max(3),
-  content: z.string().min(1).max(2000),
-  createdAt: z.coerce.date(),
-});
-
-export type ChatMessage = z.infer<typeof chatMessageSchema>;
-
-// ── Audit ─────────────────────────────────────────────────────────────────────
-
-export const auditEventSchema = z.object({
-  _id: z.string().optional(),
-  action: z.enum(auditActions),
-  actorId: z.string(),
-  actorEmail: z.string().email().optional(),
-  projectId: z.string().optional(),
-  targetUserId: z.string().optional(),
-  targetEmail: z.string().email().optional(),
-  targetEntity: z.string().optional(),
-  requestId: z.string().optional(),
-  before: z.record(z.string(), z.unknown()).optional(),
-  after: z.record(z.string(), z.unknown()).optional(),
-  metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).default({}),
-  createdAt: z.coerce.date(),
-});
-
-export type UserRole = z.infer<typeof userSchema>["role"];
-export type User = z.infer<typeof userSchema>;
-export type SafeUser = z.infer<typeof safeUserSchema>;
-export type RegisterInput = z.infer<typeof registerInputSchema>;
-export type LoginInput = z.infer<typeof loginInputSchema>;
-export type ProfileInput = z.infer<typeof profileInputSchema>;
-export type ProjectInput = z.infer<typeof projectInputSchema>;
-export type Project = z.infer<typeof projectSchema>;
-export type OpenScienceUpdateInput = z.infer<
-  typeof openScienceUpdateInputSchema
->;
-export type OpenScienceUpdate = z.infer<typeof openScienceUpdateSchema>;
-export type TeamMessageInput = z.infer<typeof teamMessageInputSchema>;
-export type TeamMessage = z.infer<typeof teamMessageSchema>;
-export type ProjectInvitationInput = z.infer<typeof projectInvitationInputSchema>;
-export type ProjectInvitation = z.infer<typeof projectInvitationSchema>;
-export type AuditEvent = z.infer<typeof auditEventSchema>;
-export type AuditAction = z.infer<typeof auditEventSchema>["action"];
-export type TaskPriority = (typeof taskPriorities)[number];
-export type TaskStatus = (typeof taskStatuses)[number];
-export type TaskCategory = (typeof taskCategories)[number];
-export type TaskInput = z.infer<typeof taskInputSchema>;
-export type Task = z.infer<typeof taskSchema>;
-export type MilestoneInput = z.infer<typeof milestoneInputSchema>;
-export type Milestone = z.infer<typeof milestoneSchema>;
-export type TimeEntryInput = z.infer<typeof timeEntryInputSchema>;
-export type TimeEntry = z.infer<typeof timeEntrySchema>;
-export type BudgetCategory = (typeof budgetCategories)[number];
-export type Currency = (typeof currencyOptions)[number];
-export type PurchaseRequestStatus = (typeof purchaseRequestStatuses)[number];
-export type BudgetPeriodInput = z.infer<typeof budgetPeriodInputSchema>;
-export type BudgetPeriod = z.infer<typeof budgetPeriodSchema>;
-export type BudgetLineItemInput = z.infer<typeof budgetLineItemInputSchema>;
-export type BudgetLineItem = z.infer<typeof budgetLineItemSchema>;
-export type PurchaseRequestInput = z.infer<typeof purchaseRequestInputSchema>;
-export type PurchaseRequest = z.infer<typeof purchaseRequestSchema>;
-export type ResearchStageStatus = (typeof researchStageStatuses)[number];
-export type ResearchStageInput = z.infer<typeof researchStageInputSchema>;
-export type ResearchStage = z.infer<typeof researchStageSchema>;
-
-// ── Reports ───────────────────────────────────────────────────────────────────
-
-export const reportTypes = [
-  "intermediate",
-  "annual",
-  "final",
-  "financial",
-  "conference",
-  "custom",
-] as const;
-
-export const reportStatuses = [
-  "draft",
-  "ready",
-  "submitted",
-  "approved",
-] as const;
-
-export const reportInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  type: z.enum(reportTypes).default("intermediate"),
-  title: z.string().min(2).max(300),
-  period: z.string().max(100).default(""),
-  linkedStageIds: z.array(z.string()).default([]),
-  sectionGoals: z.string().max(20000).default(""),
-  sectionResults: z.string().max(20000).default(""),
-  sectionPublications: z.string().max(10000).default(""),
-  sectionTimeline: z.string().max(10000).default(""),
-  sectionFinancial: z.string().max(10000).default(""),
-  sectionProblems: z.string().max(10000).default(""),
-  sectionPlans: z.string().max(10000).default(""),
-  sectionMeta: z.string().max(200000).default("{}"),
-  note: z.string().max(2000).default(""),
-});
-
-export const reportSchema = reportInputSchema.extend({
-  _id: z.string().optional(),
-  status: z.enum(reportStatuses).default("draft"),
-  submittedAt: z.coerce.date().nullable().default(null),
-  approvedAt: z.coerce.date().nullable().default(null),
-  createdBy: z.string(),
-  createdAt: z.coerce.date(),
-  updatedAt: z.coerce.date(),
-});
-
-export type ReportType = (typeof reportTypes)[number];
-export type ReportStatus = (typeof reportStatuses)[number];
-export type ReportInput = z.infer<typeof reportInputSchema>;
-export type Report = z.infer<typeof reportSchema>;
-
-// ── Learning Journal ──────────────────────────────────────────────────────────
-
-export const courseTypes = [
-  "mandatory", "elective", "optional", "language", "physical", "practice", "research",
-] as const;
-
-export const courseStatuses = ["planned", "active", "completed", "failed", "withdrawn"] as const;
-
-export const topicTypes = [
-  "lecture", "seminar", "practical", "lab", "self_study", "consultation",
-] as const;
-
-export const assessmentTypes = [
-  "exam", "zalik", "midterm", "test", "colloquium", "seminar", "practical_work",
-  "essay", "project", "coursework", "lab_work", "notes_check", "oral",
-  "presentation", "other",
-] as const;
-
-export const assessmentStatuses = [
-  "upcoming", "in_progress", "completed", "missed", "retake_needed", "passed_retake",
-] as const;
+// --- Learning ---
 
 export const learningCourseInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  title: z.string().min(2).max(300),
-  code: z.string().max(50).default(""),
-  semester: z.coerce.number().int().min(1).max(12).default(1),
-  year: z.coerce.number().int().min(1).max(6).default(1),
-  credits: z.coerce.number().min(0).max(30).default(3),
-  courseType: z.enum(courseTypes).default("mandatory"),
+  projectId: z.string(),
+  title: z.string().min(1).max(300).catch(""),
+  code: z.string().max(40).default(""),
   instructor: z.string().max(200).default(""),
-  status: z.enum(courseStatuses).default("planned"),
-  finalScore: z.coerce.number().min(0).max(100).nullable().default(null),
-  finalGrade: z.string().max(10).default(""),
-  orderIndex: z.coerce.number().int().default(0),
-  note: z.string().max(1000).default(""),
+  semester: z.number().int().min(1).max(12).default(1),
+  semesterEnd: z.coerce.number().int().min(1).max(12).optional(),
+  year: z.number().int().min(1).max(10).optional(),
+  credits: z.coerce.number().min(0).max(30).default(3),
+  courseType: z.enum(["mandatory", "elective", "optional", "language", "physical", "practice", "research"]).default("mandatory"),
+  status: z.enum(["planned", "active", "completed", "failed", "withdrawn"]).default("planned"),
+  curriculumCourseId: z.string().max(80).default(""),
+  finalScore: z.number().nullable().default(null),
+  finalGrade: z.string().default(""),
+  note: z.string().max(2000).default(""),
 });
 
 export const learningCourseSchema = learningCourseInputSchema.extend({
@@ -953,12 +470,12 @@ export const learningCourseSchema = learningCourseInputSchema.extend({
 });
 
 export const learningModuleInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  courseId: z.string().min(1).max(120),
-  title: z.string().min(1).max(300),
-  description: z.string().max(2000).default(""),
+  courseId: z.string(),
+  projectId: z.string(),
+  title: z.string().min(1).max(300).catch(""),
+  description: z.string().max(1000).default(""),
   orderIndex: z.coerce.number().int().default(0),
-  isCompleted: z.boolean().default(false),
+  isCompleted: z.coerce.boolean().default(false),
 });
 
 export const learningModuleSchema = learningModuleInputSchema.extend({
@@ -968,18 +485,18 @@ export const learningModuleSchema = learningModuleInputSchema.extend({
 });
 
 export const learningTopicInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  courseId: z.string().min(1).max(120),
-  moduleId: z.string().min(1).max(120),
-  title: z.string().min(1).max(300),
-  description: z.string().max(2000).default(""),
-  topicType: z.enum(topicTypes).default("lecture"),
+  moduleId: z.string(),
+  courseId: z.string(),
+  projectId: z.string(),
+  title: z.string().min(1).max(300).catch(""),
+  description: z.string().max(1000).default(""),
+  topicType: z.enum(["lecture", "seminar", "practical", "lab", "self_study", "consultation"]).default("lecture"),
+  durationHours: z.coerce.number().min(0).default(2),
+  isCompleted: z.coerce.boolean().default(false),
+  completedAt: z.coerce.date().nullable().optional(),
+  linkedLectureId: z.string().optional(),
+  notes: z.string().max(2000).default(""),
   orderIndex: z.coerce.number().int().default(0),
-  isCompleted: z.boolean().default(false),
-  completedAt: z.coerce.date().nullable().default(null),
-  durationHours: z.coerce.number().min(0).max(100).default(2),
-  notes: z.string().max(20000).default(""),
-  linkedLectureId: z.string().max(120).default(""),
 });
 
 export const learningTopicSchema = learningTopicInputSchema.extend({
@@ -989,22 +506,21 @@ export const learningTopicSchema = learningTopicInputSchema.extend({
 });
 
 export const learningAssessmentInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  courseId: z.string().min(1).max(120),
-  moduleId: z.string().max(120).default(""),
-  title: z.string().min(1).max(300),
+  courseId: z.string(),
+  projectId: z.string(),
+  title: z.string().min(1).max(300).catch(""),
   description: z.string().max(2000).default(""),
-  assessmentType: z.enum(assessmentTypes).default("test"),
-  linkedTopicIds: z.array(z.string()).default([]),
-  linkedModuleIds: z.array(z.string()).default([]),
+  assessmentType: z.enum(["exam", "zalik", "midterm", "test", "colloquium", "seminar", "practical_work", "essay", "project", "coursework", "lab_work", "notes_check", "oral", "presentation", "other"]).default("test"),
   dueDate: z.string().max(32).default(""),
   completedDate: z.string().max(32).default(""),
-  maxScore: z.coerce.number().min(0).max(1000).default(100),
-  achievedScore: z.coerce.number().min(0).max(1000).nullable().default(null),
-  weight: z.coerce.number().min(0).max(100).default(0),
-  status: z.enum(assessmentStatuses).default("upcoming"),
+  maxScore: z.coerce.number().min(0).default(100),
+  achievedScore: z.number().nullable().default(null),
+  weight: z.coerce.number().min(0).max(100).default(10),
+  status: z.enum(["upcoming", "in_progress", "completed", "missed", "retake_needed", "passed_retake"]).default("upcoming"),
   notes: z.string().max(2000).default(""),
   feedback: z.string().max(2000).default(""),
+  linkedTopicIds: z.array(z.string()).default([]),
+  linkedModuleIds: z.array(z.string()).default([]),
 });
 
 export const learningAssessmentSchema = learningAssessmentInputSchema.extend({
@@ -1014,43 +530,25 @@ export const learningAssessmentSchema = learningAssessmentInputSchema.extend({
   updatedAt: z.coerce.date(),
 });
 
-export type CourseType = (typeof courseTypes)[number];
-export type CourseStatus = (typeof courseStatuses)[number];
-export type TopicType = (typeof topicTypes)[number];
-export type AssessmentType = (typeof assessmentTypes)[number];
-export type AssessmentStatus = (typeof assessmentStatuses)[number];
-export type LearningCourseInput = z.infer<typeof learningCourseInputSchema>;
-export type LearningCourse = z.infer<typeof learningCourseSchema>;
-export type LearningModuleInput = z.infer<typeof learningModuleInputSchema>;
-export type LearningModule = z.infer<typeof learningModuleSchema>;
-export type LearningTopicInput = z.infer<typeof learningTopicInputSchema>;
-export type LearningTopic = z.infer<typeof learningTopicSchema>;
-export type LearningAssessmentInput = z.infer<typeof learningAssessmentInputSchema>;
-export type LearningAssessment = z.infer<typeof learningAssessmentSchema>;
-
-export const attendanceStatuses = ["present", "absent", "excused", "late"] as const;
-export const sessionStatuses = ["active", "cancelled", "rescheduled", "makeup"] as const;
-
 export const learningSessionInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  courseId: z.string().min(1).max(120),
-  topicId: z.string().max(120).default(""),
-  moduleId: z.string().max(120).default(""),
-  title: z.string().max(300).default(""),
-  sessionType: z.enum(topicTypes).default("lecture"),
-  date: z.string().max(32).default(""),
-  startTime: z.string().max(10).default(""),
-  endTime: z.string().max(10).default(""),
-  durationHours: z.coerce.number().min(0).max(24).default(1.5),
-  attendance: z.enum(attendanceStatuses).nullable().default(null),
-  grade: z.coerce.number().min(0).max(100).nullable().default(null),
-  notes: z.string().max(5000).default(""),
+  courseId: z.string(),
+  projectId: z.string(),
+  topicId: z.string(),
+  moduleId: z.string(),
+  title: z.string().min(1).max(300).catch(""),
+  sessionType: z.enum(["lecture", "seminar", "practical", "lab", "self_study", "consultation"]).default("lecture"),
+  date: z.string().max(32),
+  startTime: z.string().max(10),
+  endTime: z.string().max(10),
+  durationHours: z.coerce.number().min(0).default(1.5),
+  cancellationReason: z.string().optional(),
+  originalDate: z.string().optional(),
+  recurringGroupId: z.string().optional(),
+  attendance: z.enum(["present", "absent", "excused", "late"]).nullable().default(null),
+  grade: z.number().nullable().default(null),
+  notes: z.string().max(2000).default(""),
   location: z.string().max(200).default(""),
-  orderIndex: z.coerce.number().int().default(0),
-  status: z.enum(sessionStatuses).default("active"),
-  cancellationReason: z.string().max(500).default(""),
-  originalDate: z.string().max(32).default(""),
-  recurringGroupId: z.string().max(120).default(""),
+  status: z.enum(["active", "cancelled", "rescheduled", "makeup", "completed"]).default("active"),
 });
 
 export const learningSessionSchema = learningSessionInputSchema.extend({
@@ -1059,31 +557,22 @@ export const learningSessionSchema = learningSessionInputSchema.extend({
   updatedAt: z.coerce.date(),
 });
 
-export const assignmentTypes = [
-  "homework", "essay", "notes", "report", "project", "problem_set",
-  "lab_report", "reading", "presentation", "other",
-] as const;
-
-export const assignmentStatuses = [
-  "assigned", "in_progress", "submitted", "graded", "late", "missing",
-] as const;
-
 export const learningAssignmentInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  courseId: z.string().min(1).max(120),
-  sessionId: z.string().max(120).default(""),
-  topicId: z.string().max(120).default(""),
-  moduleId: z.string().max(120).default(""),
-  title: z.string().min(1).max(300),
-  description: z.string().max(5000).default(""),
-  assignmentType: z.enum(assignmentTypes).default("homework"),
-  dueDate: z.string().max(32).default(""),
+  courseId: z.string(),
+  projectId: z.string(),
+  title: z.string().min(1).max(300).catch(""),
+  description: z.string().max(2000).default(""),
+  assignmentType: z.string().default("homework"),
+  dueDate: z.string().max(32),
   submittedDate: z.string().max(32).default(""),
-  maxScore: z.coerce.number().min(0).max(1000).default(100),
-  achievedScore: z.coerce.number().min(0).max(1000).nullable().default(null),
-  status: z.enum(assignmentStatuses).default("assigned"),
+  maxScore: z.coerce.number().min(0).default(100),
+  achievedScore: z.number().nullable().default(null),
+  status: z.enum(["assigned", "in_progress", "submitted", "graded", "late", "missing"]).default("assigned"),
   notes: z.string().max(2000).default(""),
   feedback: z.string().max(2000).default(""),
+  sessionId: z.string().optional(),
+  topicId: z.string().optional(),
+  moduleId: z.string().optional(),
 });
 
 export const learningAssignmentSchema = learningAssignmentInputSchema.extend({
@@ -1093,318 +582,315 @@ export const learningAssignmentSchema = learningAssignmentInputSchema.extend({
   updatedAt: z.coerce.date(),
 });
 
-export type AttendanceStatus = (typeof attendanceStatuses)[number];
-export type SessionStatus = (typeof sessionStatuses)[number];
-export type AssignmentType = (typeof assignmentTypes)[number];
-export type AssignmentStatus = (typeof assignmentStatuses)[number];
-export type LearningSessionInput = z.infer<typeof learningSessionInputSchema>;
-export type LearningSession = z.infer<typeof learningSessionSchema>;
-export type LearningAssignmentInput = z.infer<typeof learningAssignmentInputSchema>;
-export type LearningAssignment = z.infer<typeof learningAssignmentSchema>;
+// --- Course Members (Електронний деканат: учасники курсу) ---
+export const courseMemberInputSchema = z.object({
+  courseId: z.string(),
+  projectId: z.string(),
+  // userId — внутрішній user._id, якщо є; для зовнішнього студента може бути порожнім.
+  userId: z.string().default(""),
+  // Дублюємо name/email щоб журнал працював навіть для зовнішніх студентів.
+  fullName: z.string().min(1).max(300).catch(""),
+  email: z.string().max(240).default(""),
+  studentId: z.string().max(40).default(""), // номер залікової книжки / груповий ID
+  group: z.string().max(80).default(""),     // навчальна група
+  role: z.enum(["student", "auditor", "ta", "guest"]).default("student"),
+  status: z.enum(["enrolled", "withdrawn", "completed", "failed"]).default("enrolled"),
+  enrolledAt: z.string().max(32).default(""),
+  notes: z.string().max(2000).default(""),
+});
 
-// ── Research Events ───────────────────────────────────────────────────────────
+export const courseMemberSchema = courseMemberInputSchema.extend({
+  _id: z.string().optional(),
+  createdBy: z.string().default(""),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
 
-export const eventTypes = [
-  "conference",
-  "workshop",
-  "symposium",
-  "seminar",
-  "summer_school",
-  "competition",
-  "exhibition",
-  "hackathon",
+// --- Attendance (Відвідуваність: session × student → status + grade) ---
+export const attendanceRecordInputSchema = z.object({
+  sessionId: z.string(),
+  courseId: z.string(),
+  projectId: z.string(),
+  memberId: z.string(),     // _id з courseMembers
+  status: z.enum(["present", "absent", "excused", "late", "online"]).default("present"),
+  grade: z.number().nullable().default(null),
+  notes: z.string().max(500).default(""),
+});
+
+export const attendanceRecordSchema = attendanceRecordInputSchema.extend({
+  _id: z.string().optional(),
+  createdBy: z.string().default(""),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
+// --- Institutions (Навчальні заклади: ЗВО, інститути, академії) ---
+export const institutionTypes = [
+  "university",   // Університет
+  "institute",    // Інститут
+  "academy",      // Академія
+  "college",      // Коледж
+  "school",       // Школа / гімназія
+  "research",     // Науково-дослідна установа
   "other",
 ] as const;
 
-export const eventFormats = ["in_person", "online", "hybrid"] as const;
+export const institutionInputSchema = z.object({
+  name:        z.string().min(2).max(300),
+  shortName:   z.string().max(40).default(""),
+  type:        z.enum(institutionTypes).default("university"),
+  email:       z.string().email().max(240).default(""),  // optional for community stubs
+  phone:       z.string().max(40).default(""),
+  country:     z.string().max(80).default(""),
+  city:        z.string().max(120).default(""),
+  website:     z.string().max(240).default(""),
+  description: z.string().max(2000).default(""),
+  logoUrl:     z.string().max(500).default(""),
+  accreditation: z.string().max(500).default(""),
+  contactName: z.string().max(200).default(""),
+  contactPhone: z.string().max(20).default(""),
+});
 
-export const eventStatuses = [
-  "planned",
-  "confirmed",
-  "attended",
-  "cancelled",
+export const institutionSchema = institutionInputSchema.extend({
+  _id: z.string().optional(),
+  ownerId: z.string().default(""),   // user._id (creator/admin); empty for community stubs
+  isVerified: z.boolean().default(false),
+  verifiedAt: z.coerce.date().nullable().default(null),
+  isCommunityCreated: z.boolean().default(false), // true = stub auto-created from user affiliation
+  // Soft delete
+  deletedAt: z.coerce.date().nullable().default(null),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
+/**
+ * Реєстраційна форма Institution: одночасно створюється:
+ *  - sам Institution
+ *  - admin User з accountType="institution" і linked institutionId
+ */
+export const registerInstitutionInputSchema = z.object({
+  // Institution data
+  institutionName: z.string().min(2).max(300),
+  institutionType: z.enum(institutionTypes).default("university"),
+  institutionShortName: z.string().max(40).default(""),
+  institutionCountry: z.string().max(80).default(""),
+  institutionCity: z.string().max(120).default(""),
+  institutionWebsite: z.string().max(240).default(""),
+  institutionDescription: z.string().max(2000).default(""),
+  // Admin/contact user
+  email: z.string().email().max(240),
+  password: z.string().min(8).max(100),
+  contactName: z.string().min(2).max(200),          // ПІБ контактної особи
+  contactPhone: z.string().max(20).default(""),
+  // Згода
+  termsAccepted: z.coerce.boolean(),
+});
+
+// --- Institution structure ---
+// ЗВО: Факультет → Кафедра → Лабораторія/Центр
+// НАН-інститут: Відділ → Лабораторія/Сектор → Група
+export const institutionUnitTypes = [
+  "faculty",      // Факультет (ЗВО)
+  "institute",    // Інститут у складі університету
+  "department",   // Кафедра (ЗВО)
+  "division",     // Відділ (наукові установи НАН та ін.)
+  "lab",          // Лабораторія
+  "sector",       // Сектор (підрозділ відділу або кафедри)
+  "group",        // Наукова / навчальна група
+  "center",       // Центр (навчально-науковий, ресурсний)
+  "council",      // Рада (вчена рада, спеціалізована рада)
+  "office",       // Адміністративний підрозділ (деканат, канцелярія)
+  "other",
 ] as const;
 
-export const participationRoles = [
-  "presenter",
-  "poster_presenter",
-  "attendee",
-  "organizer",
-  "chair",
-  "volunteer",
+export const institutionUnitInputSchema = z.object({
+  institutionId: z.string(),
+  parentId: z.string().default(""),       // "" — кореневий
+  type: z.enum(institutionUnitTypes).default("faculty"),
+  name: z.string().min(1).max(300),
+  shortName: z.string().max(40).default(""),
+  head: z.string().max(200).default(""),         // ПІБ керівника
+  headEmail: z.string().max(240).default(""),
+  description: z.string().max(2000).default(""),
+  orderIndex: z.number().int().default(0),
+});
+
+export const institutionUnitSchema = institutionUnitInputSchema.extend({
+  _id: z.string().optional(),
+  isCommunityCreated: z.boolean().default(false),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
+// --- Institution members (викладачі, staff) ---
+export const staffCategories = ["leadership", "teaching", "research", "admin", "other"] as const;
+export type StaffCategory = (typeof staffCategories)[number];
+
+export const institutionMemberRoles = [
+  "rector",       // Ректор
+  "vice_rector",  // Проректор
+  "dean",         // Декан
+  "vice_dean",    // Заступник декана
+  "head",         // Завідувач кафедри
+  "professor",    // Професор
+  "associate",    // Доцент
+  "lecturer",     // Викладач
+  "assistant",    // Асистент
+  "researcher",   // Науковий співробітник
+  "staff",        // Допоміжний персонал
+  "admin",        // Адмін системи
 ] as const;
 
-export const contributionTypes = [
-  "oral",
-  "poster",
-  "keynote",
-  "panel",
-  "demo",
-  "workshop_talk",
-] as const;
+export const institutionMemberInputSchema = z.object({
+  institutionId: z.string(),
+  unitId: z.string().default(""),         // підрозділ (опц. — staff може бути без кафедри)
+  userId: z.string().default(""),         // внутрішній user._id якщо є
+  fullName: z.string().min(1).max(300),
+  email: z.string().max(240).default(""),
+  phone: z.string().max(100).default(""),
+  role: z.enum(institutionMemberRoles).default("lecturer"),
+  title: z.string().max(200).default(""),       // звання: к.б.н., д-р мед. наук
+  position: z.string().max(200).default(""),    // повна посада
+  orcid: z.string().max(40).default(""),
+  isActive: z.boolean().default(true),
+  hiredAt: z.string().max(32).default(""),
+  staffCategory: z.enum(staffCategories).default("other"),
+});
 
-export const participationStatuses = [
-  "planned",
-  "abstract_submitted",
-  "accepted",
-  "rejected",
-  "attended",
-  "cancelled",
-] as const;
+export const inviteStatuses = ["none", "pending", "accepted", "expired"] as const;
 
-export const researchEventInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  title: z.string().min(2).max(300),
-  type: z.enum(eventTypes).default("conference"),
-  format: z.enum(eventFormats).default("in_person"),
-  status: z.enum(eventStatuses).default("planned"),
-  startDate: z.string().max(20).default(""),
-  endDate: z.string().max(20).default(""),
-  location: z.string().max(200).default(""),
-  url: z.string().max(500).default(""),
-  abstractDeadline: z.string().max(20).default(""),
-  fullPaperDeadline: z.string().max(20).default(""),
-  registrationDeadline: z.string().max(20).default(""),
-  registrationFormUrl: z.string().max(500).default(""),
-  organizingEmail: z.string().max(200).default(""),
-  languages: z.string().max(200).default(""),
-  sections: z.string().max(2000).default(""),
+export const institutionMemberSchema = institutionMemberInputSchema.extend({
+  _id: z.string().optional(),
+  // Invite flow: коли admin надсилає запрошення — зберігається токен і статус.
+  inviteStatus: z.enum(inviteStatuses).default("none"),
+  inviteToken: z.string().default(""),
+  inviteTokenExpires: z.coerce.date().nullable().default(null),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
+export type InviteStatus = (typeof inviteStatuses)[number];
+
+// --- Institution academic program (Освітня програма) ---
+export const programLevels = ["bachelor", "master", "phd", "post_doc", "certificate", "other"] as const;
+
+export const institutionProgramInputSchema = z.object({
+  institutionId: z.string(),
+  unitId: z.string().default(""),         // факультет/інститут
+  code: z.string().max(40).default(""),
+  title: z.string().min(1).max(300),
+  specialty: z.string().max(200).default(""),   // спеціальність / код напряму (091, 222…)
+  level: z.enum(programLevels).default("bachelor"),
+  academicYear: z.string().max(20).default(""),  // "2024-2025"; порожньо = поточна
+  durationYears: z.coerce.number().min(0).max(10).default(4),
+  language: z.string().max(40).default("uk"),
+  ects: z.coerce.number().min(0).default(240),
   description: z.string().max(3000).default(""),
+  isActive: z.boolean().default(true),
 });
 
-export const researchEventSchema = researchEventInputSchema.extend({
+export const institutionProgramSchema = institutionProgramInputSchema.extend({
+  _id: z.string().optional(),
+  isCommunityCreated: z.boolean().default(false),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
+// --- Institution course (каталог курсів, шаблон) ---
+export const institutionCourseInputSchema = z.object({
+  institutionId: z.string(),
+  programId: z.string().default(""),
+  unitId: z.string().default(""),
+  code: z.string().max(40).default(""),
+  title: z.string().min(1).max(300),
+  description: z.string().max(2000).default(""),
+  ects: z.coerce.number().min(0).max(60).default(3),
+  hoursTotal: z.coerce.number().min(0).default(0),
+  semester: z.coerce.number().int().min(1).max(12).default(1),
+  year: z.coerce.number().int().min(1).max(10).default(1),
+  courseType: z.enum(["mandatory", "elective", "optional", "language", "physical", "practice", "research"]).default("mandatory"),
+  language: z.string().max(40).default("uk"),
+  instructorMemberId: z.string().default(""),   // institution member
+  isActive: z.boolean().default(true),
+});
+
+export const institutionCourseSchema = institutionCourseInputSchema.extend({
   _id: z.string().optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
 
-export const submissionTypes = [
-  "abstract",
-  "full_paper",
-  "poster",
-  "slides",
-  "video",
-  "registration",
-  "visa_docs",
-  "other",
-] as const;
-
-export const submissionStatuses = [
-  "draft",
-  "submitted",
-  "accepted",
-  "rejected",
-  "revision_required",
-  "withdrawn",
-] as const;
-
-export const submissionItemSchema = z.object({
-  sid: z.string().min(1),
-  type: z.enum(submissionTypes).default("abstract"),
-  title: z.string().max(300).default(""),
-  coAuthors: z.string().max(500).default(""),
-  section: z.string().max(100).default(""),
-  deadline: z.string().max(20).default(""),
-  submittedAt: z.string().max(20).default(""),
-  status: z.enum(submissionStatuses).default("draft"),
-  revisionDeadline: z.string().max(20).default(""),
-  revisionNotes: z.string().max(1000).default(""),
+// --- Institution administration (leadership/директорат) ---
+export const institutionAdminInputSchema = z.object({
+  institutionId: z.string(),
+  position: z.string().min(1).max(200),        // "Директор інституту"
+  fullName: z.string().min(1).max(300),
+  title: z.string().max(300).default(""),       // "академік НАН України, д.б.н."
+  phone: z.string().max(100).default(""),
+  email: z.string().max(200).default(""),
+  orderIndex: z.coerce.number().int().default(0),
 });
 
-export const eventParticipationInputSchema = z.object({
-  eventId: z.string().min(1),
-  projectId: z.string().min(1).max(120),
-  participantId: z.string().min(1),
-  participantName: z.string().max(200).default(""),
-  affiliation: z.string().max(300).default(""),
-  role: z.enum(participationRoles).default("attendee"),
-  section: z.string().max(100).default(""),
-  contributionTitle: z.string().max(300).default(""),
-  contributionType: z.enum(contributionTypes).nullable().default(null),
-  status: z.enum(participationStatuses).default("planned"),
-  notes: z.string().max(1000).default(""),
-});
-
-export const eventParticipationSchema = eventParticipationInputSchema.extend({
+export const institutionAdminSchema = institutionAdminInputSchema.extend({
   _id: z.string().optional(),
-  createdAt: z.coerce.date(),
-  submissions: z.array(submissionItemSchema).default([]),
-});
-
-export type EventType = (typeof eventTypes)[number];
-export type EventFormat = (typeof eventFormats)[number];
-export type EventStatus = (typeof eventStatuses)[number];
-export type ParticipationRole = (typeof participationRoles)[number];
-export type ContributionType = (typeof contributionTypes)[number];
-export type ParticipationStatus = (typeof participationStatuses)[number];
-export type SubmissionType = (typeof submissionTypes)[number];
-export type SubmissionStatus = (typeof submissionStatuses)[number];
-export type SubmissionItem = z.infer<typeof submissionItemSchema>;
-export type ResearchEventInput = z.infer<typeof researchEventInputSchema>;
-export type ResearchEvent = z.infer<typeof researchEventSchema>;
-export type EventParticipationInput = z.infer<typeof eventParticipationInputSchema>;
-export type EventParticipation = z.infer<typeof eventParticipationSchema>;
-
-// ── Manuscripts ──────────────────────────────────────────────────────────────
-
-export const manuscriptTypes = [
-  "dissertation",
-  "article",
-  "monograph",
-  "thesis",
-  "guide",
-  "other",
-] as const;
-
-export const manuscriptStatuses = [
-  "draft",
-  "review",
-  "submitted",
-  "revision",
-  "published",
-] as const;
-
-export const manuscriptBlockTypes = [
-  "h1",
-  "h2",
-  "h3",
-  "paragraph",
-  "quote",
-  "figure",
-  "table",
-  "code",
-  "math",
-  "divider",
-] as const;
-
-export const manuscriptAuthorSchema = z.object({
-  name: z.string().max(150),
-  affiliation: z.string().max(200).default(""),
-  role: z.enum(["first", "corresponding", "co"]).default("co"),
-  userId: z.string().optional(),
-});
-
-export const manuscriptBlockSchema = z.object({
-  id: z.string(),
-  type: z.enum(manuscriptBlockTypes).default("paragraph"),
-  content: z.string().max(20000).default(""),
-  meta: z.record(z.string(), z.any()).optional(),
-});
-
-export const dissertationMetaSchema = z.object({
-  degree: z.enum(["phd", "doctor"]).default("phd"),
-  specialtyCode: z.string().max(20).default(""),
-  specialty: z.string().max(300).default(""),
-  institution: z.string().max(400).default(""),
-  defenseInstitution: z.string().max(400).default(""),
-  supervisor: z.string().max(200).default(""),
-  supervisorTitle: z.string().max(200).default(""),
-  udc: z.string().max(50).default(""),
-  city: z.string().max(100).default(""),
-  year: z.number().optional(),
-});
-
-export const manuscriptInputSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  title: z.string().min(2).max(300),
-  type: z.enum(manuscriptTypes).default("other"),
-  abstract: z.string().max(3000).default(""),
-  keywords: z.array(z.string().max(80)).max(20).default([]),
-  authors: z.array(manuscriptAuthorSchema).default([]),
-  journal: z.string().max(200).default(""),
-  doi: z.string().max(200).default(""),
-  dissertationMeta: dissertationMetaSchema.optional(),
-  blocks: z.array(manuscriptBlockSchema).default([]),
-  attachedRecordIds: z.array(z.string()).default([]),
-  attachedExperimentIds: z.array(z.string()).default([]),
-  note: z.string().max(2000).default(""),
-});
-
-export const manuscriptSchema = manuscriptInputSchema.extend({
-  _id: z.string().optional(),
-  status: z.enum(manuscriptStatuses).default("draft"),
-  createdBy: z.string(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
 
-export type ManuscriptType = (typeof manuscriptTypes)[number];
-export type ManuscriptStatus = (typeof manuscriptStatuses)[number];
-export type ManuscriptBlockType = (typeof manuscriptBlockTypes)[number];
-export type DissertationMeta = z.infer<typeof dissertationMetaSchema>;
-export type ManuscriptAuthor = z.infer<typeof manuscriptAuthorSchema>;
-export type ManuscriptBlock = z.infer<typeof manuscriptBlockSchema>;
-export type ManuscriptInput = z.infer<typeof manuscriptInputSchema>;
-export type Manuscript = z.infer<typeof manuscriptSchema>;
+export type InstitutionAdmin = z.infer<typeof institutionAdminSchema>;
+export type InstitutionAdminInput = z.infer<typeof institutionAdminInputSchema>;
 
-// ── PhD Individual Plan ───────────────────────────────────────────────────────
-
-export const phdCycleTypes = [
-  "general",
-  "specialty_practice",
-  "specialty_professional",
-] as const;
-
-export const phdSubgroupTypes = ["mandatory", "elective"] as const;
-
-export const phdWorkStatuses = [
-  "pending",
-  "completed",
-  "not_completed",
-  "partial",
-] as const;
+// --- PhD Plan ---
+export const phdMilestoneSchema = z.object({
+  mid: z.string().min(1).max(40).catch(""),
+  title: z.string().min(1).max(300).catch(""),
+  period: z.string().max(120).default(""),
+  orderIndex: z.number().int().default(0),
+});
 
 export const phdCurriculumCourseSchema = z.object({
-  cid: z.string().min(1),
-  cycle: z.enum(phdCycleTypes).default("general"),
-  subgroup: z.enum(phdSubgroupTypes).default("mandatory"),
-  title: z.string().min(1).max(300),
-  credits: z.coerce.number().min(0).max(30).default(3),
-  controlForm: z.string().max(50).default(""),
-  studyYear: z.coerce.number().int().min(1).max(4).default(1),
-  orderIndex: z.coerce.number().int().default(0),
-  credited: z.boolean().default(false),
-});
-
-export const phdMilestoneSchema = z.object({
-  mid: z.string().min(1),
-  title: z.string().max(500),
-  period: z.string().max(200).default(""),
-  orderIndex: z.coerce.number().int().default(0),
+  cid: z.string().min(1).max(40).catch(""),
+  title: z.string().min(1).max(300).catch(""),
+  credits: z.coerce.number().min(0.5).max(30).default(3),
+  cycle: z.enum(["general", "specialty_practice", "specialty_professional"]).catch("general").default("general"),
+  subgroup: z.enum(["mandatory", "elective"]).catch("mandatory").default("mandatory"),
+  controlForm: z.string().max(100).default(""),
+  studyYear: z.number().int().min(1).max(4).default(1),
+  credited: z.coerce.boolean().default(false),
+  learningCourseId: z.string().max(80).default(""),
 });
 
 export const phdYearlyCourseSchema = z.object({
-  ycid: z.string().min(1),
-  cycle: z.enum(phdCycleTypes).default("general"),
-  subgroup: z.enum(phdSubgroupTypes).default("mandatory"),
-  title: z.string().max(300),
-  controlForm: z.string().max(50).default(""),
-  period: z.string().max(100).default(""),
-  termType: z.string().max(30).default(""),
-  grade: z.string().max(50).default(""),
+  ycid: z.string().min(1).max(40).catch(""),
+  title: z.string().min(1).max(300).catch(""),
+  controlForm: z.string().max(100).default(""),
+  period: z.string().max(120).default(""),
+  grade: z.string().max(100).default(""),
   teacherName: z.string().max(200).default(""),
-  orderIndex: z.coerce.number().int().default(0),
+  cycle: z.enum(["general", "specialty_practice", "specialty_professional"]).catch("general").default("general"),
+  subgroup: z.enum(["mandatory", "elective"]).catch("mandatory").default("mandatory"),
+  termType: z.enum(["sem1", "sem2", "academic_year"]).catch(undefined as any).optional(),
 });
 
 export const phdYearlyScientificItemSchema = z.object({
-  wsid: z.string().min(1),
-  title: z.string().max(300),
+  wsid: z.string().min(1).max(40).catch(""),
+  title: z.string().min(1).max(300).catch(""),
   content: z.string().max(2000).default(""),
-  period: z.string().max(100).default(""),
-  termType: z.string().max(30).default(""),
-  status: z.enum(phdWorkStatuses).default("pending"),
-  supervisorNote: z.string().max(500).default(""),
-  orderIndex: z.coerce.number().int().default(0),
+  period: z.string().max(120).default(""),
+  status: z.enum(["pending", "completed", "not_completed", "partial"]).default("pending"),
+  supervisorNote: z.string().max(1000).default(""),
+  orderIndex: z.number().int().default(0),
+  termType: z.enum(["sem1", "sem2", "academic_year"]).catch(undefined as any).optional(),
 });
 
 export const phdYearlyPlanSchema = z.object({
-  year: z.coerce.number().int().min(1).max(4),
+  year: z.number().int().min(1).max(4),
   educationalCourses: z.array(phdYearlyCourseSchema).default([]),
+  scientificWorkItems: z.array(phdYearlyScientificItemSchema).default([]),
   headOfDeptName: z.string().max(200).default(""),
   headOfDeptDate: z.string().max(32).default(""),
-  scientificWorkItems: z.array(phdYearlyScientificItemSchema).default([]),
-  supervisorAssessment: z.string().max(1000).default(""),
-  committeeDecision: z.string().max(1000).default(""),
+  supervisorAssessment: z.string().max(2000).default(""),
+  committeeDecision: z.string().max(2000).default(""),
   committeeChair: z.string().max(200).default(""),
   committeeDate: z.string().max(32).default(""),
   sem1Start: z.string().max(32).default(""),
@@ -1413,167 +899,796 @@ export const phdYearlyPlanSchema = z.object({
   sem2End: z.string().max(32).default(""),
 });
 
-export const phdPlanMetaSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  studentName: z.string().max(200).default(""),
+export const phdPlanSchema = z.object({
+  _id: z.string().optional(),
+  projectId: z.string().min(1),
+  studentName: z.string().max(300).default(""),
   specialty: z.string().max(200).default(""),
   studyForm: z.enum(["full_time", "part_time"]).default("full_time"),
+  totalCredits: z.coerce.number().default(60),
   enrollmentDate: z.string().max(32).default(""),
   enrollmentOrderDate: z.string().max(32).default(""),
-  enrollmentOrderNumber: z.string().max(50).default(""),
+  enrollmentOrderNumber: z.string().max(40).default(""),
   supervisor: z.string().max(200).default(""),
-  supervisorTitle: z.string().max(200).default(""),
+  supervisorTitle: z.string().max(300).default(""),
+  institution: z.string().max(300).default(""),
+  department: z.string().max(300).default(""),
   dissertationTitle: z.string().max(1000).default(""),
   dissertationApprovalDate: z.string().max(32).default(""),
-  dissertationApprovalProtocol: z.string().max(50).default(""),
+  dissertationApprovalProtocol: z.string().max(100).default(""),
   justification: z.string().max(5000).default(""),
-  department: z.string().max(200).default(""),
-  institution: z.string().max(200).default(""),
-  totalCredits: z.coerce.number().int().min(0).max(999).default(0),
-});
-
-export const phdPlanSchema = phdPlanMetaSchema.extend({
-  _id: z.string().optional(),
   curriculumCourses: z.array(phdCurriculumCourseSchema).default([]),
   milestones: z.array(phdMilestoneSchema).default([]),
   yearlyPlans: z.array(phdYearlyPlanSchema).default([]),
+  createdBy: z.string(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
+export const phdPlanMetaSchema = phdPlanSchema.pick({
+  projectId: true, studentName: true, specialty: true, studyForm: true, totalCredits: true, 
+  enrollmentDate: true, enrollmentOrderDate: true, enrollmentOrderNumber: true, 
+  supervisor: true, supervisorTitle: true, institution: true, department: true, 
+  dissertationTitle: true, dissertationApprovalDate: true, dissertationApprovalProtocol: true, 
+  justification: true
+});
+
+// --- Manuscripts ---
+export const manuscriptBlockSchema = z.object({
+  id: z.string(),
+  type: z.enum(["paragraph", "h1", "h2", "h3", "list_item", "image", "table", "divider", "quote", "figure", "code", "math"]),
+  content: z.string(),
+  metadata: z.record(z.string(), z.any()).optional(),
+  meta: z.record(z.string(), z.string()).optional(),
+});
+
+export const manuscriptAuthorSchema = z.object({
+  name: z.string(),
+  affiliation: z.string().default(""),
+  role: z.enum(["first", "co", "corresponding", "contributing"]).default("co"),
+  userId: z.string().optional(),
+});
+
+export const dissertationMetaSchema = z.object({
+  degree: z.string().default("candidate"),
+  specialtyCode: z.string().default(""),
+  specialty: z.string().default(""),
+  institution: z.string().default(""),
+  defenseInstitution: z.string().default(""),
+  supervisor: z.string().default(""),
+  supervisorTitle: z.string().default(""),
+  udc: z.string().default(""),
+  city: z.string().default(""),
+  year: z.number().int().optional(),
+});
+
+export const manuscriptSchema = z.object({
+  _id: z.string().optional(),
+  projectId: z.string(),
+  title: z.string().min(1).max(500).catch(""),
+  type: z.enum(["article", "thesis", "dissertation", "monograph", "guide", "other"]),
+  abstract: z.string().max(5000).default(""),
+  keywords: z.array(z.string().max(100)).default([]),
+  authors: z.array(manuscriptAuthorSchema).default([]),
+  journal: z.string().max(300).default(""),
+  doi: z.string().max(100).default(""),
+  blocks: z.array(manuscriptBlockSchema).default([]),
+  status: z.enum(["draft", "review", "submitted", "revision", "published"]).default("draft"),
+  dissertationMeta: dissertationMetaSchema.optional(),
+  attachedRecordIds: z.array(z.string()).default([]),
+  attachedExperimentIds: z.array(z.string()).default([]),
+  note: z.string().max(2000).default(""),
   createdBy: z.string().default(""),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
 
-export type PhdCycleType = (typeof phdCycleTypes)[number];
-export type PhdSubgroupType = (typeof phdSubgroupTypes)[number];
-export type PhdWorkStatus = (typeof phdWorkStatuses)[number];
-export type PhdCurriculumCourse = z.infer<typeof phdCurriculumCourseSchema>;
-export type PhdMilestone = z.infer<typeof phdMilestoneSchema>;
-export type PhdYearlyCourse = z.infer<typeof phdYearlyCourseSchema>;
-export type PhdYearlyScientificItem = z.infer<typeof phdYearlyScientificItemSchema>;
-export type PhdYearlyPlan = z.infer<typeof phdYearlyPlanSchema>;
-export type PhdPlanMeta = z.infer<typeof phdPlanMetaSchema>;
-export type PhdPlan = z.infer<typeof phdPlanSchema>;
+export const manuscriptInputSchema = manuscriptSchema.omit({ _id: true, createdAt: true, updatedAt: true });
 
-// ── Portfolio ─────────────────────────────────────────────────────────────────
+// --- Other entities (Existing) ---
 
-export const portfolioPublicationTypes = [
-  "journal_indexed",
-  "journal_other",
-  "conference_proceedings",
-  "monograph",
-  "patent",
-  "other",
-] as const;
-
-export const portfolioPublicationSchema = z.object({
-  pubid: z.string().min(1),
-  pubType: z.enum(portfolioPublicationTypes).default("journal_indexed"),
-  authors: z.string().max(800).default(""),
-  title: z.string().max(600).default(""),
-  journal: z.string().max(400).default(""),
-  year: z.coerce.number().int().min(1990).max(2100).default(new Date().getFullYear()),
-  volume: z.string().max(50).default(""),
-  issue: z.string().max(50).default(""),
-  pages: z.string().max(50).default(""),
-  doi: z.string().max(300).default(""),
-  url: z.string().max(600).default(""),
-  orderIndex: z.coerce.number().int().default(0),
-});
-
-export const conferenceCompetitionPlaces = ["I", "II", "III", "special", "nomination", "other"] as const;
-export type ConferenceCompetitionPlace = (typeof conferenceCompetitionPlaces)[number];
-
-export const portfolioConferenceSchema = z.object({
-  confid: z.string().min(1),
-  name: z.string().max(600).default(""),
-  organizer: z.string().max(400).default(""),
-  location: z.string().max(200).default(""),
-  dateStart: z.string().max(20).default(""),
-  dateEnd: z.string().max(20).default(""),
-  thesisTitle: z.string().max(600).default(""),
-  authors: z.string().max(400).default(""),
-  award: z.string().max(400).default(""),
-  isCompetition: z.coerce.boolean().default(false),
-  competitionPlace: z.string().max(50).default(""),
-  competitionNomination: z.string().max(400).default(""),
-  url: z.string().max(800).default(""),
-  orderIndex: z.coerce.number().int().default(0),
-});
-
-export const portfolioAwardSchema = z.object({
-  awid: z.string().min(1),
-  title: z.string().max(400).default(""),
-  issuer: z.string().max(400).default(""),
-  date: z.string().max(20).default(""),
-  description: z.string().max(800).default(""),
-  url: z.string().max(800).default(""),
-  orderIndex: z.coerce.number().int().default(0),
-});
-
-export const portfolioMetaSchema = z.object({
-  projectId: z.string().min(1).max(120),
-  fullName: z.string().max(200).default(""),
-  educationLevel: z.string().max(100).default("phd"),
-  specialty: z.string().max(200).default(""),
-  educationalProgram: z.string().max(300).default(""),
-  department: z.string().max(300).default(""),
-  institution: z.string().max(300).default(""),
-  studyPeriodStart: z.string().max(20).default(""),
-  studyPeriodEnd: z.string().max(20).default(""),
-  dissertationTopic: z.string().max(800).default(""),
-  supervisor: z.string().max(200).default(""),
-  supervisorTitle: z.string().max(200).default(""),
-});
-
-export const portfolioSchema = portfolioMetaSchema.extend({
+export const diaryEntryTypes = ["note", "meeting", "application", "info_received", "request_received", "task_done", "event"] as const;
+export const diaryEntrySchema = z.object({
   _id: z.string().optional(),
-  publications: z.array(portfolioPublicationSchema).default([]),
-  conferences: z.array(portfolioConferenceSchema).default([]),
-  awards: z.array(portfolioAwardSchema).default([]),
+  projectId: z.string(),
+  userId: z.string(),
+  title: z.string().min(1).max(200).catch(""),
+  body: z.string().min(1).max(10000).catch(""),
+  type: z.enum(diaryEntryTypes).default("note"),
+  date: z.string().max(32),
+  tags: z.array(z.string().max(40)).default([]),
+  person: z.string().optional(),
+  place: z.string().optional(),
+  outcome: z.string().optional(),
+  recipient: z.string().optional(),
+  docRef: z.string().optional(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
+export const diaryEntryInputSchema = diaryEntrySchema.omit({ _id: true, createdAt: true, updatedAt: true });
+
+// --- Laboratory Specific Entities (Foundation) ---
+
+export const labInventoryCategories = ["reagent", "consumable", "sample", "standard", "other"] as const;
+export const labInventoryStatuses = ["in_stock", "low_stock", "depleted", "expired"] as const;
+export const labHazardClasses = ["none", "flammable", "toxic", "corrosive", "biohazard", "radioactive", "oxidizing"] as const;
+
+export const labInventoryItemInputSchema = z.object({
+  projectId: z.string().min(1).max(120),
+  name: z.string().min(1).max(300),
+  casNumber: z.string().max(40).default(""),
+  catalogNumber: z.string().max(80).default(""),
+  manufacturer: z.string().max(200).default(""),
+  category: z.enum(labInventoryCategories).default("reagent"),
+  quantity: z.coerce.number().min(0).default(0),
+  unit: z.string().max(20).default("units"),
+  location: z.string().max(400).default(""),
+  storageConditions: z.string().max(400).default(""),
+  expirationDate: z.string().max(32).default(""),
+  lotNumber: z.string().max(80).default(""),
+  hazardClass: z.enum(labHazardClasses).default("none"),
+  notes: z.string().max(2000).default(""),
+  sdsUrl: z.string().max(2000).default(""),
+  sdsFirstAid: z.string().max(2000).default(""),
+  sdsDisposal: z.string().max(2000).default(""),
+});
+
+export const labInventoryItemSchema = labInventoryItemInputSchema.extend({
+  _id: z.string().optional(),
+  status: z.enum(labInventoryStatuses).default("in_stock"),
+  createdBy: z.string().default(""),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
+export const labEquipmentStatuses = ["operational", "maintenance", "out_of_order", "decommissioned"] as const;
+
+export const labEquipmentInputSchema = z.object({
+  projectId: z.string().min(1).max(120),
+  name: z.string().min(1).max(300),
+  manufacturer: z.string().max(200).default(""),
+  model: z.string().max(200).default(""),
+  serialNumber: z.string().max(100).default(""),
+  location: z.string().max(400).default(""),
+  description: z.string().max(2000).default(""),
+  nextCalibrationDate: z.string().max(32).default(""),
+  responsiblePersonId: z.string().max(120).default(""),
+});
+
+export const labEquipmentSchema = labEquipmentInputSchema.extend({
+  _id: z.string().optional(),
+  status: z.enum(labEquipmentStatuses).default("operational"),
+  createdBy: z.string().default(""),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
+export const equipmentLogTypes = ["usage", "maintenance", "calibration", "failure_report"] as const;
+
+export const equipmentLogInputSchema = z.object({
+  equipmentId: z.string().min(1).max(120),
+  projectId: z.string().min(1).max(120),
+  type: z.enum(equipmentLogTypes).default("usage"),
+  startTime: z.coerce.date().optional(),
+  endTime: z.coerce.date().optional(),
+  durationMinutes: z.coerce.number().int().min(0).default(0),
+  description: z.string().max(2000).default(""),
+  issuesNoted: z.string().max(1000).default(""),
+  protocolReference: z.string().max(200).default(""),
+});
+
+export const equipmentLogSchema = equipmentLogInputSchema.extend({
+  _id: z.string().optional(),
+  userId: z.string(),
+  createdAt: z.coerce.date(),
+});
+
+export const budgetLineItemSchema = z.object({
+  _id: z.string().optional(),
+  projectId: z.string(),
+  periodId: z.string(),
+  category: z.enum(budgetCategories),
+  title: z.string(),
+  name: z.string().optional(),
+  description: z.string().default(""),
+  url: z.string().optional(),
+  quantity: z.number().default(0),
+  unit: z.string().default(""),
+  unitPrice: z.number().default(0),
+  plannedAmount: z.number(),
+  spentAmount: z.number().default(0),
+  currency: z.string().default("UAH"),
+  vendor: z.string().default(""),
+  notes: z.string().default(""),
+  createdBy: z.string().optional(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
+
+export const budgetPeriodSchema = z.object({
+  _id: z.string().optional(),
+  projectId: z.string(),
+  title: z.string(),
+  label: z.string().optional(),
+  status: z.enum(["active", "closed"]).default("active"),
+  startDate: z.string(),
+  endDate: z.string(),
+  createdBy: z.string().optional(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
+
+export const purchaseRequestStatusOptions = ["draft", "pending", "submitted", "approved", "purchased", "delivered", "rejected"] as const;
+export const purchaseRequestStatuses = purchaseRequestStatusOptions;
+
+export const purchaseRequestSchema = z.object({
+  _id: z.string().optional(),
+  projectId: z.string(),
+  lineItemId: z.string(),
+  linkedLineItemId: z.string().optional(),
+  linkedPeriodId: z.string().optional(),
+  requesterId: z.string(),
+  title: z.string(),
+  category: z.enum(budgetCategories).optional(),
+  amount: z.number(),
+  estimatedAmount: z.number().optional(),
+  actualAmount: z.number().optional(),
+  status: z.enum(purchaseRequestStatusOptions).default("pending"),
+  description: z.string().default(""),
+  justification: z.string().optional(),
+  reviewNote: z.string().optional(),
+  vendor: z.string().default(""),
+  currency: z.string().default("UAH"),
+  attachments: z.array(z.string()).default([]),
+  documents: z.array(z.object({
+    name: z.string(),
+    storageUri: z.string(),
+    mimeType: z.string().optional(),
+    bytes: z.number().optional(),
+  })).default([]),
+  purchasedAt: z.coerce.date().nullable().optional(),
+  reviewedBy: z.string().optional(),
+  reviewedAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().default(() => new Date()),
+  createdAt: z.coerce.date().default(() => new Date()),
+});
+
+export const projectInvitationSchema = z.object({
+  _id: z.string().optional(),
+  projectId: z.string(),
+  email: z.string().email(),
+  role: z.enum(["member", "supervisor"]),
+  token: z.string(),
+  code: z.string().optional(),
+  status: z.string().optional(),
+  createdBy: z.string().optional(),
+  expiresAt: z.coerce.date(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
+
+const rawDataFileSchema = z.object({
+  name: z.string(),
+  storageUri: z.string(),
+  size: z.number().optional(),
+  bytes: z.number().optional(),
+  mimeType: z.string().optional(),
+  uploadedAt: z.coerce.date().optional(),
+});
+
+const creatorSchema = z.object({
+  name: z.string(),
+  affiliation: z.string().default(""),
+  orcid: z.string().default(""),
+});
+
+export const projectRecordSchema = z.object({
+  _id: z.string().optional(),
+  projectId: z.string(),
+  title: z.string(),
+  kind: z.string(),
+  access: z.string(),
+  localId: z.string().default(""),
+  summary: z.string().default(""),
+  owner: z.string().default(""),
+  license: z.string().default(""),
+  doi: z.string().default(""),
+  usageNotes: z.string().default(""),
+  keywords: z.string().default(""),
+  tags: z.array(z.string()).default([]),
+  language: z.string().default(""),
+  repository: z.string().default(""),
+  subjects: z.array(z.string()).default([]),
+  notes: z.string().default(""),
+  dataFormat: z.string().default(""),
+  fundingGrant: z.string().default(""),
+  creators: z.array(creatorSchema).default([]),
+  stage: z.string().default(""),
+  variantLabel: z.string().default(""),
+  group: z.string().default(""),
+  rootRecordId: z.string().optional(),
+  relatedIds: z.array(z.string()).default([]),
+  linkedPublicationIds: z.array(z.string()).default([]),
+  embargoDate: z.string().optional(),
+  dateCollectedFrom: z.string().optional(),
+  dateCollectedTo: z.string().optional(),
+  typedData: z.record(z.string(), z.unknown()).optional(),
+  files: z.array(z.string()).default([]),
+  rawDataFiles: z.array(rawDataFileSchema).default([]),
+  processingStatus: z.string().default("new"),
+  version: z.string().default(""),
+  versionNote: z.string().default(""),
+  parentVersionId: z.string().optional(),
+  processingHistory: z.array(z.object({
+    status: z.string(),
+    changedAt: z.coerce.date(),
+    changedBy: z.string().optional(),
+    note: z.string().optional(),
+  })).default([]),
+  status: z.enum(["planned", "active", "review", "released", "blocked"]).default("planned"),
+  createdBy: z.string().default(""),
+  archivedAt: z.coerce.date().optional(),
+  zenodoDepositionId: z.string().optional(),
+  zenodoRecordId: z.string().optional(),
+  zenodoConceptDoi: z.string().default(""),
+  zenodoDoi: z.string().default(""),
+  zenodoUrl: z.string().default(""),
+  zenodoDraftUrl: z.string().default(""),
+  zenodoState: z.string().default(""),
+  zenodoSubmitted: z.boolean().default(false),
+  zenodoFileCount: z.number().default(0),
+  zenodoFilesSyncedAt: z.coerce.date().nullable().optional(),
+  zenodoPublishedAt: z.coerce.date().nullable().optional(),
+  zenodoSyncedAt: z.coerce.date().nullable().optional(),
+  zenodoSyncError: z.string().default(""),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+
+export const projectRecordInputSchema = projectRecordSchema.omit({ _id: true, createdAt: true, updatedAt: true });
+
+export const researchEventSchema = z.object({
+  _id: z.string().optional(),
+  projectId: z.string(),
+  title: z.string(),
+  description: z.string().default(""),
+  date: z.string().default(""),
+  startDate: z.string().default(""),
+  endDate: z.string().default(""),
+  status: z.enum(["planned", "confirmed", "attended", "cancelled"]).default("planned"),
+  priority: z.string().default("medium"),
+  type: z.enum(["conference", "workshop", "symposium", "seminar", "summer_school", "competition", "exhibition", "hackathon", "other"]).default("conference"),
+  format: z.enum(["in_person", "online", "hybrid"]).default("in_person"),
+  location: z.string().default(""),
+  url: z.string().optional(),
+  organizingEmail: z.string().optional(),
+  registrationFormUrl: z.string().optional(),
+  sections: z.string().default(""),
+  languages: z.string().default(""),
+  abstractDeadline: z.string().optional(),
+  fullPaperDeadline: z.string().optional(),
+  registrationDeadline: z.string().optional(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
+
+export const eventParticipationSchema = z.object({
+  _id: z.string().optional(),
+  eventId: z.string().catch(""),
+  projectId: z.string().optional(),
+  userId: z.string().catch(""),
+  participantId: z.string().optional(),
+  participantName: z.string().default(""),
+  affiliation: z.string().optional(),
+  section: z.string().optional(),
+  contributionTitle: z.string().optional(),
+  contributionType: z.enum(["oral", "poster", "keynote", "panel", "demo", "workshop_talk"]).optional(),
+  role: z.enum(["presenter", "poster_presenter", "attendee", "organizer", "chair", "volunteer"]).default("attendee"),
+  status: z.enum(["planned", "abstract_submitted", "accepted", "rejected", "attended", "cancelled"]).default("planned"),
+  contributions: z.array(z.unknown()).default([]),
+  submissions: z.array(z.object({
+    sid: z.string(),
+    title: z.string().default(""),
+    type: z.enum(["abstract", "full_paper", "poster", "slides", "video", "registration", "visa_docs", "other"]).default("abstract"),
+    status: z.enum(["draft", "submitted", "accepted", "rejected", "revision_required", "withdrawn"]).default("draft"),
+    coAuthors: z.string().optional(),
+    section: z.string().optional(),
+    deadline: z.string().optional(),
+    submittedAt: z.string().optional(),
+    revisionDeadline: z.string().optional(),
+    revisionNotes: z.string().optional(),
+  })).default([]),
+  notes: z.string().default(""),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
+
+export const researchPublicationSchema = z.object({
+  _id: z.string().optional(),
+  projectId: z.string(),
+  title: z.string(),
+  authors: z.string().optional(),
+  doi: z.string().optional(),
+  url: z.string().optional(),
+  note: z.string().optional(),
+  journal: z.string().optional(),
+  stageId: z.string().optional(),
+  expectedYear: z.coerce.number().nullable().optional(),
+  status: z.enum(["planned", "submitted", "under_review", "accepted", "published", "rejected"]).default("planned"),
+  type: z.string().default("article"),
   createdBy: z.string().default(""),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
 });
 
-export type PortfolioPublicationType = (typeof portfolioPublicationTypes)[number];
-export type PortfolioPublication = z.infer<typeof portfolioPublicationSchema>;
-export type PortfolioConference = z.infer<typeof portfolioConferenceSchema>;
-export type PortfolioAward = z.infer<typeof portfolioAwardSchema>;
-export type PortfolioMeta = z.infer<typeof portfolioMetaSchema>;
-export type Portfolio = z.infer<typeof portfolioSchema>;
-
-// ── Activity diary ────────────────────────────────────────────────────────────
-
-export const diaryEntryTypes = [
-  "note",
-  "meeting",
-  "application",
-  "info_received",
-  "request_received",
-  "task_done",
-  "event",
-] as const;
-
-export const diaryEntrySchema = z.object({
+export const researchDeliverableSchema = z.object({
   _id: z.string().optional(),
-  projectId: z.string().min(1).max(120),
-  userId: z.string().min(1),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  type: z.enum(diaryEntryTypes),
-  title: z.string().min(1).max(300),
-  body: z.string().max(4000).default(""),
-  // type-specific extras (all optional)
-  person: z.string().max(200).default(""),       // who (meeting, request, info)
-  place: z.string().max(200).default(""),        // where (meeting, event)
-  recipient: z.string().max(200).default(""),    // to whom (application)
-  docRef: z.string().max(100).default(""),       // reference/number (application)
-  outcome: z.string().max(500).default(""),      // result/status
-  tags: z.array(z.string().max(40)).default([]),
+  projectId: z.string(),
+  stageId: z.string().optional(),
+  title: z.string(),
+  description: z.string().default(""),
+  plannedDate: z.string().default(""),
+  actualDate: z.string().optional(),
+  status: z.string().default("planned"),
+  type: z.string().default("other"),
+  link: z.string().optional(),
+  note: z.string().optional(),
+  completedAt: z.coerce.date().nullable().optional(),
+  createdBy: z.string().default(""),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
 });
 
-export const diaryEntryInputSchema = diaryEntrySchema.omit({ _id: true, createdAt: true, updatedAt: true });
+export const portfolioPublicationTypes = ["journal_indexed", "journal_other", "conference_proceedings", "monograph", "patent", "other"] as const;
+export type PortfolioPublicationType = (typeof portfolioPublicationTypes)[number];
+
+export const portfolioPublicationSchema = z.object({
+  _id: z.string().optional(),
+  pubid: z.string().default(""),
+  pubType: z.enum(portfolioPublicationTypes).default("journal_indexed"),
+  title: z.string().default(""),
+  authors: z.string().default(""),
+  journal: z.string().default(""),
+  year: z.number().nullable().optional(),
+  volume: z.string().optional(),
+  issue: z.string().optional(),
+  pages: z.string().optional(),
+  doi: z.string().optional(),
+  url: z.string().optional(),
+  orderIndex: z.number().default(0),
+});
+
+export const portfolioConferenceSchema = z.object({
+  _id: z.string().optional(),
+  confid: z.string().default(""),
+  title: z.string().default(""),
+  conference: z.string().default(""),
+  name: z.string().default(""),
+  organizer: z.string().default(""),
+  location: z.string().default(""),
+  dateStart: z.string().default(""),
+  dateEnd: z.string().default(""),
+  thesisTitle: z.string().default(""),
+  authors: z.string().default(""),
+  award: z.string().default(""),
+  isCompetition: z.boolean().default(false),
+  competitionPlace: z.string().default(""),
+  competitionNomination: z.string().default(""),
+  city: z.string().default(""),
+  country: z.string().default(""),
+  year: z.number().nullable().optional(),
+  type: z.string().default(""),
+  url: z.string().optional(),
+  orderIndex: z.number().default(0),
+});
+
+export const portfolioAwardSchema = z.object({
+  _id: z.string().optional(),
+  awardid: z.string().default(""),
+  awid: z.string().default(""),
+  title: z.string().default(""),
+  organization: z.string().default(""),
+  year: z.number().nullable().optional(),
+  date: z.string().optional(),
+  issuer: z.string().optional(),
+  url: z.string().optional(),
+  description: z.string().default(""),
+  orderIndex: z.number().default(0),
+});
+
+export const portfolioSchema = z.object({
+  _id: z.string().optional(),
+  userId: z.string().default(""),
+  projectId: z.string().optional(),
+  createdBy: z.string().optional(),
+  fullName: z.string().default(""),
+  firstNameLatin: z.string().default(""),
+  lastNameLatin: z.string().default(""),
+  orcid: z.string().default(""),
+  position: z.string().default(""),
+  institution: z.string().default(""),
+  department: z.string().default(""),
+  bio: z.string().default(""),
+  email: z.string().default(""),
+  phone: z.string().default(""),
+  website: z.string().default(""),
+  researchInterests: z.string().default(""),
+  educationLevel: z.string().default(""),
+  specialty: z.string().default(""),
+  educationalProgram: z.string().default(""),
+  studyPeriodStart: z.string().default(""),
+  studyPeriodEnd: z.string().default(""),
+  supervisor: z.string().default(""),
+  supervisorTitle: z.string().default(""),
+  dissertationTopic: z.string().default(""),
+  publications: z.array(portfolioPublicationSchema).default([]),
+  conferences: z.array(portfolioConferenceSchema).default([]),
+  awards: z.array(portfolioAwardSchema).default([]),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+});
+
+export const reportSchema = z.object({
+  _id: z.string().optional(),
+  projectId: z.string(),
+  title: z.string(),
+  status: z.enum(["draft", "ready", "submitted", "approved"]).default("draft"),
+  type: z.enum(["intermediate", "annual", "final", "financial", "conference", "custom"]).default("custom"),
+  period: z.string().optional(),
+  sectionGoals: z.string().default(""),
+  sectionTimeline: z.string().default(""),
+  sectionResults: z.string().default(""),
+  sectionPublications: z.string().default(""),
+  sectionFinancial: z.string().default(""),
+  sectionProblems: z.string().default(""),
+  sectionPlans: z.string().default(""),
+  linkedStageIds: z.array(z.string()).default([]),
+  note: z.string().default(""),
+  sectionMeta: z.string().default(""),
+  submittedAt: z.coerce.date().nullable().optional(),
+  approvedAt: z.coerce.date().nullable().optional(),
+  createdBy: z.string().default(""),
+  createdAt: z.coerce.date().default(() => new Date()),
+  updatedAt: z.coerce.date().default(() => new Date()),
+});
+
+export const experimentStatuses = ["planned", "running", "completed", "failed", "on_hold"] as const;
+export const experimentPriorities = ["low", "medium", "high", "urgent"] as const;
+export const experimentTypes = ["in_silico", "in_vitro", "in_vivo", "clinical", "other"] as const;
+
+export const experimentSchema = z.object({
+  _id: z.string().optional(),
+  projectId: z.string(),
+  title: z.string(),
+  status: z.enum(experimentStatuses).default("planned"),
+  priority: z.enum(experimentPriorities).default("medium"),
+  type: z.enum(experimentTypes).default("other"),
+  stageId: z.string().optional(),
+  linkedMethodologyId: z.string().optional(),
+  linkedRecordIds: z.array(z.string()).default([]),
+  outputRecordIds: z.array(z.string()).default([]),
+  replicates: z.number().optional(),
+  controls: z.string().default(""),
+  hypothesis: z.string().default(""),
+  objectives: z.string().default(""),
+  variables: z.string().default(""),
+  methods: z.string().default(""),
+  results: z.string().default(""),
+  conclusion: z.string().default(""),
+  notes: z.string().default(""),
+  startDate: z.string().default(""),
+  endDate: z.string().default(""),
+  createdBy: z.string().default(""),
+  createdAt: z.coerce.date().default(() => new Date()),
+  updatedAt: z.coerce.date().default(() => new Date()),
+});
+
+export const openScienceCategories = ["data_repository", "updates", "news", "conferences", "publications", "protocols", "outreach", "other"] as const;
+
+export const openScienceUpdateSchema = z.object({
+  _id: z.string().optional(),
+  projectId: z.string(),
+  title: z.string(),
+  status: z.enum(["draft", "published"]).default("draft"),
+  category: z.enum(openScienceCategories).default("other"),
+  summary: z.string().optional(),
+  content: z.string().optional(),
+  publicUrl: z.string().optional(),
+  license: z.string().optional(),
+  accessibilityNotes: z.string().optional(),
+  linkedRecordIds: z.array(z.string()).default([]),
+  createdBy: z.string().default(""),
+  publishedAt: z.coerce.date().nullable().optional(),
+  createdAt: z.coerce.date().default(() => new Date()),
+  updatedAt: z.coerce.date().default(() => new Date()),
+});
+
+export type SafeUser = z.infer<typeof safeUserSchema>;
+export type User = z.infer<typeof userSchema>;
+export type UserRole = "admin" | "supervisor" | "member" | "user";
+export type RegisterInput = z.infer<typeof registerInputSchema>;
+export type ProfileInput = z.infer<typeof profileInputSchema>;
+
+export type Project = z.infer<typeof projectSchema>;
+export type ProjectInput = z.infer<typeof projectInputSchema>;
+export type ChatMessage = z.infer<typeof chatMessageSchema>;
+export type TeamMessage = z.infer<typeof teamMessageSchema>;
+export type TeamMessageInput = Omit<TeamMessage, "_id" | "createdAt">;
+export type TeamMessageLabel = "urgent" | "question" | "decision" | "info" | "note";
+export type AuditEvent = z.infer<typeof auditEventSchema>;
+export type AuditAction = string;
+
+export type LabCategory = (typeof labCategories)[number];
+export type LabSafetyLevel = (typeof labSafetyLevels)[number];
+export type LabAccessPolicy = (typeof labAccessPolicies)[number];
+
+export type LabInventoryCategory = (typeof labInventoryCategories)[number];
+export type LabInventoryStatus = (typeof labInventoryStatuses)[number];
+export type LabHazardClass = (typeof labHazardClasses)[number];
+export type LabInventoryItemInput = z.infer<typeof labInventoryItemInputSchema>;
+export type LabInventoryItem = z.infer<typeof labInventoryItemSchema>;
+
+export type LabEquipmentStatus = (typeof labEquipmentStatuses)[number];
+export type LabEquipmentInput = z.infer<typeof labEquipmentInputSchema>;
+export type LabEquipment = z.infer<typeof labEquipmentSchema>;
+
+export type EquipmentLogType = (typeof equipmentLogTypes)[number];
+export type EquipmentLogInput = z.infer<typeof equipmentLogInputSchema>;
+export type EquipmentLog = z.infer<typeof equipmentLogSchema>;
+
+export type TaskStatus = (typeof taskStatusOptions)[number];
+export type TaskPriority = (typeof taskPriorityOptions)[number];
+export type Task = z.infer<typeof taskSchema>;
+export type TaskInput = z.infer<typeof taskInputSchema>;
+
+export type Milestone = z.infer<typeof milestoneSchema>;
+export type MilestoneInput = z.infer<typeof milestoneInputSchema>;
+
+export type TimeEntry = z.infer<typeof timeEntrySchema>;
+export type TimeEntryInput = z.infer<typeof timeEntryInputSchema>;
+
+export type BudgetLineItem = z.infer<typeof budgetLineItemSchema>;
+export type BudgetLineItemInput = Omit<BudgetLineItem, "_id">;
+export type BudgetPeriod = z.infer<typeof budgetPeriodSchema>;
+export type BudgetPeriodInput = Omit<BudgetPeriod, "_id">;
+export type PurchaseRequest = z.infer<typeof purchaseRequestSchema>;
+export type PurchaseRequestInput = Omit<PurchaseRequest, "_id" | "createdAt">;
+export type PurchaseRequestStatus = (typeof purchaseRequestStatusOptions)[number];
+
+export type ProjectInvitation = z.infer<typeof projectInvitationSchema>;
+export type ProjectInvitationInput = Omit<ProjectInvitation, "_id">;
+
+export type ProjectRecord = z.infer<typeof projectRecordSchema>;
+export type ProjectRecordInput = z.input<typeof projectRecordInputSchema>;
+
+export type Experiment = z.infer<typeof experimentSchema>;
+export type ExperimentInput = Omit<Experiment, "_id">;
+export type ExperimentStatus = (typeof experimentStatuses)[number];
+
+export type OpenScienceUpdate = z.infer<typeof openScienceUpdateSchema>;
+export type OpenScienceUpdateInput = Omit<OpenScienceUpdate, "_id">;
+
+export type ResearchEvent = z.infer<typeof researchEventSchema>;
+export type ResearchEventInput = Omit<ResearchEvent, "_id">;
+export type EventParticipation = z.infer<typeof eventParticipationSchema>;
+export type EventParticipationInput = Omit<EventParticipation, "_id">;
+export type SubmissionItem = {
+  sid: string;
+  title: string;
+  type: SubmissionType;
+  status: SubmissionStatus;
+  coAuthors?: string;
+  section?: string;
+  deadline?: string;
+  submittedAt?: string;
+  revisionDeadline?: string;
+  revisionNotes?: string;
+};
+
+export type ResearchPublication = z.infer<typeof researchPublicationSchema>;
+export type ResearchPublicationInput = Omit<ResearchPublication, "_id">;
+export type PublicationStatus = "planned" | "submitted" | "under_review" | "accepted" | "published" | "rejected";
+export type PublicationType = string;
+
+export type ResearchDeliverable = z.infer<typeof researchDeliverableSchema>;
+export type ResearchDeliverableInput = Omit<ResearchDeliverable, "_id">;
+export type DeliverableStatus = string;
+export type DeliverableType = string;
+
+export type Portfolio = z.infer<typeof portfolioSchema>;
+export type PortfolioMeta = any;
+export type PortfolioPublication = z.infer<typeof portfolioPublicationSchema>;
+export type PortfolioConference = z.infer<typeof portfolioConferenceSchema>;
+export type PortfolioAward = z.infer<typeof portfolioAwardSchema>;
+
+export type Report = z.infer<typeof reportSchema>;
+export type ReportInput = Omit<Report, "_id">;
+export type ReportStatus = string;
+
+export type ResearchStage = z.infer<typeof researchStageSchema>;
+export type ResearchStageInput = z.input<typeof researchStageInputSchema>;
+export type ResearchStageStatus = "planned" | "active" | "completed" | "reported";
+
+export type LearningCourse = z.infer<typeof learningCourseSchema>;
+export type LearningCourseInput = z.infer<typeof learningCourseInputSchema>;
+export type LearningModule = z.infer<typeof learningModuleSchema>;
+export type LearningModuleInput = z.infer<typeof learningModuleInputSchema>;
+export type LearningTopic = z.infer<typeof learningTopicSchema>;
+export type LearningTopicInput = z.infer<typeof learningTopicInputSchema>;
+export type LearningAssessment = z.infer<typeof learningAssessmentSchema>;
+export type LearningAssessmentInput = z.infer<typeof learningAssessmentInputSchema>;
+export type LearningSession = z.infer<typeof learningSessionSchema>;
+export type LearningSessionInput = z.infer<typeof learningSessionInputSchema>;
+export type LearningAssignment = z.infer<typeof learningAssignmentSchema>;
+export type LearningAssignmentInput = z.infer<typeof learningAssignmentInputSchema>;
+
+export type CourseMember = z.infer<typeof courseMemberSchema>;
+export type CourseMemberInput = z.infer<typeof courseMemberInputSchema>;
+
+export type Institution = z.infer<typeof institutionSchema>;
+export type InstitutionInput = z.infer<typeof institutionInputSchema>;
+export type InstitutionType = (typeof institutionTypes)[number];
+export type RegisterInstitutionInput = z.infer<typeof registerInstitutionInputSchema>;
+
+export type InstitutionUnit = z.infer<typeof institutionUnitSchema>;
+export type InstitutionUnitInput = z.infer<typeof institutionUnitInputSchema>;
+export type InstitutionUnitType = (typeof institutionUnitTypes)[number];
+
+export type InstitutionMember = z.infer<typeof institutionMemberSchema>;
+export type InstitutionMemberInput = z.infer<typeof institutionMemberInputSchema>;
+export type InstitutionMemberRole = (typeof institutionMemberRoles)[number];
+
+export type InstitutionProgram = z.infer<typeof institutionProgramSchema>;
+export type InstitutionProgramInput = z.infer<typeof institutionProgramInputSchema>;
+export type ProgramLevel = (typeof programLevels)[number];
+
+export type InstitutionCourse = z.infer<typeof institutionCourseSchema>;
+export type InstitutionCourseInput = z.infer<typeof institutionCourseInputSchema>;
+
+export type AttendanceRecord = z.infer<typeof attendanceRecordSchema>;
+export type AttendanceRecordInput = z.infer<typeof attendanceRecordInputSchema>;
+
+export type PhdMilestone = z.infer<typeof phdMilestoneSchema>;
+export type PhdCurriculumCourse = z.infer<typeof phdCurriculumCourseSchema>;
+export type PhdYearlyCourse = z.infer<typeof phdYearlyCourseSchema>;
+export type PhdYearlyScientificItem = z.infer<typeof phdYearlyScientificItemSchema>;
+export type PhdWorkStatus = z.infer<typeof phdYearlyScientificItemSchema>["status"];
+export type PhdCycleType = z.infer<typeof phdCurriculumCourseSchema>["cycle"];
+export type PhdSubgroupType = z.infer<typeof phdCurriculumCourseSchema>["subgroup"];
+export type PhdYearlyPlan = z.infer<typeof phdYearlyPlanSchema>;
+export type PhdPlan = z.infer<typeof phdPlanSchema>;
+export type PhdPlanMeta = z.infer<typeof phdPlanMetaSchema>;
+
+export type ManuscriptBlock = z.infer<typeof manuscriptBlockSchema>;
+export type ManuscriptBlockType = z.infer<typeof manuscriptBlockSchema>["type"];
+export type ManuscriptAuthor = z.infer<typeof manuscriptAuthorSchema>;
+export type DissertationMeta = z.infer<typeof dissertationMetaSchema>;
+export type Manuscript = z.infer<typeof manuscriptSchema>;
+export type ManuscriptInput = z.input<typeof manuscriptInputSchema>;
+export type ManuscriptStatus = z.infer<typeof manuscriptSchema>["status"];
+export type ManuscriptType = z.infer<typeof manuscriptSchema>["type"];
 
 export type DiaryEntryType = (typeof diaryEntryTypes)[number];
 export type DiaryEntry = z.infer<typeof diaryEntrySchema>;
 export type DiaryEntryInput = z.infer<typeof diaryEntryInputSchema>;
+export type TopicType = z.infer<typeof learningTopicInputSchema>["topicType"];
+export type CourseType = z.infer<typeof learningCourseInputSchema>["courseType"];
+export type CourseStatus = z.infer<typeof learningCourseInputSchema>["status"];
+export type AssessmentStatus = z.infer<typeof learningAssessmentInputSchema>["status"];
+export type BudgetCategory = (typeof budgetCategories)[number];
+export type ExperimentType = (typeof experimentTypes)[number];
+export type AssignmentStatus = z.infer<typeof learningAssignmentInputSchema>["status"];
+export type AssignmentType = string;
+export type AssessmentType = z.infer<typeof learningAssessmentInputSchema>["assessmentType"];
+export type AttendanceStatus = NonNullable<z.infer<typeof learningSessionInputSchema>["attendance"]>;
+export type SessionStatus = z.infer<typeof learningSessionInputSchema>["status"];
+
+export type EventType = "conference" | "workshop" | "symposium" | "seminar" | "summer_school" | "competition" | "exhibition" | "hackathon" | "other";
+export type EventFormat = "in_person" | "online" | "hybrid";
+export type EventStatus = "planned" | "confirmed" | "attended" | "cancelled";
+export type ParticipationRole = "presenter" | "poster_presenter" | "attendee" | "organizer" | "chair" | "volunteer";
+export type ParticipationStatus = "planned" | "abstract_submitted" | "accepted" | "rejected" | "attended" | "cancelled";
+export type ContributionType = "oral" | "poster" | "keynote" | "panel" | "demo" | "workshop_talk";
+export type SubmissionType = "abstract" | "full_paper" | "poster" | "slides" | "video" | "registration" | "visa_docs" | "other";
+export type SubmissionStatus = "draft" | "submitted" | "accepted" | "rejected" | "revision_required" | "withdrawn";

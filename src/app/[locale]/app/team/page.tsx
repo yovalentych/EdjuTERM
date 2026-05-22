@@ -1,6 +1,6 @@
 import { UsersRound } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
-import { AppShell } from "@/components/app-shell";
+import { LiquidAppShell } from "@/components/liquid-app-shell";
 import { TeamChat } from "@/components/team/team-chat";
 import { TeamMemberList } from "@/components/team/team-member-list";
 import { Breadcrumb, PageHeader } from "@/components/ui";
@@ -53,7 +53,7 @@ export default async function TeamPage({
   const isUk = localeParam === "uk";
 
   return (
-    <AppShell dictionary={dictionary} locale={localeParam} user={user}>
+    <LiquidAppShell dictionary={dictionary} locale={localeParam} user={user}>
       <PageHeader
         eyebrow={dictionary.shell.eyebrow}
         title={dictionary.team.title}
@@ -91,7 +91,7 @@ export default async function TeamPage({
           currentUserId={user._id ?? ""}
         />
       </section>
-    </AppShell>
+    </LiquidAppShell>
   );
 }
 

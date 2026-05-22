@@ -84,13 +84,13 @@ export async function GET(request: Request) {
 
   // Team messages
   for (const msg of messages) {
-    if (match(msg.body, q)) {
+    if (match(msg.content, q)) {
       const project = projects.find((p) => p._id === msg.projectId);
       results.push({
         id: msg._id ?? msg.createdAt.toISOString(),
         type: "message",
-        title: msg.body.slice(0, 80),
-        excerpt: `#${msg.topic}`,
+        title: msg.content.slice(0, 80),
+        excerpt: msg.displayName,
         projectName: project?.acronym,
         projectId: msg.projectId,
         href: `/${locale}/app/project?projectId=${msg.projectId}&tab=team`,

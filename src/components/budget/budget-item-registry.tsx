@@ -96,10 +96,10 @@ export function BudgetItemRegistry({
     const linked = item._id ? requestsByLineItem.get(item._id) ?? [] : [];
     const committed = linked
       .filter((request) => request.status === "submitted" || request.status === "approved")
-      .reduce((sum, request) => sum + request.estimatedAmount, 0);
+      .reduce((sum, request) => sum + (request.estimatedAmount ?? 0), 0);
     const spent = linked
       .filter((request) => request.status === "purchased" || request.status === "delivered")
-      .reduce((sum, request) => sum + (request.actualAmount ?? request.estimatedAmount), 0);
+      .reduce((sum, request) => sum + (request.actualAmount ?? request.estimatedAmount ?? 0), 0);
     const remaining = item.plannedAmount - committed - spent;
     const utilizationPct = item.plannedAmount > 0
       ? Math.round(((committed + spent) / item.plannedAmount) * 100)

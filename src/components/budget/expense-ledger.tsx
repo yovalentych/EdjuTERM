@@ -40,7 +40,7 @@ export function ExpenseLedger({
   const periodsById = new Map(periods.map((period) => [period._id ?? "", period]));
   const lineItemsById = new Map(lineItems.map((item) => [item._id ?? "", item]));
   const actualTotal = actualRequests.reduce(
-    (sum, request) => sum + (request.actualAmount ?? request.estimatedAmount),
+    (sum, request) => sum + (request.actualAmount ?? request.estimatedAmount ?? 0),
     0,
   );
   const missingActualAmount = actualRequests.filter((request) => request.actualAmount === undefined).length;
@@ -113,7 +113,7 @@ export function ExpenseLedger({
             {actualRequests.map((request) => {
               const period = request.linkedPeriodId ? periodsById.get(request.linkedPeriodId) : undefined;
               const lineItem = request.linkedLineItemId ? lineItemsById.get(request.linkedLineItemId) : undefined;
-              const actualAmount = request.actualAmount ?? request.estimatedAmount;
+              const actualAmount = request.actualAmount ?? request.estimatedAmount ?? 0;
               const hasExactActual = request.actualAmount !== undefined;
               const purchasedDate = new Date(request.purchasedAt ?? request.updatedAt);
 
@@ -149,7 +149,7 @@ export function ExpenseLedger({
                     )}
                   </td>
                   <td className="px-3 py-3 align-top text-right font-mono text-sm text-slate-500">
-                    {formatAmount(request.estimatedAmount, request.currency)}
+                    {formatAmount(request.estimatedAmount ?? 0, request.currency)}
                   </td>
                   <td className="px-4 py-3 align-top text-right">
                     <p className="font-mono text-sm font-bold text-slate-950">

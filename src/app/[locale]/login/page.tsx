@@ -148,6 +148,20 @@ export default async function LoginPage({
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
+
+            {/* Institution registration link */}
+            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/40 px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                {isUk ? "Для навчальних закладів" : "For institutions"}
+              </p>
+              <Link
+                href={`/${localeParam}/register/institution`}
+                className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:underline"
+              >
+                {isUk ? "Зареєструвати ЗВО / інститут / академію" : "Register a university / institute / academy"}
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
           </div>
         </section>
       </div>

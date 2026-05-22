@@ -98,7 +98,7 @@ export async function updateTaskStatus(
 
 // ── Milestones ────────────────────────────────────────────────────────────────
 
-export async function createMilestone(
+export async function insertMilestone(
   input: MilestoneInput,
   user: SafeUser,
 ): Promise<Milestone> {
@@ -106,8 +106,8 @@ export async function createMilestone(
   const milestone: Milestone = {
     ...input,
     status: "upcoming",
-    createdBy: user._id ?? "",
     reachedAt: null,
+    createdBy: user._id ?? "",
     createdAt: now,
     updatedAt: now,
   };
@@ -126,6 +126,13 @@ export async function createMilestone(
   void _id;
   const result = await db.collection("milestones").insertOne(insert);
   return { ...milestone, _id: result.insertedId.toString() };
+}
+
+export async function createMilestone(
+  input: MilestoneInput,
+  user: SafeUser,
+): Promise<Milestone> {
+  return insertMilestone(input, user);
 }
 
 export async function listMilestones(projectId: string): Promise<Milestone[]> {

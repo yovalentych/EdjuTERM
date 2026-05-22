@@ -3,6 +3,7 @@
 import {
   BookOpen,
   Calendar,
+  CheckCircle2,
   Database,
   Eye,
   FlaskConical,
@@ -53,14 +54,25 @@ export function ProjectSettingsForm({
   dictionary,
   locale,
   project,
+  availableLabs = [],
 }: {
   dictionary: Dictionary;
   locale: Locale;
   project: Project;
+  availableLabs?: Project[];
 }) {
   const d = dictionary.projects;
   const isUk = locale === "uk";
   const [researchField, setResearchField] = useState(project.researchField ?? "");
+  const [linkedLabIds, setLinkedLabIds] = useState<string[]>(project.linkedLabIds ?? []);
+
+  const isLaboratory = project.projectType === "laboratory";
+
+  const toggleLab = (id: string) => {
+    setLinkedLabIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
 
   const grantProgramLabel =
     project.projectType === "grant"
@@ -81,6 +93,9 @@ export function ProjectSettingsForm({
     <form action={updateProjectSettings}>
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="projectId" value={project._id} />
+      {linkedLabIds.map(id => (
+        <input key={id} type="hidden" name="linkedLabIds" value={id} />
+      ))}
 
       {/* ── Section 1: Identity ───────────────────────────────────────────── */}
       <div className="surface overflow-hidden">
@@ -114,7 +129,7 @@ export function ProjectSettingsForm({
               }))}
             />
             <label className="block space-y-1">
-              <span className="text-sm font-medium text-stone-700">{d.researchField}</span>
+              <span className="text-sm font-medium text-stone-700">{researchField || d.researchField}</span>
               <SpecialtySelect
                 name="researchField"
                 value={researchField}
@@ -122,8 +137,66 @@ export function ProjectSettingsForm({
               />
             </label>
           </div>
+
+          {isLaboratory && (
+            <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50/30 p-5 space-y-4">
+              <h4 className="text-sm font-bold text-blue-800 uppercase tracking-wider">
+                {isUk ? "Спеціальні параметри лабораторії" : "Special Laboratory Parameters"}
+              </h4>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextField label={isUk ? "Номер кімнати" : "Room Number"} name="roomNumber" defaultValue={project.roomNumber} />
+                <SelectField 
+                  label={isUk ? "Рівень безпеки" : "Safety Level"} 
+                  name="safetyLevel" 
+                  defaultValue={project.safetyLevel || "BSL-1"}
+                  options={[
+                    { value: "BSL-1", label: "BSL-1" },
+                    { value: "BSL-2", label: "BSL-2" },
+                    { value: "BSL-3", label: "BSL-3" },
+                    { value: "BSL-4", label: "BSL-4" },
+                  ]}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* ── Section: Laboratory Linkage (for research projects) ──────────── */}
+      {!isLaboratory && availableLabs.length > 0 && (
+        <div className="surface mt-4 overflow-hidden">
+          <SectionHeader
+            icon={FlaskConical}
+            title={isUk ? "Підключення лабораторії" : "Laboratory connection"}
+            description={isUk ? "Оберіть спільні простори, ресурсами яких ви користуєтесь" : "Select shared workspaces whose resources you use"}
+          />
+          <div className="p-5">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {availableLabs.map(lab => (
+                <button
+                  key={lab._id}
+                  type="button"
+                  onClick={() => lab._id && toggleLab(lab._id)}
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                    linkedLabIds.includes(lab._id ?? "") 
+                      ? "border-blue-500 bg-blue-50" 
+                      : "border-slate-100 hover:border-blue-200"
+                  }`}
+                >
+                  <div className={`h-8 w-8 rounded flex items-center justify-center ${linkedLabIds.includes(lab._id ?? "") ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-400"}`}>
+                    <FlaskConical className="h-4 w-4" />
+                  </div>
+                  <div className="text-left flex-1 min-w-0">
+                    <p className="text-xs font-bold text-blue-600 font-mono">{lab.acronym}</p>
+                    <p className="text-sm font-semibold text-slate-800 truncate">{lab.title}</p>
+                  </div>
+                  {linkedLabIds.includes(lab._id ?? "") && <CheckCircle2 className="h-4 w-4 text-blue-500" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Section 2: Dates & program ────────────────────────────────────── */}
       <div className="surface mt-4 overflow-hidden">

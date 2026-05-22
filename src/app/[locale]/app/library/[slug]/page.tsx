@@ -5,7 +5,7 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { notFound, redirect } from "next/navigation";
-import { AppShell } from "@/components/app-shell";
+import { LiquidAppShell } from "@/components/liquid-app-shell";
 import { PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/current-user";
 import { getDictionary, isLocale } from "@/lib/i18n";
@@ -28,13 +28,13 @@ const markdownComponents: Components = {
   h2: ({ children, ...props }) => {
     const text = String(children);
     return (
-      <h2 id={slugifyHeading(text)} className="mt-12 scroll-mt-24 text-2xl font-bold tracking-tight text-slate-950 first:mt-0" {...props}>
+      <h2 id={slugifyHeading(text)} className="mt-10 scroll-mt-24 text-2xl font-bold leading-tight tracking-tight text-slate-950 first:mt-0" {...props}>
         {children}
       </h2>
     );
   },
   h3: ({ children, ...props }) => (
-    <h3 className="mt-8 text-xl font-semibold tracking-tight text-slate-900" {...props}>
+    <h3 className="mt-7 text-lg font-bold tracking-tight text-slate-900" {...props}>
       {children}
     </h3>
   ),
@@ -108,7 +108,7 @@ export default async function LibraryArticlePage({
   const isUk = localeParam === "uk";
 
   return (
-    <AppShell dictionary={dictionary} locale={localeParam} user={user}>
+    <LiquidAppShell dictionary={dictionary} locale={localeParam} user={user}>
       <PageHeader
         eyebrow={isUk ? "Довідка" : "Library"}
         title={article.title}
@@ -122,27 +122,32 @@ export default async function LibraryArticlePage({
       />
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <article className="surface overflow-hidden">
-          <div className="border-b border-slate-100 bg-slate-50/70 px-5 py-4">
-            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-              <span className="inline-flex items-center gap-1.5">
-                <Clock3 className="h-4 w-4" />
+        <article className="liquid-card p-0 overflow-hidden">
+          <div className="border-b border-slate-200/60 bg-gradient-to-br from-emerald-50/60 via-white to-slate-50/60 px-6 py-4">
+            <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-500">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1">
+                <Clock3 className="h-3.5 w-3.5" />
                 {article.readingTimeMinutes} {isUk ? "хв читання" : "min read"}
               </span>
+              <span className="text-slate-400">·</span>
               <span>{isUk ? "Опубліковано" : "Published"}: {formatDate(article.publishedAt)}</span>
+              <span className="text-slate-400">·</span>
               <span>{isUk ? "Оновлено" : "Updated"}: {formatDate(article.updatedAt)}</span>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-1.5">
               {article.tags.map((tag) => (
-                <span key={tag} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                  <Tag className="h-3 w-3" />
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                >
+                  <Tag className="h-2.5 w-2.5" />
                   {tag}
                 </span>
               ))}
             </div>
           </div>
 
-          <div className="kb-prose px-5 py-6 md:px-6">
+          <div className="kb-prose px-6 py-7 md:px-8">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
               {article.markdown}
             </ReactMarkdown>
@@ -150,34 +155,38 @@ export default async function LibraryArticlePage({
         </article>
 
         <aside className="space-y-4">
-          <section className="surface sticky top-24 overflow-hidden">
-            <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
-              <h2 className="text-sm font-semibold text-slate-900">{isUk ? "Зміст" : "Contents"}</h2>
+          <section className="liquid-card sticky top-24">
+            <div className="mb-3">
+              <span className="liquid-eyebrow">{isUk ? "Зміст" : "Contents"}</span>
             </div>
-            <div className="p-4">
-              <nav className="space-y-2">
-                {headings.map((item) => (
-                  <a
-                    key={item.id}
-                    href={`#${item.id}`}
-                    className="block rounded-lg px-2 py-1.5 text-sm text-slate-600 transition hover:bg-blue-50 hover:text-blue-700"
-                  >
-                    {item.title}
-                  </a>
-                ))}
-              </nav>
-            </div>
+            <nav className="space-y-1">
+              {headings.map((item) => (
+                <a
+                  key={item.id}
+                  href={`#${item.id}`}
+                  className="block rounded-lg px-2 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-emerald-50 hover:text-emerald-700"
+                >
+                  {item.title}
+                </a>
+              ))}
+            </nav>
           </section>
 
           {related.length > 0 && (
-            <section className="surface overflow-hidden">
-              <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
-                <h2 className="text-sm font-semibold text-slate-900">{isUk ? "Пов'язані матеріали" : "Related articles"}</h2>
+            <section className="liquid-card">
+              <div className="mb-3">
+                <span className="liquid-eyebrow">
+                  {isUk ? "Пов'язані матеріали" : "Related articles"}
+                </span>
               </div>
-              <div className="space-y-3 p-4">
+              <div className="space-y-2">
                 {related.map((item) => (
-                  <Link key={item.slug} href={`/${localeParam}/app/library/${item.slug}`} className="block rounded-xl border border-slate-200 bg-white px-3 py-3 transition hover:border-blue-200 hover:bg-blue-50/40">
-                    <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                  <Link
+                    key={item.slug}
+                    href={`/${localeParam}/app/library/${item.slug}`}
+                    className="block rounded-xl border border-slate-200 bg-white/70 px-3 py-2.5 transition hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-emerald-50/60"
+                  >
+                    <p className="text-sm font-bold leading-snug text-slate-900">{item.title}</p>
                     <p className="mt-1 text-xs leading-5 text-slate-500">{item.summary}</p>
                   </Link>
                 ))}
@@ -185,24 +194,22 @@ export default async function LibraryArticlePage({
             </section>
           )}
 
-          <section className="surface overflow-hidden">
-            <div className="border-b border-slate-100 bg-slate-50/70 px-4 py-3">
-              <h2 className="text-sm font-semibold text-slate-900">{isUk ? "Джерело матеріалу" : "Source"}</h2>
+          <section className="liquid-card">
+            <div className="mb-2">
+              <span className="liquid-eyebrow">{isUk ? "Джерело матеріалу" : "Source"}</span>
             </div>
-            <div className="p-4 text-sm leading-6 text-slate-600">
+            <p className="text-xs leading-6 text-slate-600">
               {isUk
-                ? "Матеріал адаптовано з внутрішнього deep research report та переоформлено для швидкого використання в knowledge base."
+                ? "Матеріал адаптовано з внутрішнього deep research report та переоформлено для швидкого використання у knowledge base."
                 : "Adapted from an internal deep research report and reformatted for practical knowledge base use."}
-              <div className="mt-3">
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500">
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  {article.sourceName || "content/knowledge-base"}
-                </span>
-              </div>
+            </p>
+            <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">
+              <ExternalLink className="h-3 w-3" />
+              {article.sourceName || "content/knowledge-base"}
             </div>
           </section>
         </aside>
       </div>
-    </AppShell>
+    </LiquidAppShell>
   );
 }

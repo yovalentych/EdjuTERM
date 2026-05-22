@@ -14,7 +14,8 @@ export type NotificationType =
   | "rejected"
   | "member_invited"
   | "member_joined"
-  | "team_message_posted";
+  | "team_message_posted"
+  | "chat";
 
 export type Notification = {
   _id: string;

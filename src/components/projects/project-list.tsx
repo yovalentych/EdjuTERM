@@ -13,6 +13,7 @@ const TYPE_ACCENT: Record<string, string> = {
   training: "bg-amber-500",
   infrastructure: "bg-slate-400",
   internship: "bg-orange-400",
+  laboratory: "bg-rose-500",
 };
 
 const TYPE_BADGE: Record<string, string> = {
@@ -24,6 +25,7 @@ const TYPE_BADGE: Record<string, string> = {
   training: "border-amber-200 bg-amber-50 text-amber-700",
   infrastructure: "border-slate-200 bg-slate-50 text-slate-600",
   internship: "border-orange-200 bg-orange-50 text-orange-700",
+  laboratory: "border-rose-200 bg-rose-50 text-rose-700",
 };
 
 export function ProjectList({
@@ -136,7 +138,11 @@ export function ProjectList({
               {project._id && (
                 <div className="mt-auto flex flex-wrap gap-2 pt-4">
                   <Link
-                    href={`/${locale}/app/project?projectId=${project._id}`}
+                    href={
+                      project.projectType === "laboratory"
+                        ? `/${locale}/app/laboratory?projectId=${project._id}`
+                        : `/${locale}/app/project?projectId=${project._id}`
+                    }
                     className="control-primary px-3 py-1.5 text-xs font-semibold"
                   >
                     {dictionary.projects.openWorkspace}

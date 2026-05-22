@@ -17,8 +17,8 @@ export const dictionaries = {
     shell: {
       appName: "Research Navigator",
       projectShortName: "Research Navigator",
-      eyebrow: "Операційна система досліджень і доказів відкритої науки",
-      title: "Робочий простір для природничих досліджень",
+      eyebrow: "Research Navigator",
+      title: "Дослідницький простір",
       databaseTarget: "Цільова база даних",
       databaseCollections:
         "MongoDB: записи, сирі файли, зразки, рішення, журнал змін",
@@ -188,6 +188,7 @@ export const dictionaries = {
         dissertation: "Дисертація",
         experimental: "ДКР",
         internship: "Стажування",
+        laboratory: "Лабораторія",
       },
       fieldOptions: {} as Record<string, string>,
       visibilityOptions: {
@@ -230,6 +231,7 @@ export const dictionaries = {
         publications: "Публікації",
         protocols: "Протоколи",
         outreach: "Популяризація",
+        other: "Інше",
       },
       summary: "Короткий опис",
       content: "Зміст або посилання",
@@ -691,6 +693,7 @@ export const dictionaries = {
       },
       requestStatuses: {
         draft: "Чернетка",
+        pending: "Очікується",
         submitted: "Подано",
         approved: "Затверджено",
         rejected: "Відхилено",
@@ -991,8 +994,8 @@ export const dictionaries = {
     shell: {
       appName: "Research Navigator",
       projectShortName: "Research Navigator",
-      eyebrow: "Research operations and open science evidence",
-      title: "Workspace for natural science research",
+      eyebrow: "Research Navigator",
+      title: "Research workspace",
       databaseTarget: "Database target",
       databaseCollections:
         "MongoDB: records, raw files, samples, decisions, audit log",
@@ -1162,6 +1165,7 @@ export const dictionaries = {
         dissertation: "Dissertation",
         experimental: "Dev. / R&D",
         internship: "Internship",
+        laboratory: "Laboratory",
       },
       fieldOptions: {} as Record<string, string>,
       visibilityOptions: {
@@ -1204,6 +1208,7 @@ export const dictionaries = {
         publications: "Publications",
         protocols: "Protocols",
         outreach: "Outreach",
+        other: "Other",
       },
       summary: "Short summary",
       content: "Content or links",
@@ -1666,6 +1671,7 @@ export const dictionaries = {
       },
       requestStatuses: {
         draft: "Draft",
+        pending: "Pending",
         submitted: "Submitted",
         approved: "Approved",
         rejected: "Rejected",

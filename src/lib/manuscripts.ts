@@ -6,6 +6,7 @@ import {
   type ManuscriptStatus,
   type SafeUser,
   manuscriptSchema,
+  manuscriptInputSchema,
 } from "@/lib/schemas";
 
 // ── in-memory fallback ────────────────────────────────────────────────────────
@@ -19,10 +20,11 @@ export async function createManuscript(
   user: SafeUser,
 ): Promise<Manuscript> {
   const now = new Date();
+  const parsed = manuscriptInputSchema.parse(input);
   const manuscript: Manuscript = {
-    ...input,
-    status: "draft",
-    createdBy: user._id ?? "",
+    ...parsed,
+    status: parsed.status ?? "draft",
+    createdBy: parsed.createdBy ?? user._id ?? "",
     createdAt: now,
     updatedAt: now,
   };

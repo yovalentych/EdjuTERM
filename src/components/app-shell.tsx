@@ -95,7 +95,7 @@ export async function AppShell({
             <span className="shell-chip hidden border border-stone-200 bg-white/70 px-2 py-1 text-xs text-stone-600 sm:inline">
               {user.firstName} {user.lastName}
               <span className="mx-1 text-stone-300">·</span>
-              {dictionary.roles[user.role]}
+              {dictionary.roles[user.role as keyof typeof dictionary.roles]}
             </span>
             <LanguageToggle
               locale={locale}
@@ -139,16 +139,16 @@ export async function AppShell({
           {/* Database status at bottom */}
           <div className="p-3 pt-2">
             <div className="sidebar-divider mb-3" />
-            <div className="sidebar-expanded-only space-y-2 rounded border border-blue-200 bg-blue-50/60 p-2.5">
-              <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-blue-600">
-                <Database className="h-3 w-3" />
-                {dictionary.shell.databaseConnected}
-              </div>
-              {databaseStatus.host && (
-                <p className="font-mono text-[9px] text-slate-400 truncate">
-                  {databaseStatus.host}
-                </p>
-              )}
+            <div className="sidebar-expanded-only flex items-center gap-2 rounded border border-emerald-200 bg-emerald-50/60 px-2.5 py-2">
+              <span className="relative flex h-2 w-2">
+                <span className={`absolute inline-flex h-full w-full rounded-full ${databaseStatus.connected ? "animate-ping bg-emerald-400 opacity-75" : "bg-rose-400"}`} />
+                <span className={`relative inline-flex h-2 w-2 rounded-full ${databaseStatus.connected ? "bg-emerald-500" : "bg-rose-500"}`} />
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+                {databaseStatus.connected
+                  ? dictionary.shell.databaseConnected
+                  : (dictionary.shell.databaseDisconnected ?? "Disconnected")}
+              </span>
             </div>
           </div>
         </aside>

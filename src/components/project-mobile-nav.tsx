@@ -47,6 +47,9 @@ const tabIcons: Record<ProjectTab, LucideIcon> = {
   "phd-plan": GraduationCap,
   portfolio: Briefcase,
   team: Users,
+  inventory: Database,
+  equipment: Microscope,
+  logs: NotebookPen,
   settings: Settings,
 };
 

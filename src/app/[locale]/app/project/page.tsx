@@ -1,46 +1,46 @@
 import {
   BookOpen,
+  CalendarDays,
+  ClipboardList,
   Database,
   FileSignature,
+  FileText,
+  FlaskConical,
   Globe,
+  GraduationCap,
+  LayoutDashboard,
+  Microscope,
+  BookMarked,
   Settings,
   SquareStack,
   Users,
   Wallet,
-  type LucideIcon,
+  Briefcase,
+  NotebookPen,
 } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
-import { ProjectShell, type ProjectTab } from "@/components/project-shell";
+import { WorkspaceShell, type NavGroup } from "@/components/workspace-shell";
 import { OpenScienceForm } from "@/components/open-science/open-science-form";
 import { OpenScienceList } from "@/components/open-science/open-science-list";
 import { TeamChat } from "@/components/team/team-chat";
 import { TeamMemberList } from "@/components/team/team-member-list";
-import { DashboardLayout, DashboardSection } from "@/components/dashboard/dashboard-layout";
-import {
-  ProjectResearchHeader,
-  ResearchChip,
-  ResearchWorkspaceFrame,
-  type ResearchTone,
-} from "@/components/research-os";
 import { ProjectOverviewDashboard } from "@/components/overview/project-overview-dashboard";
 import { RecordsExplorer } from "@/components/records/records-explorer";
+import { ManuscriptsExplorer } from "@/components/manuscripts/manuscripts-explorer";
+import { GlobalSearch } from "@/components/global-search";
+import { NotificationBell } from "@/components/notification-bell";
+import { PrivateThemeToggle } from "@/components/private-theme-toggle";
 import { getCurrentUser } from "@/lib/current-user";
-import {
-  getDictionary,
-  isLocale,
-  type Dictionary,
-} from "@/lib/i18n";
+import { getDictionary, isLocale } from "@/lib/i18n";
 import { listOpenScienceUpdatesForProjects } from "@/lib/open-science";
 import { canManageProject, getProjectForUser } from "@/lib/projects";
 import { getDashboardData } from "@/lib/repositories";
 import { listManuscripts } from "@/lib/manuscripts";
-import { ManuscriptsExplorer } from "@/components/manuscripts/manuscripts-explorer";
-import type { Project, SafeUser } from "@/lib/schemas";
 import { listTeamMessages } from "@/lib/team";
 import { listPublications } from "@/lib/research-publications";
 import { listSafeUsersByIds } from "@/lib/users";
-
-// ── Page ──────────────────────────────────────────────────────────────────────
+import { readPrefs } from "@/lib/prefs";
+import type { SafeUser } from "@/lib/schemas";
 
 export default async function ProjectWorkspacePage({
   params,
@@ -50,7 +50,6 @@ export default async function ProjectWorkspacePage({
   searchParams: Promise<{ projectId?: string; tab?: string; error?: string }>;
 }) {
   const { locale: localeParam } = await params;
-
   if (!isLocale(localeParam)) notFound();
 
   const user = await getCurrentUser();
@@ -63,322 +62,187 @@ export default async function ProjectWorkspacePage({
   if (!project?._id) notFound();
 
   const dictionary = getDictionary(localeParam);
-  const projects = [project];
+  const prefs = await readPrefs();
+  const isUk = localeParam === "uk";
+  const isDissertation = project.projectType === "dissertation";
 
-  const validTabs: ProjectTab[] = ["overview", "records", "openscience", "manuscripts", "team", "budget", "settings"];
-  const activeTab: ProjectTab = validTabs.includes(tab as ProjectTab)
-    ? (tab as ProjectTab)
-    : "overview";
+  const validTabs = ["overview", "records", "openscience", "manuscripts", "team", "budget", "settings"];
+  const activeTab = validTabs.includes(tab || "") ? tab : "overview";
 
-  const baseUrl = `/${localeParam}/app/project?projectId=${project._id}`;
   if (activeTab === "budget") {
     redirect(`/${localeParam}/app/budget?projectId=${project._id}`);
   }
-
-  const returnTo = `${baseUrl}&tab=${activeTab}`;
 
   const [data, openScienceUpdates, teamMessages, members, publications, manuscripts] = await Promise.all([
     getDashboardData(localeParam, [project._id]),
     listOpenScienceUpdatesForProjects([project._id]),
     listTeamMessages([project._id]),
-    listSafeUsersByIds([
-      project.ownerId,
-      project.supervisorId,
-      ...project.memberIds,
-    ]),
+    listSafeUsersByIds([project.ownerId, project.supervisorId, ...project.memberIds]),
     listPublications(project._id),
     listManuscripts(project._id),
   ]);
 
-  const usersById = new Map(
-    members
-      .filter((m): m is SafeUser & { _id: string } => Boolean(m._id))
-      .map((m) => [m._id, m]),
-  );
-  const memberEntries = members.map((member) => ({
-    user: member,
-    projects: getMemberProjects(member, project),
-  }));
+  const navGroups: NavGroup[] = [
+    {
+      label: isUk ? "Огляд" : "Overview",
+      items: [
+        { id: "overview", label: dictionary.projects.tabOverview, icon: "square-stack", href: `/${localeParam}/app/project?projectId=${project._id}&tab=overview` },
+      ],
+    },
+    {
+      label: isUk ? "Доказова база" : "Evidence",
+      items: [
+        { id: "records", label: dictionary.projects.tabRecords, icon: "database", href: `/${localeParam}/app/project?projectId=${project._id}&tab=records` },
+        { id: "experiments", label: dictionary.experiments.openExperiments, icon: "flask-conical", href: `/${localeParam}/app/experiments?projectId=${project._id}` },
+        { id: "almanac", label: isUk ? "Альманах" : "Almanac", icon: "book-marked", href: `/${localeParam}/app/almanac?projectId=${project._id}` },
+      ],
+    },
+    {
+      label: isUk ? "Виконання" : "Execution",
+      items: [
+        { id: "research-plan", label: dictionary.researchPlan.openPlan, icon: "clipboard-list", href: `/${localeParam}/app/research-plan?projectId=${project._id}` },
+        { id: "planning", label: dictionary.planning.openPlanning, icon: "calendar-days", href: `/${localeParam}/app/planning?projectId=${project._id}` },
+        { id: "budget", label: dictionary.budget.openBudget, icon: "wallet", href: `/${localeParam}/app/budget?projectId=${project._id}` },
+      ],
+    },
+    {
+      label: isUk ? "Результати" : "Outputs",
+      items: [
+        { id: "openscience", label: dictionary.projects.tabOpenScience, icon: "globe", href: `/${localeParam}/app/project?projectId=${project._id}&tab=openscience` },
+        { id: "manuscripts", label: isUk ? "Рукописи" : "Manuscripts", icon: "file-signature", href: `/${localeParam}/app/project?projectId=${project._id}&tab=manuscripts` },
+        { id: "reports", label: dictionary.reports.openReports, icon: "file-text", href: `/${localeParam}/app/reports?projectId=${project._id}` },
+      ],
+    },
+    {
+      label: isUk ? "Команда та Навчання" : "Team & Education",
+      items: [
+        { id: "team", label: dictionary.projects.tabTeam, icon: "users", href: `/${localeParam}/app/project?projectId=${project._id}&tab=team` },
+        { id: "learning", label: isUk ? "Журнал навчання" : "learning", icon: "book-open", href: `/${localeParam}/app/learning?projectId=${project._id}` },
+        { id: "diary", label: isUk ? "Щоденник" : "Diary", icon: "notebook-pen", href: `/${localeParam}/app/diary?projectId=${project._id}` },
+        ...(isDissertation ? [{ id: "phd-plan", label: isUk ? "Інд. план" : "PhD Plan", icon: "graduation-cap" as const, href: `/${localeParam}/app/phd-plan?projectId=${project._id}` }] : []),
+      ],
+    },
+    {
+      label: isUk ? "Керування" : "Settings",
+      items: [
+        { id: "settings", label: dictionary.projects.settings, icon: "settings", href: `/${localeParam}/app/project-settings?projectId=${project._id}` },
+      ],
+    },
+  ];
 
+  const usersById = new Map(members.filter((m): m is SafeUser & { _id: string } => Boolean(m._id)).map((m) => [m._id, m]));
   const isManager = canManageProject(project, user);
-  const d = dictionary;
-  const publishedUpdates = openScienceUpdates.filter(
-    (u) => u.status === "published",
-  );
   const activeRecords = data.records.filter((r) => !r.archivedAt);
   const archivedRecords = data.records.filter((r) => !!r.archivedAt);
-  const tabCounts: ProjectWorkspaceHeaderProps["counts"] = {
-    manuscripts: manuscripts.length,
-    members: members.length,
-    openScience: publishedUpdates.length,
-    records: activeRecords.length,
-  };
+  const returnTo = `/${localeParam}/app/project?projectId=${project._id}&tab=${activeTab}`;
 
   return (
-    <ProjectShell dictionary={dictionary} locale={localeParam} user={user} project={project} activeTab={activeTab}>
-      <DashboardLayout>
-        <ResearchWorkspaceFrame>
-          <ProjectWorkspaceHeader
-            activeTab={activeTab}
-            counts={tabCounts}
+    <WorkspaceShell
+      dictionary={dictionary}
+      locale={localeParam}
+      user={user}
+      project={project}
+      navGroups={navGroups}
+      headerActions={
+        <div key="header-actions-wrapper" className="flex items-center gap-1.5">
+          <GlobalSearch key="global-search" locale={localeParam} />
+          {prefs.notifications && <NotificationBell key="notification-bell" />}
+          <PrivateThemeToggle key="theme-toggle" />
+        </div>
+      }
+    >
+      <div className="space-y-6">
+        {activeTab === "overview" && (
+          <ProjectOverviewDashboard
+            project={project}
+            records={data.records}
+            members={members}
+            teamMessages={teamMessages}
+            openScienceCount={openScienceUpdates.filter(u => u.status === "published").length}
+            locale={localeParam}
+          />
+        )}
+
+        {activeTab === "records" && (
+          <RecordsExplorer
+            records={activeRecords}
+            archivedRecords={archivedRecords}
+            publications={publications}
+            openScienceUpdates={openScienceUpdates}
+            members={members}
+            locale={localeParam}
+            returnTo={returnTo}
+            initialError={error}
+            currentUser={user}
+            projects={[project]}
+            dictionary={dictionary}
+          />
+        )}
+
+        {activeTab === "manuscripts" && (
+          <ManuscriptsExplorer
+            manuscripts={manuscripts}
+            records={activeRecords}
+            members={members}
+            projectId={project._id ?? ""}
+            user={user}
             dictionary={dictionary}
             locale={localeParam}
-            project={project}
           />
+        )}
 
-          {/* ── Tab: Overview ───────────────────────────────────────────────── */}
-          {activeTab === "overview" && (
-            <ProjectOverviewDashboard
-              project={project}
-              records={data.records}
+        {activeTab === "openscience" && (
+          <div className="grid gap-6">
+            <div className="card-surface overflow-hidden">
+              <details className="group">
+                <summary className="flex cursor-pointer items-center gap-3 px-6 py-4 text-sm font-bold text-slate-800 transition hover:bg-emerald-50 hover:text-emerald-800">
+                  <Globe className="h-5 w-5 text-emerald-600" />
+                  {isUk ? "+ Новий публічний допис" : "+ New public post"}
+                </summary>
+                <div className="border-t border-slate-100 p-6">
+                  <OpenScienceForm
+                    dictionary={dictionary}
+                    locale={localeParam}
+                    projects={[project]}
+                    returnTo={returnTo}
+                    records={activeRecords}
+                  />
+                </div>
+              </details>
+            </div>
+            <OpenScienceList
+              updates={openScienceUpdates}
+              dictionary={dictionary}
               members={members}
-              teamMessages={teamMessages}
-              openScienceCount={publishedUpdates.length}
+              records={activeRecords}
               locale={localeParam}
+              returnTo={returnTo}
             />
-          )}
+          </div>
+        )}
 
-          {/* ── Tab: Records & Data ─────────────────────────────────────────── */}
-          {activeTab === "records" && (
-            <DashboardSection>
-              <RecordsExplorer
-                records={activeRecords}
-                archivedRecords={archivedRecords}
-                publications={publications}
-                openScienceUpdates={openScienceUpdates}
-                members={members}
-                locale={localeParam}
-                returnTo={returnTo}
-                initialError={error}
-                currentUser={user}
-                projects={projects}
-                dictionary={dictionary}
-              />
-            </DashboardSection>
-          )}
-
-          {/* ── Tab: Manuscripts ───────────────────────────────────────────── */}
-          {activeTab === "manuscripts" && (
-            <DashboardSection>
-              <ManuscriptsExplorer
-                manuscripts={manuscripts}
-                records={activeRecords}
-                members={members}
-                projectId={project._id ?? ""}
-                user={user}
-                dictionary={dictionary}
-                locale={localeParam}
-              />
-            </DashboardSection>
-          )}
-
-          {/* ── Tab: Open Science ───────────────────────────────────────────── */}
-          {activeTab === "openscience" && (
-            <DashboardSection className="grid gap-6">
-              {/* New post — collapsible */}
-              <div className="surface overflow-hidden rounded-2xl bg-white/80 backdrop-blur-md">
-                <details>
-                  <summary className="flex cursor-pointer items-center gap-3 px-6 py-5 text-sm font-bold text-stone-800 transition hover:bg-emerald-50 hover:text-emerald-800">
-                    <BookOpen className="h-5 w-5 text-emerald-600" />
-                    + Новий допис / публікація відкритої науки
-                  </summary>
-                  <div className="border-t border-slate-100 px-6 pb-6 pt-5">
-                    <p className="mb-4 text-xs font-medium text-stone-500">
-                      {d.openScience.manageSummary}
-                    </p>
-                    <OpenScienceForm
-                      dictionary={dictionary}
-                      locale={localeParam}
-                      projects={projects}
-                      returnTo={returnTo}
-                      records={activeRecords}
-                    />
-                  </div>
-                </details>
-              </div>
-
-              <OpenScienceList
-                updates={openScienceUpdates}
-                dictionary={dictionary}
-                members={members}
-                records={activeRecords}
-                locale={localeParam}
-                returnTo={returnTo}
-              />
-            </DashboardSection>
-          )}
-
-          {/* ── Tab: Team ───────────────────────────────────────────────────── */}
-          {activeTab === "team" && (
-            <DashboardSection className="grid gap-6 xl:grid-cols-[1fr_1.2fr]">
-              <TeamMemberList
-                dictionary={dictionary}
-                locale={localeParam}
-                members={memberEntries}
-                project={project}
-                currentUserId={user._id ?? ""}
-                isManager={isManager}
-              />
-              <TeamChat
-                dictionary={dictionary}
-                locale={localeParam}
-                messages={teamMessages}
-                projects={projects}
-                usersById={usersById}
-                currentUserId={user._id ?? ""}
-                returnTo={returnTo}
-              />
-            </DashboardSection>
-          )}
-        </ResearchWorkspaceFrame>
-      </DashboardLayout>
-    </ProjectShell>
+        {activeTab === "team" && (
+          <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+            <TeamMemberList
+              dictionary={dictionary}
+              locale={localeParam}
+              members={members.map(m => ({ user: m, projects: [{ project, role: project.ownerId === m._id ? "owner" : project.supervisorId === m._id ? "supervisor" : "member" }] }))}
+              project={project}
+              currentUserId={user._id ?? ""}
+              isManager={isManager}
+            />
+            <TeamChat
+              dictionary={dictionary}
+              locale={localeParam}
+              messages={teamMessages}
+              projects={[project]}
+              usersById={usersById}
+              currentUserId={user._id ?? ""}
+              returnTo={returnTo}
+            />
+          </div>
+        )}
+      </div>
+    </WorkspaceShell>
   );
-}
-
-// ── Helper components ─────────────────────────────────────────────────────────
-
-type ProjectWorkspaceHeaderProps = {
-  activeTab: ProjectTab;
-  counts: {
-    manuscripts: number;
-    members: number;
-    openScience: number;
-    records: number;
-  };
-  dictionary: Dictionary;
-  locale: string;
-  project: Project;
-};
-
-type ProjectWorkspaceTabInfo = {
-  description: string;
-  icon: LucideIcon;
-  iconTone: ResearchTone;
-  metric: string;
-  metricTone: ResearchTone;
-  title: string;
-};
-
-function ProjectWorkspaceHeader({
-  activeTab,
-  counts,
-  dictionary,
-  locale,
-  project,
-}: ProjectWorkspaceHeaderProps) {
-  const isUk = locale === "uk";
-  const tab = getProjectWorkspaceTab(activeTab, dictionary, isUk, counts);
-  const Icon = tab.icon;
-
-  return (
-    <ProjectResearchHeader
-      description={tab.description}
-      dictionary={dictionary}
-      icon={Icon}
-      locale={locale}
-      metrics={
-        <>
-          <ResearchChip tone={tab.metricTone}>{tab.metric}</ResearchChip>
-        </>
-      }
-      project={project}
-      tone={tab.iconTone}
-      title={tab.title}
-    />
-  );
-}
-
-function getProjectWorkspaceTab(
-  activeTab: ProjectTab,
-  dictionary: Dictionary,
-  isUk: boolean,
-  counts: ProjectWorkspaceHeaderProps["counts"],
-): ProjectWorkspaceTabInfo {
-  const overview: ProjectWorkspaceTabInfo = {
-    description: isUk
-      ? "Короткий стан дослідження, активність і наступні пріоритети."
-      : "Research status, recent activity, and next priorities.",
-    icon: SquareStack,
-    iconTone: "blue",
-    metric: isUk ? "Огляд" : "Overview",
-    metricTone: "blue",
-    title: dictionary.projects.tabOverview,
-  };
-  const copy: Partial<Record<ProjectTab, ProjectWorkspaceTabInfo>> = {
-    overview,
-    records: {
-      description: isUk
-        ? "Дані, протоколи, файли та внутрішні матеріали проєкту."
-        : "Project data, protocols, files, and internal materials.",
-      icon: Database,
-      iconTone: "cyan",
-      metric: isUk ? `${counts.records} активних записів` : `${counts.records} active records`,
-      metricTone: "blue",
-      title: dictionary.projects.tabRecords,
-    },
-    openscience: {
-      description: isUk
-        ? "Публічні оновлення, матеріали для поширення та доступи за кодом."
-        : "Public updates, shared materials, and code-based access.",
-      icon: Globe,
-      iconTone: "emerald",
-      metric: isUk ? `${counts.openScience} публікацій` : `${counts.openScience} posts`,
-      metricTone: "emerald",
-      title: dictionary.projects.tabOpenScience,
-    },
-    manuscripts: {
-      description: isUk
-        ? "Чернетки, секції, автори та матеріали для наукових текстів."
-        : "Drafts, sections, authors, and materials for scientific writing.",
-      icon: FileSignature,
-      iconTone: "violet",
-      metric: isUk ? `${counts.manuscripts} рукописів` : `${counts.manuscripts} manuscripts`,
-      metricTone: "violet",
-      title: isUk ? "Рукописи" : "Manuscripts",
-    },
-    team: {
-      description: isUk
-        ? "Учасники, ролі, комунікація і відповідальність у проєкті."
-        : "Members, roles, communication, and responsibilities.",
-      icon: Users,
-      iconTone: "orange",
-      metric: isUk ? `${counts.members} учасників` : `${counts.members} members`,
-      metricTone: "orange",
-      title: dictionary.projects.tabTeam,
-    },
-    budget: {
-      description: isUk
-        ? "План витрат, закупівлі та фінансові записи дослідження."
-        : "Costs, purchases, and financial records for the research.",
-      icon: Wallet,
-      iconTone: "amber",
-      metric: isUk ? "Бюджет" : "Budget",
-      metricTone: "amber",
-      title: dictionary.budget.openBudget,
-    },
-    settings: {
-      description: isUk
-        ? "Параметри проєкту, доступи, політики даних і конфігурація."
-        : "Project settings, access, data policies, and configuration.",
-      icon: Settings,
-      iconTone: "slate",
-      metric: isUk ? "Налаштування" : "Settings",
-      metricTone: "slate",
-      title: dictionary.projects.settings,
-    },
-  };
-
-  return copy[activeTab] ?? overview;
-}
-
-function getMemberProjects(member: SafeUser, project: Project) {
-  if (!member._id) return [];
-  if (project.ownerId === member._id)
-    return [{ project, role: "owner" as const }];
-  if (project.supervisorId === member._id)
-    return [{ project, role: "supervisor" as const }];
-  if (project.memberIds.includes(member._id))
-    return [{ project, role: "member" as const }];
-  return [];
 }

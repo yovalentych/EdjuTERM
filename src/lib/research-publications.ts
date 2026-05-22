@@ -54,7 +54,7 @@ export async function listPublications(
   if (!hasMongoConfig()) {
     return localPublications
       .filter((p) => p.projectId === projectId)
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      .sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0));
   }
 
   const db = await getMongoDb();
@@ -170,7 +170,7 @@ export async function listDeliverables(
   if (!hasMongoConfig()) {
     return localDeliverables
       .filter((d) => d.projectId === projectId)
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      .sort((a, b) => (a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0));
   }
 
   const db = await getMongoDb();

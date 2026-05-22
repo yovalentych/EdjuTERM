@@ -10,7 +10,7 @@ import { listAuditEvents } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/current-user";
 import { getDictionary, isLocale } from "@/lib/i18n";
 import { listProjectInvitations } from "@/lib/invitations";
-import { canManageProject, getProjectForUser } from "@/lib/projects";
+import { canManageProject, getProjectForUser, listLaboratories } from "@/lib/projects";
 import { listSafeUsersByIds } from "@/lib/users";
 
 export default async function ProjectSettingsPage({
@@ -49,7 +49,7 @@ export default async function ProjectSettingsPage({
   }
 
   const dictionary = getDictionary(localeParam);
-  const [members, invitations, auditEvents] = await Promise.all([
+  const [members, invitations, auditEvents, laboratories] = await Promise.all([
     listSafeUsersByIds([
       project.ownerId,
       project.supervisorId,
@@ -57,6 +57,7 @@ export default async function ProjectSettingsPage({
     ]),
     listProjectInvitations(project._id ?? ""),
     listAuditEvents({ projectId: project._id, limit: 500 }),
+    listLaboratories(),
   ]);
 
   return (
@@ -98,6 +99,7 @@ export default async function ProjectSettingsPage({
         dictionary={dictionary}
         locale={localeParam}
         project={project}
+        availableLabs={laboratories}
       />
       <ProjectMembersManager
         dictionary={dictionary}

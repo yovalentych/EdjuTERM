@@ -1,4 +1,6 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
+import { Sparkles } from "lucide-react";
 import { ProjectShell } from "@/components/project-shell";
 import { LearningJournal } from "@/components/learning/learning-journal";
 import { Breadcrumb, PageHeader } from "@/components/ui";
@@ -65,6 +67,15 @@ export default async function LearningPage({
           localeParam === "uk"
             ? "Курси, модулі та прогрес навчання учасників проєкту."
             : "Courses, modules and learning progress for project members."
+        }
+        actions={
+          <Link
+            href={`/${localeParam}/app/learning/hub?projectId=${project._id}`}
+            className="liquid-cta"
+          >
+            <Sparkles className="h-4 w-4" />
+            {localeParam === "uk" ? "Електронний журнал (новий)" : "Electronic Journal (new)"}
+          </Link>
         }
       />
       <LearningJournal

@@ -28,6 +28,7 @@ export async function createProjectForUser(input: ProjectInput, user: SafeUser) 
     ownerId: user._id,
     supervisorId: user._id,
     memberIds: [user._id],
+    linkedLabIds: [],
     joinCode: generateJoinCode(),
     supervisorJoinCode: "",
     status: "active",
@@ -163,7 +164,7 @@ export async function listProjectsForUser(user: SafeUser) {
         { supervisorId: user._id },
         { memberIds: user._id },
       ],
-      deletedAt: { $exists: false },
+      deletedAt: null,
     })
     .sort({ createdAt: -1 })
     .toArray();
@@ -372,7 +373,7 @@ export async function listAllProjects() {
   );
 }
 
-async function getProjectById(projectId: string) {
+export async function getProjectById(projectId: string) {
   if (!hasMongoConfig()) {
     return localProjects.find((project) => project._id === projectId) ?? null;
   }
@@ -496,6 +497,23 @@ async function ensureProjectIndexes() {
 }
 
 export const SOFT_DELETE_GRACE_DAYS = 30;
+
+export async function listLaboratories() {
+  if (!hasMongoConfig()) {
+    return localProjects.filter((p) => p.projectType === "laboratory");
+  }
+
+  const db = await getMongoDb();
+  const docs = await db
+    .collection(collectionName)
+    .find({ projectType: "laboratory", deletedAt: null })
+    .sort({ acronym: 1 })
+    .toArray();
+
+  return docs.map((doc) =>
+    projectSchema.parse({ ...doc, _id: doc._id.toString() }),
+  );
+}
 
 export async function softDeleteProject(projectId: string, actorId: string) {
   const objectId = toObjectId(projectId);

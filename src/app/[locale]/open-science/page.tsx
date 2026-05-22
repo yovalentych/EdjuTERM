@@ -491,21 +491,21 @@ function UpdateCard({
   dictionary: Dictionary;
   update: OpenScienceUpdate;
 }) {
-  const dateStr = isoDate(update.publishedAt ?? update.updatedAt);
+  const dateStr = isoDate((update.publishedAt ?? update.updatedAt) as Date);
 
   return (
     <article className="flex h-full flex-col gap-3 rounded-[8px] border border-slate-200 bg-white p-5 shadow-sm">
       <header>
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-[#65E4A3]/20 px-3 py-1 text-xs font-bold uppercase text-[#0A2640]">
-            {dictionary.openScience.categories[update.category]}
+            {dictionary.openScience.categories[update.category as keyof typeof dictionary.openScience.categories] ?? update.category}
           </span>
           {update.license && <LicenseBadge licenseId={update.license} showLink={false} />}
         </div>
         <div className="mt-3 flex items-start justify-between gap-3">
           <h3 className="text-xl font-semibold text-[#0A2640]">{update.title}</h3>
           <time dateTime={dateStr} className="shrink-0 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500">
-            {formatDate(update.publishedAt ?? update.updatedAt)}
+            {formatDate((update.publishedAt ?? update.updatedAt) as Date)}
           </time>
         </div>
       </header>

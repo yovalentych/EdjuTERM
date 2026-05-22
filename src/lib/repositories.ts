@@ -6,6 +6,7 @@ import {
   type ProjectRecord,
   type ProjectRecordInput,
   projectRecordSchema,
+  projectRecordInputSchema,
 } from "@/lib/schemas";
 
 const collectionName = "project_records";
@@ -152,10 +153,11 @@ export async function insertProjectRecord(
   initialStatus: "planned" | "active" | "released" = "planned",
 ) {
   const now = new Date();
-  const recordKey = buildRecordStorageKey(input);
+  const parsedInput = projectRecordInputSchema.parse(input);
+  const recordKey = buildRecordStorageKey(parsedInput);
   const rawDataFiles = await storeRecordFiles(recordKey, files, now);
   const record = {
-    ...input,
+    ...parsedInput,
     createdBy,
     status: initialStatus,
     processingHistory: [],

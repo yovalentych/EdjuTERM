@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Serif } from "next/font/google";
+import { IBM_Plex_Serif, Unbounded, Geologica } from "next/font/google";
 import { headers } from "next/headers";
 import Script from "next/script";
 import { isLocale } from "@/lib/i18n";
@@ -15,6 +15,22 @@ const ibmPlexSerif = IBM_Plex_Serif({
   weight: ["400", "500", "600"],
   style: ["normal", "italic"],
   variable: "--font-serif",
+  display: "swap",
+});
+
+// Unbounded — для заголовків (співпадає з мобільним theme.title / titleBlack).
+const unbounded = Unbounded({
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "600", "700", "800", "900"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+// Geologica — для основного тексту (співпадає з мобільним theme.regular/semiBold/bold).
+const geologica = Geologica({
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-sans-app",
   display: "swap",
 });
 
@@ -77,11 +93,10 @@ export default async function RootLayout({
   return (
     <html
       lang={lang}
-      className={`h-full antialiased ${ibmPlexSerif.variable}`}
+      className={`h-full antialiased ${ibmPlexSerif.variable} ${unbounded.variable} ${geologica.variable}`}
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
-      <head />
       <body className="min-h-full flex flex-col">
         <Script
           id="private-shell-preferences"
